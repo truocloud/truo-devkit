@@ -32,7 +32,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.9
 
       # La documentacion vive fuera del workspace `packages/*` justamente para no
       # meter Astro en el medio de "clonar y correr sin instalar nada". Por eso
