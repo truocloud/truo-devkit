@@ -48,7 +48,9 @@ export default defineConfig({
             // La referencia interactiva no es una pagina de Starlight: es Scalar
             // sobre el mismo openapi.json que sirve la API.
             { label: "API (interactiva)", link: "/reference/" },
-            { label: "Operaciones", autogenerate: { directory: "referencia" } },
+            // Desde Starlight 0.39 un `autogenerate` no lleva `label` propio:
+            // va dentro de un grupo con su `items`.
+            { label: "Operaciones", items: [{ autogenerate: { directory: "referencia" } }] },
           ],
         },
         {
