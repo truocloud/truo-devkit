@@ -1,0 +1,37 @@
+{
+  "name": "@truocloud/cli",
+  "version": "0.1.0",
+  "description": "CLI de TruoCloud: opera VPS, DNS, bases de datos, contenedores y balanceadores desde la terminal",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "truo": "./dist/truo.js"
+  },
+  "main": "./dist/truo.js",
+  "files": ["dist", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://docs.truo.cloud/cli",
+  "bugs": {
+    "url": "https://github.com/truocloud/truo-devkit/issues"
+  },
+  "keywords": ["truocloud", "cli", "vps", "dns", "devops"],
+  "engines": {
+    "node": ">=20"
+  },
+  "//deps": "Sin dependencias: el CLI se publica bundleado (el SDK viaja adentro), asi que un `npm i -g` no arrastra nada y el binario compilado es un solo archivo.",
+  "dependencies": {},
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "build": "bun scripts/build.ts",
+    "build:binaries": "bun scripts/build.ts --binaries",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  }
+}

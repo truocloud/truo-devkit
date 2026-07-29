@@ -1,0 +1,17 @@
+# CLAUDE.md queda SOLO en local: describe como este repo se relaciona con la
+# infraestructura interna, y este repositorio es publico.
+/CLAUDE.md
+
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# Binarios compilados del CLI (se publican como release assets, no se commitean)
+/packages/cli/bin/
+/release/
+
+.DS_Store
+Thumbs.db

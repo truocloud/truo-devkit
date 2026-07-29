@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // `bun` aporta el global `Bun` (que usa el script de build) y el modulo `bun:test`.
+    "types": ["node", "bun"],
+
+    // Los imports llevan la extension `.ts` a proposito: asi el codigo corre tal cual en
+    // Bun y en Deno sin paso de build, y el bundler resuelve lo mismo que ve el editor.
+    // Requiere `noEmit`, que es lo que hacemos — lo que se publica sale de `bun build`.
+    "allowImportingTsExtensions": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "noEmit": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@truocloud/openapi": ["packages/openapi/src/index.ts"],
+      "@truocloud/sdk": ["packages/sdk/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "packages/*/scripts/**/*.ts"],
+  "exclude": ["node_modules", "**/dist", "**/node_modules"]
+}

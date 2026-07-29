@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Diario: la API puede cambiar sin que nadie toque este repo, y enterarse por el
+  # build de un cliente es enterarse tarde.
+  schedule:
+    - cron: "17 6 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      # El spec commiteado tiene que ser el que sirve la API. Sin este gate, esta copia
+      # envejece en silencio y el SDK publicado deja de describir el contrato publicado.
+      - name: El spec esta al dia con api.truo.cloud
+        run: bun run sync:spec --check
+
+      # Nadie edita a mano un archivo generado, y nadie actualiza el spec sin regenerar.
+      - name: Lo generado esta al dia con el spec
+        run: bun run gen:check
+
+      - run: bun run typecheck
+
+      - run: bun test
+
+      - name: El CLI arranca y se puede compilar
+        run: |
+          bun run build
+          node packages/cli/dist/truo.js --version
+          node packages/cli/dist/truo.js vps power --help
+
+  binaries:
+    # Solo en los tags: compilar seis targets en cada push es caro y no lo mira nadie.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run build --binaries
+      - uses: actions/upload-artifact@v4
+        with:
+          name: truo-binaries
+          path: packages/cli/bin/*

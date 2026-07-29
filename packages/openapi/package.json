@@ -1,0 +1,24 @@
+{
+  "name": "@truocloud/openapi",
+  "version": "1.0.0",
+  "description": "Especificacion OpenAPI de la API publica de TruoCloud (api.truo.cloud/v1)",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./v1.json": "./openapi/v1.json"
+  },
+  "files": ["src", "openapi"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "packages/openapi"
+  },
+  "keywords": ["truocloud", "openapi", "api"],
+  "sideEffects": false
+}

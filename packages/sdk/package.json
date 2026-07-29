@@ -1,0 +1,35 @@
+{
+  "name": "@truocloud/sdk",
+  "version": "0.1.0",
+  "description": "Cliente TypeScript de la API publica de TruoCloud (api.truo.cloud). Sin dependencias.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://docs.truo.cloud",
+  "bugs": {
+    "url": "https://github.com/truocloud/truo-devkit/issues"
+  },
+  "keywords": ["truocloud", "vps", "dns", "dbaas", "api", "sdk"],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "dependencies": {},
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  }
+}
