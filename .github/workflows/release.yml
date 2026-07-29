@@ -97,10 +97,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      # `path: packages` y no `.`: upload-artifact@v4 recorta el ancestro comun
+      # de todos los paths (aca, `packages/`), asi que el artefacto trae
+      # `cli/dist/...` sin el prefijo. Descargar a `.` deja los dist FUERA de
+      # packages/ y npm publica paquetes vacios sin quejarse.
       - uses: actions/download-artifact@v4
         with:
           name: dist
-          path: .
+          path: packages
 
       - uses: actions/setup-node@v4
         with:
@@ -115,6 +119,9 @@ jobs:
           set -e
           for pkg in packages/openapi packages/sdk packages/cli; do
             echo "── $pkg"
+            # El guard existe porque ya casi pasa: sin dist, npm publica un
+            # paquete con solo package.json y sale 0.
+            ls "$pkg"/dist/*.js >/dev/null || { echo "::error::$pkg sin dist/ — el artefacto no se descargo donde el publish lo espera"; exit 1; }
             ( cd "$pkg" && npm publish --provenance --access public )
           done
         env:
@@ -128,10 +135,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      # `path: packages`: ver el comentario en publish-npm.
       - uses: actions/download-artifact@v4
         with:
           name: dist
-          path: .
+          path: packages
 
       - name: Crear el release con los binarios
         env:
@@ -157,10 +165,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.9
+      # `path: packages`: ver el comentario en publish-npm — packagers.ts lee
+      # el SHA256SUMS en packages/cli/bin/.
       - uses: actions/download-artifact@v4
         with:
           name: dist
-          path: .
+          path: packages
 
       - name: Generar la formula y el manifiesto
         run: bun scripts/packagers.ts "${{ needs.build.outputs.version }}"
