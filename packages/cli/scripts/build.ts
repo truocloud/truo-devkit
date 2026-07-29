@@ -99,4 +99,23 @@ for (const { target, out } of TARGETS) {
   console.log(`  bin/${out}  ${(bytes / 1024 / 1024).toFixed(1)} MB`);
 }
 
+/**
+ * Checksums.
+ *
+ * Los binarios se bajan por `curl | sh`, por brew y por scoop; los tres formatos
+ * verifican contra un sha256. Calcularlos aca y no en el workflow deja que
+ * cualquiera reproduzca el archivo y compare, sin leer YAML de CI.
+ */
+{
+  const lines: string[] = [];
+  for (const { out } of TARGETS) {
+    const bytes = await Bun.file(resolve(BIN, out)).arrayBuffer();
+    const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
+    lines.push(`${digest}  ${out}`);
+  }
+  // Formato de `sha256sum`: `<hash>  <archivo>`, para que `sha256sum -c` lo lea.
+  await Bun.write(resolve(BIN, "SHA256SUMS"), lines.join("\n") + "\n");
+  console.log("  bin/SHA256SUMS");
+}
+
 console.log(`\nListo: ${TARGETS.length} binarios en packages/cli/bin/.`);

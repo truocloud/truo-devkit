@@ -1,0 +1,76 @@
+name: Docs
+
+# docs.truo.cloud. Estatico, sin backend: una documentacion que necesita un
+# servidor propio puede caerse en el mismo incidente que estas documentando.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "packages/openapi/openapi/v1.json"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "packages/openapi/openapi/v1.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs
+  # Sin cancelar: dos merges seguidos a main no deberian dejar publicada la
+  # documentacion del primero.
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # La documentacion vive fuera del workspace `packages/*` justamente para no
+      # meter Astro en el medio de "clonar y correr sin instalar nada". Por eso
+      # instala aparte.
+      - run: bun install
+        working-directory: docs
+
+      # `generate.ts` copia el spec y escribe las paginas de referencia. Corre
+      # dentro de `build`, pero se llama aparte para que un fallo del generador
+      # se distinga de un fallo de Astro.
+      - run: bun scripts/generate.ts
+        working-directory: docs
+
+      - run: bunx astro build
+        working-directory: docs
+
+      - name: Los artefactos para agentes existen y no estan vacios
+        run: |
+          for f in openapi.json llms.txt llms-full.txt; do
+            test -s "docs/dist/$f" || { echo "falta o esta vacio: $f"; exit 1; }
+          done
+          grep -q '"openapi"' docs/dist/openapi.json
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: docs/dist
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

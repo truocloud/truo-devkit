@@ -1,0 +1,28 @@
+{
+  // Emite SOLO los `.d.ts`. El JavaScript lo produce `bun build` como un unico
+  // `dist/index.js` sin dependencias.
+  //
+  // Que los tipos queden como un arbol de `.d.ts` (uno por archivo fuente) y el
+  // runtime como un solo bundle no es una inconsistencia: TypeScript resuelve
+  // `./client.js` contra `./client.d.ts` sin que el `.js` exista, y asi los tipos
+  // conservan la estructura y los comentarios de cada modulo en vez de aplastarse
+  // en un archivo de miles de lineas.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    // Los fuentes importan con extension `.ts` (para correr sin build en Bun y
+    // Deno); en los `.d.ts` publicados eso tiene que ser `.js` o Node no resuelve
+    // nada. Esta opcion hace exactamente esa reescritura.
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    // El SDK no usa `bun:test` ni el global `Bun`: es codigo de cliente y tiene
+    // que compilar contra Node pelado.
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

@@ -16,8 +16,19 @@ import { executeCommand, toCliError } from "./execute.ts";
 import { commandHelp, groupHelp, rootHelp } from "./help.ts";
 import { color, fail, info, out, parseFormat } from "./output.ts";
 import { resolve as resolveConfig } from "./config.ts";
+import pkg from "../package.json";
 
-const CLI_VERSION = "0.1.0";
+/**
+ * Sale del `package.json`, no de una constante.
+ *
+ * `scripts/set-version.ts` escribe la version del tag en los tres paquetes; una
+ * copia a mano acá seria la unica que no se actualiza, y el sintoma —un
+ * `truo --version` que miente— aparece justo cuando alguien reporta un bug y
+ * dice que version tiene.
+ *
+ * Queda inlineado por el bundler, asi que el binario no lee ningun archivo.
+ */
+const CLI_VERSION: string = pkg.version;
 
 const BUILTIN_BY_PATH = new Map<string, BuiltinCommand>(BUILTINS.map((b) => [b.path.join(" "), b]));
 

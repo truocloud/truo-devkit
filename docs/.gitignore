@@ -1,0 +1,10 @@
+# Todo lo que sale de `bun scripts/generate.ts`: se regenera en cada build y
+# commitearlo solo produciria diffs de cientos de lineas en cada cambio del spec.
+/public/openapi.json
+/public/llms.txt
+/public/llms-full.txt
+/src/content/docs/referencia/
+
+node_modules/
+dist/
+.astro/

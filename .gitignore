@@ -12,6 +12,8 @@ dist/
 # Binarios compilados del CLI (se publican como release assets, no se commitean)
 /packages/cli/bin/
 /release/
+# Formula de brew y manifiesto de scoop: se generan en el release
+/dist-packagers/
 
 .DS_Store
 Thumbs.db

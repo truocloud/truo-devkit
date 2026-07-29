@@ -1,0 +1,93 @@
+---
+title: API de TruoCloud
+description: Operá VPS, DNS, bases de datos, contenedores, balanceadores, Object Storage y Mail Gateway desde código, desde la terminal o desde un agente.
+template: splash
+hero:
+  tagline: Infraestructura cloud que se opera con código. Y con un agente, si querés.
+  actions:
+    - text: Empezar
+      link: /empezar/autenticacion/
+      icon: right-arrow
+    - text: Referencia interactiva
+      link: /reference/
+      icon: open-book
+      variant: minimal
+---
+
+import { Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
+
+## Los mismos treinta segundos, en cuatro superficies
+
+Cada operación de la API existe como llamada HTTP, como comando del CLI, como
+método del SDK y —cuando salga— como acción de MCP. **Las cuatro se generan del
+mismo contrato**, así que no pueden contradecirse.
+
+<Tabs syncKey="superficie">
+<TabItem label="curl">
+
+```bash
+curl https://api.truo.cloud/v1/services \
+  -H "Authorization: Bearer $TRUO_TOKEN"
+
+curl https://api.truo.cloud/v1/vps/svc_10432/power \
+  -X POST \
+  -H "Authorization: Bearer $TRUO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"stop"}'
+```
+
+</TabItem>
+<TabItem label="CLI">
+
+```bash
+truo auth login
+truo services list
+truo vps power svc_10432 stop
+```
+
+</TabItem>
+<TabItem label="SDK">
+
+```ts
+import { TruoClient } from "@truocloud/sdk";
+
+const truo = new TruoClient();               // lee TRUO_TOKEN
+
+for await (const svc of truo.services.listAll()) console.log(svc.id);
+
+const op = await truo.vps.power("svc_10432", { action: "stop" });
+await truo.operations.wait(op.id);
+```
+
+</TabItem>
+</Tabs>
+
+<CardGrid>
+  <Card title="Un contrato, no una superficie" icon="approve-check">
+    El OpenAPI sale de los schemas de validación de los propios handlers. Un
+    endpoint no puede aceptar algo que el spec no describa.
+    [Cómo funciona](/empezar/contrato/)
+  </Card>
+  <Card title="Credenciales que se pueden acotar" icon="setting">
+    Scopes por recurso y acción, allowlist por servicio, y una key **nunca**
+    puede crear otra key. [Autenticación](/empezar/autenticacion/)
+  </Card>
+  <Card title="Doce meses de aviso" icon="information">
+    Nada se elimina ni se renombra sin `Deprecation`/`Sunset` y un año de
+    ventana. [La política](/deprecation/)
+  </Card>
+  <Card title="Pensada para agentes" icon="rocket">
+    Cada operación declara su scope, si es destructiva y si es asíncrona.
+    [Darle acceso a un agente](/agentes/)
+  </Card>
+</CardGrid>
+
+## Qué se puede operar
+
+VPS · DNS · bases de datos administradas · contenedores · balanceadores ·
+Object Storage · Mail Gateway. **103 operaciones** en total —
+[la referencia completa](/referencia/vps/).
+
+WordPress, cPanel, dominios, tickets y facturación llegan en `v1.1`. Lo que no
+está en [`/v1/openapi.json`](https://api.truo.cloud/v1/openapi.json) no tiene
+contrato todavía.

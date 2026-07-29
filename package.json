@@ -16,6 +16,9 @@
     "sync:spec": "bun packages/openapi/scripts/sync.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "bun packages/cli/scripts/build.ts",
+    "build:npm": "bun scripts/build-npm.ts",
+    "version:set": "bun scripts/set-version.ts",
+    "version:check": "bun scripts/set-version.ts --check",
     "test": "bun test"
   },
   "devDependencies": {

@@ -1,0 +1,20 @@
+{
+  "name": "@truocloud/docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "docs.truo.cloud — documentacion de la API publica, el SDK y el CLI",
+  "type": "module",
+  "//": "Fuera del workspace `packages/*` a proposito: el devkit se clona y se corre sin instalar nada, y Astro es un arbol de dependencias que no tiene por que estar en el medio de eso. Se instala solo si vas a tocar la documentacion.",
+  "scripts": {
+    "generate": "bun scripts/generate.ts",
+    "dev": "bun scripts/generate.ts && astro dev",
+    "build": "bun scripts/generate.ts && astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.5",
+    "astro": "^7.1.5",
+    "sharp": "^0.34.0"
+  }
+}

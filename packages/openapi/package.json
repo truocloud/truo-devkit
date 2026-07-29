@@ -1,16 +1,20 @@
 {
   "name": "@truocloud/openapi",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Especificacion OpenAPI de la API publica de TruoCloud (api.truo.cloud/v1)",
   "license": "MIT",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./v1.json": "./openapi/v1.json"
   },
-  "files": ["src", "openapi"],
+  "//files": "El spec crudo se publica ademas del bundle: hay herramientas que quieren el JSON, no un modulo.",
+  "files": ["dist", "openapi", "README.md"],
   "publishConfig": {
     "access": "public"
   },

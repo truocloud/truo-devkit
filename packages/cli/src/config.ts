@@ -16,6 +16,8 @@ import { dirname, join } from "node:path";
 export interface Profile {
   /** Base URL de la API. Se cambia para apuntar a un entorno propio. */
   base_url?: string;
+  /** Servidor de identidad para `truo auth login` (device flow). */
+  idp_url?: string;
   /** Formato de salida por defecto de este perfil. */
   output?: string;
   /** Cuenta a la que pertenece el token, solo informativo (se llena en el login). */
@@ -120,6 +122,7 @@ export interface Resolved {
   profile: string;
   token: string | null;
   baseUrl: string | undefined;
+  idpUrl: string | undefined;
   output: string | undefined;
   /** De donde salio el token; se muestra en `truo auth status`. */
   tokenSource: "flag" | "env" | "profile" | null;
@@ -157,6 +160,7 @@ export function resolve(opts: { token?: string | undefined; profile?: string | u
     profile,
     token,
     baseUrl: opts.baseUrl ?? process.env["TRUO_BASE_URL"] ?? entry.base_url,
+    idpUrl: process.env["TRUO_IDP_URL"] ?? entry.idp_url,
     output: entry.output,
     tokenSource,
   };

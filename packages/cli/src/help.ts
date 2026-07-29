@@ -89,9 +89,16 @@ export function groupHelp(group: string, builtins: Builtin[]): string {
   const built = builtins.filter((b) => b.path[0] === group && b.path.length > 1);
   if (commands.length === 0 && built.length === 0) return "";
 
+  // Un builtin puede tapar a un comando generado del mismo nombre (`auth status`
+  // reemplaza a `GET /v1/account` para mostrar tambien de donde sale el token).
+  // El dispatcher ya le da prioridad al builtin; sin este dedup la ayuda listaba
+  // los dos, con dos descripciones distintas para lo que se escribe igual.
+  const seen = new Set(built.map((b) => b.path.slice(1).join(" ")));
   const entries: { name: string; summary: string }[] = [
     ...built.map((b) => ({ name: b.path.slice(1).join(" "), summary: b.summary })),
-    ...commands.map((c) => ({ name: c.path.slice(1).join(" "), summary: c.summary || c.operationId })),
+    ...commands
+      .map((c) => ({ name: c.path.slice(1).join(" "), summary: c.summary || c.operationId }))
+      .filter((c) => !seen.has(c.name)),
   ].sort((a, b) => a.name.localeCompare(b.name));
 
   const width = Math.max(...entries.map((e) => e.name.length));

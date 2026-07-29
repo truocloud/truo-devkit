@@ -1,0 +1,199 @@
+name: Release
+
+# Dispara con un tag `vX.Y.Z`. El tag es la unica fuente de la version: el
+# workflow la escribe en los tres package.json antes de publicar, asi que no hay
+# forma de taggear `v0.3.0` y publicar `0.2.9` por haberse olvidado un commit.
+on:
+  push:
+    tags: ["v*"]
+  # Ensayo sin publicar: corre todo menos el `npm publish` y el `gh release`.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version a ensayar (sin publicar), ej. 0.2.0"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - id: version
+        run: |
+          RAW="${{ github.event.inputs.version || github.ref_name }}"
+          echo "version=${RAW#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Fijar la version en los tres paquetes
+        run: bun run version:set "${{ steps.version.outputs.version }}"
+
+      # Las mismas puertas que en cada push. Un release NO es el lugar para
+      # relajarlas: es exactamente el momento en que un spec desincronizado se
+      # convierte en un paquete publicado que miente sobre la API.
+      - run: bun run sync:spec --check
+      - run: bun run gen:check
+      - run: bun run typecheck
+      - run: bun test
+
+      - name: Construir los paquetes npm
+        run: bun run build:npm
+
+      - name: Construir los binarios
+        run: bun run build --binaries
+
+      # Humo real: el paquete que se va a publicar tiene que arrancar en Node,
+      # no solo en Bun. Ya nos paso con el shebang.
+      - name: El CLI construido corre en Node
+        run: |
+          node packages/cli/dist/truo.js --version
+          node packages/cli/dist/truo.js vps power --help
+          node packages/cli/dist/truo.js auth login --help
+
+      - name: El SDK construido se importa desde Node
+        run: |
+          cd "$(mktemp -d)"
+          echo '{"type":"module"}' > package.json
+          cat > check.mjs <<'EOF'
+          import { TruoClient, OPERATIONS } from "$GITHUB_WORKSPACE/packages/sdk/dist/index.js";
+          if (typeof TruoClient !== "function") throw new Error("TruoClient no se exporto");
+          if (Object.keys(OPERATIONS).length === 0) throw new Error("OPERATIONS vacio");
+          console.log(`SDK ok: ${Object.keys(OPERATIONS).length} operaciones`);
+          EOF
+          sed -i "s|\$GITHUB_WORKSPACE|file://$GITHUB_WORKSPACE|" check.mjs
+          node check.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          # Los package.json van porque llevan la version ya escrita: el job de
+          # publish no vuelve a correr `version:set`.
+          path: |
+            packages/*/dist/**
+            packages/cli/bin/**
+            packages/openapi/openapi/**
+            packages/*/package.json
+          retention-days: 7
+
+  publish-npm:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      # Provenance: GitHub firma un attestation que ata el tarball publicado a
+      # este commit y este workflow. Es lo que permite a alguien verificar que
+      # `@truocloud/cli` salio de este repo publico y no del portatil de nadie.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # En orden de dependencia. Hoy los tres son autocontenidos (todo viaja
+      # bundleado), pero el orden es gratis y deja de serlo el dia que uno
+      # declare al otro como dependencia de verdad.
+      - name: Publicar
+        run: |
+          set -e
+          for pkg in packages/openapi packages/sdk packages/cli; do
+            echo "── $pkg"
+            ( cd "$pkg" && npm publish --provenance --access public )
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: .
+
+      - name: Crear el release con los binarios
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            packages/cli/bin/* \
+            packages/openapi/openapi/v1.json
+
+  packagers:
+    # Brew y scoop apuntan a los assets del release: tiene que existir primero.
+    needs: [build, release]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # A nivel de job para poder consultarlo en el `if` de los pasos: un `secrets.`
+    # no se puede evaluar directamente ahi.
+    env:
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: .
+
+      - name: Generar la formula y el manifiesto
+        run: bun scripts/packagers.ts "${{ needs.build.outputs.version }}"
+
+      # Sin el PAT no se puede escribir en los otros dos repos. Se avisa y se
+      # sigue: el release ya esta publicado, y no tener el tap actualizado no es
+      # razon para marcar el workflow en rojo.
+      - name: Publicar el tap de brew y el bucket de scoop
+        if: ${{ env.TAP_TOKEN != '' }}
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          git config --global user.name "truo-release"
+          git config --global user.email "dev@truo.cloud"
+
+          push_file() {
+            local repo="$1" dest="$2" src="$3"
+            local tmp; tmp="$(mktemp -d)"
+            git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/truocloud/${repo}.git" "$tmp" || return 0
+            mkdir -p "$(dirname "$tmp/$dest")"
+            cp "$src" "$tmp/$dest"
+            git -C "$tmp" add -A
+            git -C "$tmp" diff --cached --quiet && { echo "$repo sin cambios"; return 0; }
+            git -C "$tmp" commit -m "truo ${VERSION}"
+            git -C "$tmp" push
+          }
+
+          push_file homebrew-tap Formula/truo.rb dist-packagers/truo.rb
+          push_file scoop-bucket bucket/truo.json dist-packagers/truo.json
+
+      - name: Aviso si falta el PAT
+        if: ${{ env.TAP_TOKEN == '' }}
+        run: |
+          echo "::warning::TAP_TOKEN no configurado: el release quedo publicado pero brew y scoop no se actualizaron."
+          echo "Archivos generados en dist-packagers/ (subilos a mano si hace falta):"
+          ls -la dist-packagers/

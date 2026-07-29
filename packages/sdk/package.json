@@ -4,12 +4,16 @@
   "description": "Cliente TypeScript de la API publica de TruoCloud (api.truo.cloud). Sin dependencias.",
   "license": "MIT",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
-  "files": ["src"],
+  "//files": "Se publica lo construido, no los fuentes: importan con extension .ts y Node no los carga.",
+  "files": ["dist", "README.md"],
   "publishConfig": {
     "access": "public"
   },
@@ -29,6 +33,7 @@
   "sideEffects": false,
   "dependencies": {},
   "scripts": {
+    "build": "bunx tsc --project tsconfig.build.json && bun build src/index.ts --outdir dist --target node --format esm",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   }

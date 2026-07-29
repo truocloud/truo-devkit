@@ -6,9 +6,18 @@
  * corta a proposito — cada comando escrito a mano es uno que puede quedar desalineado con
  * la API.
  */
+import { hostname } from "node:os";
 import { TruoClient } from "../../sdk/src/index.ts";
 import type * as T from "../../sdk/src/generated/types.ts";
 import { API_BASE_URL } from "../../sdk/src/generated/operations.ts";
+import {
+  DEFAULT_IDP_URL,
+  grantableScopes,
+  openBrowser,
+  pollForToken,
+  requestDeviceCode,
+  signOut,
+} from "./device.ts";
 import { COMMANDS } from "./generated/commands.ts";
 import { flagBool, flagString, type ParsedArgs } from "./args.ts";
 import { CliError, EXIT } from "./exit.ts";
@@ -36,66 +45,160 @@ export interface BuiltinCommand extends Builtin {
 // auth
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Guarda una key ya validada y deja el perfil listo. Compartido por los dos
+ * caminos del login (device flow y `--token`) para que no haya forma de que uno
+ * escriba algo distinto del otro.
+ */
+async function persistToken(
+  profile: string,
+  token: string,
+  baseUrl: string | undefined,
+  account: T.Account,
+): Promise<void> {
+  const { path, warning } = saveToken(profile, token);
+  const cfg = loadConfig();
+  cfg.profiles[profile] = {
+    ...(cfg.profiles[profile] ?? {}),
+    account: account.email ?? account.id ?? undefined,
+    ...(baseUrl ? { base_url: baseUrl } : {}),
+  };
+  saveConfig(cfg);
+
+  info(
+    `${color.green("Listo.")} Perfil ${color.bold(profile)} autenticado como ` +
+      `${color.bold(account.email ?? account.id ?? "?")} — token ${maskToken(token)}.`,
+  );
+  info(color.dim(`Guardado en ${path}`));
+  if (warning) info(color.yellow(warning));
+}
+
 const authLogin: BuiltinCommand = {
   path: ["auth", "login"],
-  summary: "Guardar una API key en el perfil activo",
+  summary: "Entrar con el navegador y crear la API key de este equipo",
+  usage: "truo auth login [--scopes a,b] [--no-browser] | truo auth login --token <key>",
   anonymous: true,
   details:
-    "Pega una key creada en el panel (consola.truocloud.com → Configuracion → API keys). " +
-    "El login por device flow contra login.truo.cloud llegara cuando el IdP lo soporte.",
+    "Por defecto abre un login en el navegador (device flow, RFC 8628) y crea una API key " +
+    "propia de este equipo. La key es la credencial que queda guardada: se puede revocar " +
+    "desde el panel sin tocar el resto, y la sesion del navegador se cierra apenas termina.\n\n" +
+    "--token <key>   Usa una key ya creada en el panel, sin navegador (para CI y bastiones).\n" +
+    "--scopes a,b    Acota la key. Por defecto pide todo lo que el CLI puede usar.\n" +
+    "--no-browser    No intenta abrir el navegador; solo imprime la URL.\n" +
+    "--name <n>      Nombre de la key en el panel (por defecto truo-cli@<equipo>).",
   async run(ctx) {
     const profile = ctx.resolved.profile;
-    let token = flagString(ctx.args.flags, "token");
+    const baseUrl = ctx.resolved.baseUrl;
+    const explicitToken = flagString(ctx.args.flags, "token");
 
-    if (!token) {
-      if (!isInteractive()) {
+    // ── Camino corto: una key que ya existe ─────────────────────────────────
+    // `--token` a secas (sin valor) tambien entra aca: quien lo escribio quiere
+    // pegar una key, no abrir un navegador.
+    if (ctx.args.flags.has("token") || flagBool(ctx.args.flags, "paste") === true) {
+      let token = explicitToken;
+      if (!token) {
+        if (!isInteractive()) {
+          throw new CliError(
+            "Sin terminal interactiva no se puede pedir el token.",
+            EXIT.UNAUTHENTICATED,
+            "Pasalo con --token, o exporta TRUO_TOKEN en tu CI.",
+          );
+        }
+        info(`Crea una API key en ${color.cyan("https://consola.truocloud.com/settings/api-keys")} y pegala aca.`);
+        info(color.dim("No se muestra mientras la escribis."));
+        token = await askSecret("Token: ");
+      }
+      if (!token) throw new CliError("No se ingreso ningun token.", EXIT.UNAUTHENTICATED);
+      if (!/^tc_(live|test)_/.test(token)) {
         throw new CliError(
-          "Sin terminal interactiva no se puede pedir el token.",
-          EXIT.UNAUTHENTICATED,
-          "Pasalo con --token, o exporta TRUO_TOKEN en tu CI.",
+          "Eso no parece una API key de TruoCloud (deberia empezar con tc_live_ o tc_test_).",
+          EXIT.USAGE,
         );
       }
-      info(`Crea una API key en ${color.cyan("https://consola.truocloud.com/settings/api-keys")} y pegala aca.`);
-      info(color.dim("No se muestra mientras la escribis."));
-      token = await askSecret("Token: ");
-    }
-    if (!token) throw new CliError("No se ingreso ningun token.", EXIT.UNAUTHENTICATED);
-    if (!/^tc_(live|test)_/.test(token)) {
-      throw new CliError(
-        "Eso no parece una API key de TruoCloud (deberia empezar con tc_live_ o tc_test_).",
-        EXIT.USAGE,
-      );
+
+      // Se valida ANTES de guardar. Guardar una credencial que no funciona convierte el
+      // primer comando real del usuario en un 401 sin explicacion.
+      // El tipo sale del contrato (`T.Account`), no de una forma inventada acá: si la API
+      // renombrara `email`, esto deja de compilar en vez de imprimir "?" en produccion.
+      let account: T.Account;
+      try {
+        account = await new TruoClient({ token, ...(baseUrl ? { baseUrl } : {}) }).account.get();
+      } catch (err) {
+        throw toCliError(err);
+      }
+      await persistToken(profile, token, baseUrl, account);
+      return EXIT.OK;
     }
 
-    // Se valida ANTES de guardar. Guardar una credencial que no funciona convierte el
-    // primer comando real del usuario en un 401 sin explicacion.
-    // El tipo sale del contrato (`T.Account`), no de una forma inventada acá: si la API
-    // renombrara `email`, esto deja de compilar en vez de imprimir "?" en produccion.
-    let account: T.Account;
+    // ── Camino normal: device flow ──────────────────────────────────────────
+    const idpUrl = flagString(ctx.args.flags, "idp") ?? ctx.resolved.idpUrl ?? DEFAULT_IDP_URL;
+    const requested = flagString(ctx.args.flags, "scopes");
+    const scopes = requested
+      ? requested.split(",").map((s) => s.trim()).filter(Boolean)
+      : grantableScopes();
+    if (scopes.length === 0) {
+      throw new CliError("--scopes quedo vacio.", EXIT.USAGE, `Disponibles: ${grantableScopes().join(", ")}`);
+    }
+
+    const device = await requestDeviceCode(idpUrl, scopes);
+
+    // El código va a stderr como todo lo interactivo: `truo auth login` puede
+    // correr con stdout redirigido y esto no es dato de salida, es instrucción.
+    info("");
+    info(`  Abri  ${color.cyan(device.verificationUri)}`);
+    info(`  Codigo  ${color.bold(device.userCode)}`);
+    info("");
+
+    // `--no-browser` llega normalizado como `browser=false` desde el parser.
+    const noBrowser = flagBool(ctx.args.flags, "browser") === false;
+    if (!noBrowser && device.verificationUriComplete && openBrowser(device.verificationUriComplete)) {
+      info(color.dim("Se abrio el navegador. Verifica que el codigo coincida antes de aprobar."));
+    } else {
+      info(color.dim("Abri esa URL en cualquier navegador (puede ser el de tu telefono)."));
+    }
+    info(color.dim("Esperando la aprobacion…"));
+
+    const idpToken = await pollForToken(idpUrl, device);
+
+    // El token del IdP alcanza para crear la key y nada más: la API lo acota a
+    // `account:read` + `apikeys:*`. Lo que queda guardado es la key.
+    const bootstrap = new TruoClient({ token: idpToken, ...(baseUrl ? { baseUrl } : {}) });
+    const name = flagString(ctx.args.flags, "name") ?? `truo-cli@${safeHostname()}`;
+
+    let created: T.ApiKeyCreated;
     try {
-      const client = new TruoClient({
-        token,
-        ...(ctx.resolved.baseUrl ? { baseUrl: ctx.resolved.baseUrl } : {}),
-      });
-      account = await client.account.get();
+      created = await bootstrap.apiKeys.create({ name, scopes });
     } catch (err) {
+      await signOut(idpUrl, idpToken);
       throw toCliError(err);
     }
 
-    const { path, warning } = saveToken(profile, token);
-    const cfg = loadConfig();
-    cfg.profiles[profile] = { ...(cfg.profiles[profile] ?? {}), account: account.email ?? account.id ?? undefined };
-    saveConfig(cfg);
+    let account: T.Account;
+    try {
+      account = await new TruoClient({
+        token: created.token,
+        ...(baseUrl ? { baseUrl } : {}),
+      }).account.get();
+    } catch (err) {
+      await signOut(idpUrl, idpToken);
+      throw toCliError(err);
+    }
 
-    info(
-      `${color.green("Listo.")} Perfil ${color.bold(profile)} autenticado como ` +
-        `${color.bold(account.email ?? account.id ?? "?")} — token ${maskToken(token)}.`,
-    );
-    info(color.dim(`Guardado en ${path}`));
-    if (warning) info(color.yellow(warning));
+    await persistToken(profile, created.token, baseUrl, account);
+    // La sesión del navegador ya no hace falta. Dejarla viva sería dejar tirada
+    // una credencial que nadie va a acordarse de revocar.
+    await signOut(idpUrl, idpToken);
+
+    info(color.dim(`Key "${name}" (${created.id}) con ${scopes.length} scopes. Revocala con: truo auth token revoke ${created.id}`));
     return EXIT.OK;
   },
 };
+
+/** Nombre del equipo, saneado para que entre en el nombre de una key. */
+function safeHostname(): string {
+  const raw = hostname() || "desconocido";
+  return raw.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 40);
+}
 
 const authLogout: BuiltinCommand = {
   path: ["auth", "logout"],
@@ -205,12 +308,12 @@ const configUse: BuiltinCommand = {
 
 const configSet: BuiltinCommand = {
   path: ["config", "set"],
-  summary: "Ajustar una clave del perfil activo (base_url, output)",
+  summary: "Ajustar una clave del perfil activo (base_url, idp_url, output)",
   usage: "truo config set <clave> <valor>",
   anonymous: true,
   async run(ctx) {
     const [key, value] = ctx.positionals;
-    const allowed = ["base_url", "output"];
+    const allowed = ["base_url", "idp_url", "output"];
     if (!key || value === undefined) {
       throw new CliError("Faltan argumentos.", EXIT.USAGE, `Uso: truo config set <${allowed.join("|")}> <valor>`);
     }
