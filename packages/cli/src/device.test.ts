@@ -25,7 +25,7 @@ function stub(responses: Array<{ status: number; body: unknown }>): { calls: num
       status: next.status,
       headers: { "content-type": "application/json" },
     });
-  }) as typeof fetch;
+  }) as unknown as typeof fetch;
   return state;
 }
 
@@ -150,7 +150,7 @@ describe("pollForToken", () => {
         status: 200,
         headers: { "content-type": "application/json" },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
     expect(await pollForToken(IDP, auth, { wait: async () => {} })).toBe("sess_789");
     expect(calls).toBe(2);
   });
