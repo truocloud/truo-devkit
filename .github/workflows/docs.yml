@@ -56,6 +56,20 @@ jobs:
           done
           grep -q '"openapi"' docs/dist/openapi.json
 
+      # Las cuatro formas (curl/CLI/SDK/MCP) son el argumento entero de la
+      # referencia, y su modo de fallar es silencioso: en Markdown plano el
+      # `import` sale como texto y los `<Tabs>` quedan como HTML inerte que el
+      # navegador ignora. La pagina responde 200 y no muestra nada. Ya paso una
+      # vez; por eso se verifica el HTML construido y no que el archivo exista.
+      - name: Las pestañas de la referencia se renderizaron de verdad
+        run: |
+          page=docs/dist/referencia/vps/index.html
+          test -f "$page" || { echo "no se construyo $page"; exit 1; }
+          grep -q "starlight-tabs" "$page" || { echo "las pestañas no se renderizaron"; exit 1; }
+          if grep -q 'import {' "$page"; then
+            echo "el import quedo como texto: la pagina no se proceso como MDX"; exit 1
+          fi
+
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:

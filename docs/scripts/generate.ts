@@ -243,7 +243,11 @@ Para probar contra tu cuenta, usa la [referencia interactiva](/reference/).
 
 ${sections.join("\n")}`;
 
-  writeFileSync(resolve(REFERENCE, `${slug(tag)}.md`), page.replace(/\r\n/g, "\n"), "utf8");
+  // `.mdx` y no `.md`: en Markdown plano el `import` sale como texto literal y
+  // los `<Tabs>` quedan como HTML inerte. Es exactamente lo que pasó la primera
+  // vez — la página se veía bien en el diff y las cuatro formas no se
+  // renderizaban en el sitio publicado.
+  writeFileSync(resolve(REFERENCE, `${slug(tag)}.mdx`), page.replace(/\r\n/g, "\n"), "utf8");
 }
 
 // ── llms.txt ────────────────────────────────────────────────────────────────
