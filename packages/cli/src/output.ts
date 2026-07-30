@@ -1,10 +1,10 @@
 /**
- * Renderizado de la salida.
+ * Output rendering.
  *
- * Regla que atraviesa todo el archivo: **la tabla va a stdout y todo lo demas a stderr**.
- * Progreso, avisos y confirmaciones nunca contaminan el stdout, asi
- * `truo vps list -o json > f.json` produce un JSON valido incluso cuando el comando tuvo
- * algo que decir por el camino.
+ * Rule that runs through the whole file: **the table goes to stdout and everything else
+ * to stderr**. Progress, warnings and confirmations never contaminate stdout, so
+ * `truo vps list -o json > f.json` produces valid JSON even when the command had
+ * something to say along the way.
  */
 
 export type OutputFormat = "table" | "json" | "jsonl" | "id" | "yaml";
@@ -40,11 +40,12 @@ export function fail(text: string): void {
 }
 
 /**
- * Selector de campo por ruta con puntos: `data.0.hostname`, `resource.id`.
+ * Field selector by dotted path: `data.0.hostname`, `resource.id`.
  *
- * No es JMESPath. Cubre el caso que aparece en el 90 % de los scripts —sacar un valor de
- * la respuesta— sin arrastrar una dependencia al binario. Para consultas de verdad esta
- * `-o json | jq`, que es lo que la documentacion recomienda y no pretende reemplazar.
+ * It is not JMESPath. It covers the case that shows up in 90% of scripts — pulling one
+ * value out of the response — without dragging a dependency into the binary. For real
+ * queries there is `-o json | jq`, which is what the docs recommend, and this does not
+ * pretend to replace it.
  */
 export function selectPath(value: unknown, path: string): unknown {
   let current: unknown = value;
@@ -63,11 +64,11 @@ export function selectPath(value: unknown, path: string): unknown {
 }
 
 /**
- * Columnas preferidas por tipo de objeto.
+ * Preferred columns by object type.
  *
- * Sin esto la tabla mostraria las primeras claves del JSON, que es un orden accidental. Un
- * VPS se identifica por id, hostname y estado; que aparezca `object` y `vmid` primero
- * obliga a leer la fila entera para encontrar lo que se buscaba.
+ * Without this the table would show the first keys of the JSON, which is an accidental
+ * order. A VPS is identified by id, hostname and state; putting `object` and `vmid`
+ * first forces reading the whole row to find what you were looking for.
  */
 const COLUMNS: Record<string, string[]> = {
   vps: ["id", "hostname", "state", "status", "primary_ip", "node"],
@@ -101,13 +102,13 @@ const COLUMNS: Record<string, string[]> = {
 
 function scalar(v: unknown): string {
   if (v === null || v === undefined) return c.dim("—");
-  if (typeof v === "boolean") return v ? "sí" : "no";
+  if (typeof v === "boolean") return v ? "yes" : "no";
   if (Array.isArray(v)) return v.length ? v.map((x) => scalar(x)).join(",") : c.dim("—");
   if (typeof v === "object") return c.dim("{…}");
   return String(v);
 }
 
-/** Ancho visible: los codigos ANSI no ocupan columnas aunque ocupen caracteres. */
+/** Visible width: ANSI codes take up characters but no columns. */
 function width(s: string): number {
   return s.replace(/\x1b\[[0-9;]*m/g, "").length;
 }
@@ -117,7 +118,7 @@ function pad(s: string, n: number): string {
 }
 
 export function renderTable(rows: Record<string, unknown>[], preferred?: string[]): string {
-  if (rows.length === 0) return c.dim("(sin resultados)");
+  if (rows.length === 0) return c.dim("(no results)");
 
   const first = rows[0]!;
   const objectType = typeof first["object"] === "string" ? (first["object"] as string) : null;
@@ -131,18 +132,18 @@ export function renderTable(rows: Record<string, unknown>[], preferred?: string[
       })
       .slice(0, 6);
 
-  // Ojo con `objectType && COLUMNS[objectType]`: si `object` viniera vacio, el `&&`
-  // devuelve la cadena vacia —que no es nullish— y el `??` no la rescata. El resultado
-  // seria un `columns` de tipo string donde se espera un array.
+  // Careful with `objectType && COLUMNS[objectType]`: if `object` came in empty, the `&&`
+  // returns the empty string — which is not nullish — and the `??` does not rescue it.
+  // The result would be a `columns` of type string where an array is expected.
   const columns = preferred ?? (objectType !== null ? COLUMNS[objectType] : undefined) ?? auto();
 
-  // Si ninguna de las columnas preferidas existe en los datos, se cae a las automaticas.
-  // Sin este rescate, un nombre de campo desactualizado en el mapa de arriba no da un
-  // error: **imprime una tabla vacia**, que es la peor forma de fallar — el usuario cree
-  // que no hay resultados cuando en realidad los hay.
+  // If none of the preferred columns exist in the data, fall back to the automatic ones.
+  // Without this rescue, an outdated field name in the map above does not raise an
+  // error: **it prints an empty table**, which is the worst way to fail — the user
+  // believes there are no results when in fact there are.
   let present = columns.filter((col) => rows.some((r) => r[col] !== undefined));
   if (present.length === 0) present = auto().filter((col) => rows.some((r) => r[col] !== undefined));
-  if (present.length === 0) return c.dim(`(${rows.length} resultado(s) sin campos simples; usa -o json)`);
+  if (present.length === 0) return c.dim(`(${rows.length} result(s) with no simple fields; use -o json)`);
   const header = present.map((col) => col.toUpperCase().replace(/_/g, " "));
   const body = rows.map((r) => present.map((col) => scalar(r[col])));
 
@@ -155,7 +156,7 @@ export function renderTable(rows: Record<string, unknown>[], preferred?: string[
   return lines.map((l) => l.trimEnd()).join("\n");
 }
 
-/** Ficha vertical de un solo recurso: mas legible que una tabla de una fila. */
+/** Vertical card for a single resource: more readable than a one-row table. */
 export function renderObject(obj: Record<string, unknown>): string {
   const keys = Object.keys(obj).filter((k) => k !== "object");
   const w = Math.max(...keys.map((k) => k.length));
@@ -173,7 +174,7 @@ export function renderObject(obj: Record<string, unknown>): string {
     .join("\n");
 }
 
-/** Serializador YAML minimo: alcanza para volcar una respuesta, no es un emisor completo. */
+/** Minimal YAML serializer: enough to dump a response, not a full emitter. */
 function toYaml(value: unknown, indent = ""): string {
   if (value === null || value === undefined) return "null";
   if (Array.isArray(value)) {
@@ -191,17 +192,17 @@ function toYaml(value: unknown, indent = ""): string {
 
 export interface RenderOptions {
   format: OutputFormat;
-  /** Ruta con puntos que recorta la salida antes de renderizar. */
+  /** Dotted path that trims the output before rendering. */
   field?: string | undefined;
-  /** Columnas explicitas para la tabla. */
+  /** Explicit columns for the table. */
   columns?: string[] | undefined;
 }
 
 export function render(data: unknown, options: RenderOptions): string {
   const value = options.field ? selectPath(data, options.field) : data;
 
-  // Una coleccion se desenvuelve para todos los formatos: nadie quiere `has_more` en una
-  // tabla, y `-o json` de una lista deberia dar la lista.
+  // A collection is unwrapped for every format: nobody wants `has_more` in a table, and
+  // `-o json` of a list should give the list.
   const envelope = value as { object?: string; data?: unknown[] } | null;
   const isList = Boolean(envelope && typeof envelope === "object" && envelope.object === "list" && Array.isArray(envelope.data));
   const items = isList ? envelope!.data! : null;
@@ -233,7 +234,7 @@ export function parseFormat(value: string | undefined, fallback: OutputFormat = 
   if (!value) return fallback;
   const allowed: OutputFormat[] = ["table", "json", "jsonl", "id", "yaml"];
   if (!allowed.includes(value as OutputFormat)) {
-    throw new Error(`Formato desconocido: ${value}. Opciones: ${allowed.join(", ")}.`);
+    throw new Error(`Unknown format: ${value}. Options: ${allowed.join(", ")}.`);
   }
   return value as OutputFormat;
 }

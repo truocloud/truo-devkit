@@ -1,10 +1,10 @@
 /**
- * El transporte. Todo lo que no es "que endpoint llamar" vive aca.
+ * The transport. Everything that is not "which endpoint to call" lives here.
  *
- * El arbol de recursos se regenera con cada cambio del spec; esto no. Esa separacion es
- * deliberada: los reintentos, la idempotencia, el manejo de errores y el cursor son la
- * parte del SDK donde un bug cuesta caro, y no queremos que la reescriba un generador cada
- * vez que la API agrega un endpoint.
+ * The resource tree is regenerated on every spec change; this is not. That separation is
+ * deliberate: retries, idempotency, error handling and the cursor are the part of the SDK
+ * where a bug is expensive, and we do not want a generator rewriting them every time the
+ * API adds an endpoint.
  */
 import { API_BASE_URL, API_VERSION, getOperation } from "./generated/operations.ts";
 import { ApiConnectionError, TruoError, errorFromResponse } from "./errors.ts";
@@ -13,7 +13,7 @@ import type { CallArgs, ClientOptions, DeprecationNotice, RawResponse, RequestOp
 const SDK_VERSION = "0.1.0";
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RETRIES = 2;
-/** Techo del backoff. Mas alla de esto conviene fallar y que el llamador decida. */
+/** Backoff ceiling. Beyond this it is better to fail and let the caller decide. */
 const MAX_BACKOFF_MS = 8_000;
 
 const RETRIABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
@@ -33,7 +33,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/** `Retry-After` viene en segundos o como fecha HTTP. Las dos formas son legales. */
+/** `Retry-After` comes in seconds or as an HTTP date. Both forms are legal. */
 function parseRetryAfter(header: string | null): number | null {
   if (!header) return null;
   const seconds = Number(header);
@@ -43,11 +43,11 @@ function parseRetryAfter(header: string | null): number | null {
 }
 
 /**
- * Backoff exponencial con jitter completo.
+ * Exponential backoff with full jitter.
  *
- * El jitter no es cosmetico: sin el, N clientes que reciben 429 al mismo tiempo reintentan
- * al mismo tiempo y reconstruyen el pico que causo el 429. Randomizar el intervalo entero
- * (y no solo un margen) es lo que los despeina.
+ * The jitter is not cosmetic: without it, N clients that get a 429 at the same time retry
+ * at the same time and rebuild the spike that caused the 429. Randomizing the whole
+ * interval (not just a margin) is what spreads them out.
  */
 function backoffMs(attempt: number): number {
   const ceiling = Math.min(MAX_BACKOFF_MS, 500 * 2 ** attempt);
@@ -58,7 +58,7 @@ function combineSignals(signals: (AbortSignal | undefined)[]): AbortSignal | und
   const live = signals.filter((s): s is AbortSignal => Boolean(s));
   if (live.length === 0) return undefined;
   if (live.length === 1) return live[0];
-  // `AbortSignal.any` existe en Node 20.3+ y en Bun; el fallback cubre runtimes viejos.
+  // `AbortSignal.any` exists in Node 20.3+ and in Bun; the fallback covers older runtimes.
   const any = (AbortSignal as { any?: (s: AbortSignal[]) => AbortSignal }).any;
   if (any) return any(live);
   const ctrl = new AbortController();
@@ -80,14 +80,14 @@ export class Transport {
   private readonly baseHeaders: Record<string, string>;
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly onDeprecation: (info: DeprecationNotice) => void;
-  /** Un aviso por operacion y no uno por llamada: en un loop seria ruido y se ignoraria. */
+  /** One warning per operation, not one per call: in a loop it would be noise and get ignored. */
   private readonly warnedDeprecations = new Set<string>();
 
   constructor(opts: ClientOptions = {}) {
     const token = opts.token ?? globalThis.process?.env?.["TRUO_TOKEN"] ?? "";
     if (!token) {
       throw new TruoError(
-        "Falta el token. Pasa `new TruoClient({ token })` o defini la variable de entorno TRUO_TOKEN.",
+        "Missing token. Pass `new TruoClient({ token })` or set the TRUO_TOKEN environment variable.",
         { code: "missing_credentials" },
       );
     }
@@ -106,7 +106,7 @@ export class Transport {
     };
   }
 
-  /** Separa los query params de las opciones de request usando las claves del spec. */
+  /** Splits query params from request options using the keys declared in the spec. */
   private splitParams(args: CallArgs): { query: Record<string, unknown>; options: RequestOptions } {
     const params = args.params ?? {};
     const queryKeys = new Set(args.queryKeys ?? []);
@@ -123,7 +123,7 @@ export class Transport {
     const filled = template.replace(/\{([^}]+)\}/g, (_, name: string) => {
       const value = path?.[name];
       if (value === undefined || value === null || value === "") {
-        throw new TruoError(`Falta el parametro de ruta "${name}" para ${template}.`, {
+        throw new TruoError(`Missing path parameter "${name}" for ${template}.`, {
           code: "validation_failed",
           param: name,
         });
@@ -134,7 +134,7 @@ export class Transport {
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined || value === null) continue;
-      // Un array se repite como clave: `?tag=a&tag=b`, que es lo que la API espera.
+      // An array repeats the key: `?tag=a&tag=b`, which is what the API expects.
       if (Array.isArray(value)) for (const v of value) search.append(key, String(v));
       else search.append(key, String(value));
     }
@@ -149,7 +149,7 @@ export class Transport {
 
   async request<R>(operationId: string, args: CallArgs): Promise<RawResponse<R>> {
     const meta = getOperation(operationId);
-    if (!meta) throw new TruoError(`Operacion desconocida: ${operationId}`, { code: "not_found" });
+    if (!meta) throw new TruoError(`Unknown operation: ${operationId}`, { code: "not_found" });
 
     const { query, options } = this.splitParams(args);
     const url = this.buildUrl(meta.path, args.path, query);
@@ -163,10 +163,10 @@ export class Transport {
       headers["content-type"] = "application/json";
     }
 
-    // Una clave de idempotencia generada por el SDK es lo que hace seguro reintentar un
-    // POST: sin ella, un timeout de red obliga a elegir entre no reintentar (y dejar al
-    // usuario sin saber si paso) o reintentar (y arriesgar dos VPS). Con ella, el servidor
-    // reconoce el segundo intento como el mismo pedido.
+    // An SDK-generated idempotency key is what makes retrying a POST safe: without it, a
+    // network timeout forces a choice between not retrying (leaving the user unsure
+    // whether it happened) or retrying (and risking two VPS). With it, the server
+    // recognizes the second attempt as the same request.
     const idempotencyKey =
       options.idempotencyKey ?? (meta.idempotent ? `sdk_${randomId()}` : undefined);
     if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;
@@ -190,10 +190,10 @@ export class Transport {
           ...(signal ? { signal } : {}),
         });
       } catch (cause) {
-        // Si quien aborto fue el usuario, no es un problema de red y no se reintenta.
+        // If it was the user who aborted, it is not a network problem and is not retried.
         if (options.signal?.aborted) throw options.signal.reason;
         lastError = new ApiConnectionError(
-          `No se pudo llegar a ${this.baseUrl}: ${cause instanceof Error ? cause.message : String(cause)}`,
+          `Could not reach ${this.baseUrl}: ${cause instanceof Error ? cause.message : String(cause)}`,
           { code: timeoutSignal.aborted ? "timeout" : "connection_failed", cause },
         );
         if (canRetry && attempt < maxRetries) {
@@ -221,23 +221,23 @@ export class Transport {
 
       const retriable = RETRIABLE_STATUS.has(response.status);
       if (retriable && canRetry && attempt < maxRetries) {
-        // El servidor sabe mejor que nosotros cuando volver: si dijo `Retry-After`, se
-        // respeta tal cual en vez de aplicarle nuestro backoff por arriba.
+        // The server knows better than we do when to come back: if it said `Retry-After`,
+        // it is honored as-is instead of layering our backoff on top.
         await sleep(retryAfterMs ?? backoffMs(attempt), options.signal);
         continue;
       }
       throw lastError;
     }
 
-    throw lastError ?? new TruoError("Se agotaron los reintentos sin una respuesta.");
+    throw lastError ?? new TruoError("Retries exhausted without a response.");
   }
 
-  /** Itera una coleccion siguiendo `next_cursor` hasta que `has_more` sea falso. */
+  /** Iterates a collection following `next_cursor` until `has_more` is false. */
   async *paginate<I>(operationId: string, args: Omit<CallArgs, "body">): AsyncGenerator<I, void, undefined> {
     let cursor: string | undefined;
-    // Sin techo, un `has_more` que nunca baja (bug del servidor o un cursor que no avanza)
-    // deja al cliente girando para siempre. Mil paginas son mas de lo que cualquier cuenta
-    // real necesita y muchisimo menos que un cuelgue.
+    // Without a ceiling, a `has_more` that never goes down (a server bug or a cursor that
+    // does not advance) leaves the client spinning forever. A thousand pages is more than
+    // any real account needs and a lot less than a hang.
     for (let page = 0; page < 1000; page++) {
       const params = { ...(args.params ?? {}), ...(cursor ? { cursor } : {}) };
       const result = (await this.call<{
@@ -251,13 +251,13 @@ export class Transport {
       if (!result.has_more || !result.next_cursor) return;
       if (result.next_cursor === cursor) {
         throw new TruoError(
-          `${operationId} devolvio el mismo cursor dos veces; se corta la paginacion para no girar en vacio.`,
+          `${operationId} returned the same cursor twice; stopping pagination to avoid spinning in place.`,
           { code: "invalid_cursor" },
         );
       }
       cursor = result.next_cursor;
     }
-    throw new TruoError(`${operationId}: mas de 1000 paginas. Acota la consulta.`, { code: "invalid_cursor" });
+    throw new TruoError(`${operationId}: more than 1000 pages. Narrow the query.`, { code: "invalid_cursor" });
   }
 
   private noteDeprecation(operationId: string, headers: Headers): void {
@@ -277,9 +277,9 @@ export class Transport {
 }
 
 /**
- * Un 204 no trae cuerpo y un error de un proxy puede traer HTML. Devolver `null` y el
- * texto crudo respectivamente evita que el SDK explote con un `SyntaxError` de JSON que no
- * le dice nada a nadie sobre lo que realmente paso.
+ * A 204 carries no body and a proxy error can carry HTML. Returning `null` and the raw
+ * text respectively keeps the SDK from blowing up with a JSON `SyntaxError` that tells
+ * nobody anything about what actually happened.
  */
 async function readBody(response: Response): Promise<unknown> {
   if (response.status === 204) return null;
@@ -305,8 +305,8 @@ function randomId(): string {
 }
 
 function defaultDeprecationWarning(info: DeprecationNotice): void {
-  const parts = [`[truocloud] La operacion "${info.operationId}" esta deprecada.`];
-  if (info.sunset) parts.push(`Deja de existir el ${info.sunset}.`);
-  if (info.link) parts.push(`Migracion: ${info.link}`);
+  const parts = [`[truocloud] Operation "${info.operationId}" is deprecated.`];
+  if (info.sunset) parts.push(`It goes away on ${info.sunset}.`);
+  if (info.link) parts.push(`Migration: ${info.link}`);
   console.warn(parts.join(" "));
 }

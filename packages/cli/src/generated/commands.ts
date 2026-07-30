@@ -1,29 +1,29 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ARCHIVO GENERADO — no editar a mano.
+// GENERATED FILE — do not edit by hand.
 //
-// Sale de packages/openapi/openapi/v1.json a traves de packages/codegen.
-// Para cambiarlo: cambia el handler en la API (los schemas Zod son la fuente de
-// verdad), regenera el spec alla, 'bun run sync:spec' aca, y 'bun run gen'.
+// It comes from packages/openapi/openapi/v1.json via packages/codegen.
+// To change it: change the handler in the API (the Zod schemas are the source
+// of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** De donde sale el valor de un argumento cuando se arma el request. */
+/** Where an argument's value goes when the request is built. */
 export type ArgIn = "path" | "query" | "body";
 
 export interface Positional {
-  /** Como se llama en la ayuda: `<service_id>`. */
+  /** How it is named in the help: `<service_id>`. */
   label: string;
   in: ArgIn;
-  /** Clave real en el spec (el path usa `id`, aunque la ayuda diga `service_id`). */
+  /** Actual key in the spec (the path uses `id`, even if the help says `service_id`). */
   key: string;
   required: boolean;
   type?: "string" | "number" | "boolean" | "json" | "string[]";
-  /** Valores admitidos, si el schema los enumera. */
+  /** Allowed values, if the schema enumerates them. */
   values?: string[];
   description?: string;
 }
 
 export interface Flag {
-  /** Nombre en la linea de comandos, sin `--`. */
+  /** Name on the command line, without `--`. */
   flag: string;
   key: string;
   in: ArgIn;
@@ -44,13 +44,13 @@ export interface CommandSpec {
   deprecated: boolean;
   scope: string | null;
   bodyRequired: boolean;
-  /** El body no declara propiedades: solo se puede mandar con `--body-json`. */
+  /** The body declares no properties: it can only be sent with `--body-json`. */
   freeformBody: boolean;
   positionals: Positional[];
   flags: Flag[];
 }
 
-/** Los 100 comandos derivados del spec. */
+/** The 100 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -58,7 +58,7 @@ export const COMMANDS: CommandSpec[] = [
       "status"
     ],
     "operationId": "account.get",
-    "summary": "Obtener la cuenta y la credencial actual",
+    "summary": "Get the current account and credential",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -76,8 +76,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "apiKeys.create",
-    "summary": "Crear una API key",
-    "description": "Devuelve el token en claro **una sola vez**. Guardalo en el momento: solo se almacena su hash SHA-256 y no hay forma de recuperarlo después.",
+    "summary": "Create an API key",
+    "description": "Returns the plaintext token **exactly once**. Store it immediately: only its SHA-256 hash is kept and there is no way to recover it later.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -99,7 +99,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string[]",
         "required": true,
-        "description": "Scopes concretos. `*` no se acepta: enumerá lo que la key necesita. `apikeys:*` y `users:*` no son otorgables."
+        "description": "Concrete scopes. `*` is not accepted: enumerate what the key needs. `apikeys:*` and `users:*` are not grantable."
       },
       {
         "flag": "service-allowlist",
@@ -107,7 +107,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string[]",
         "required": false,
-        "description": "Restringe la key a estos servicios. Omitido o vacío = toda la cuenta."
+        "description": "Restricts the key to these services. Omitted or empty = the whole account."
       },
       {
         "flag": "expires-at",
@@ -115,7 +115,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Vencimiento en ISO 8601. Sin esto la key no vence."
+        "description": "Expiration in ISO 8601. Without it, the key never expires."
       }
     ]
   },
@@ -126,8 +126,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "apiKeys.list",
-    "summary": "Listar las API keys de la cuenta",
-    "description": "Solo con sesión. Nunca devuelve tokens: solo prefijo y últimos 4.",
+    "summary": "List the API keys in the account",
+    "description": "Session only. Never returns tokens: only the prefix and last 4 characters.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -159,8 +159,8 @@ export const COMMANDS: CommandSpec[] = [
       "revoke"
     ],
     "operationId": "apiKeys.revoke",
-    "summary": "Revocar una API key",
-    "description": "Irreversible. La revocación se propaga a todas las réplicas por pub/sub en menos de un segundo; el peor caso, con Redis caído, es 60 segundos (el TTL de la caché en proceso).",
+    "summary": "Revoke an API key",
+    "description": "Irreversible. Revocation propagates to all replicas over pub/sub in under a second; the worst case, with Redis down, is 60 seconds (the in-process cache TTL).",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -183,8 +183,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "auditLogs.list",
-    "summary": "Listar la actividad de API de la cuenta",
-    "description": "Incluye los intentos **denegados** (4xx), no solo lo que funcionó: una credencial probando endpoints que no le corresponden es precisamente la señal que hay que poder ver.",
+    "summary": "List the account's API activity",
+    "description": "Includes **denied** attempts (4xx), not just what succeeded: a credential probing endpoints it should not touch is exactly the signal you need to be able to see.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -230,8 +230,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "caas.apps.create",
-    "summary": "Crear una app",
-    "description": "Crea la app y configura su origen, pero **no la despliega**: queda en `idle` hasta que llames a `POST /v1/caas/{id}/apps/{app_id}/deploy`. Separar las dos cosas es lo que permite crear la app, cargarle las variables y recién ahí desplegar — el orden inverso arrancaría la aplicación sin su configuración.",
+    "summary": "Create an app",
+    "description": "Creates the app and configures its source, but **does not deploy it**: it stays `idle` until you call `POST /v1/caas/{id}/apps/{app_id}/deploy`. Separating the two is what lets you create the app, load its variables, and only then deploy — the reverse order would start the application without its configuration.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -253,7 +253,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "Nombre visible de la app. El backend deriva de acá un identificador interno."
+        "description": "The app's display name. The backend derives an internal identifier from it."
       },
       {
         "flag": "source",
@@ -261,7 +261,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "json",
         "required": false,
-        "description": "Se puede omitir y configurar después, pero una app sin origen no se puede desplegar."
+        "description": "Can be omitted and configured later, but an app without a source cannot be deployed."
       }
     ]
   },
@@ -272,8 +272,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "caas.apps.delete",
-    "summary": "Borrar una app",
-    "description": "**Destructivo.** Borra la app, sus variables y sus dominios. Los datos de las bases del servicio no se tocan: viven aparte.",
+    "summary": "Delete an app",
+    "description": "**Destructive.** Deletes the app, its variables, and its domains. The service's database data is untouched: it lives separately.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -302,8 +302,8 @@ export const COMMANDS: CommandSpec[] = [
       "deploy"
     ],
     "operationId": "caas.apps.deploy",
-    "summary": "Desplegar una app",
-    "description": "Devuelve `202` en cuanto el despliegue arranca. La operación se resuelve buscando ese despliegue en el historial de la app, que es el único lugar donde el backend reporta en qué quedó. Esperá con `GET /v1/operations/{id}`; el detalle de un fallo está en `GET /v1/caas/{id}/apps/{app_id}/logs`.\n\nVive en su propio scope (`caas:deploy`) porque desplegar ejecuta el código que haya en el origen configurado — es distinto de editar la configuración de la app.",
+    "summary": "Deploy an app",
+    "description": "Returns `202` as soon as the deployment starts. The operation resolves by looking up that deployment in the app's history, the only place the backend reports its outcome. Wait on it with `GET /v1/operations/{id}`; failure details are in `GET /v1/caas/{id}/apps/{app_id}/logs`.\n\nIt lives in its own scope (`caas:deploy`) because deploying executes whatever code is in the configured source — which is different from editing the app's configuration.",
     "danger": "reversible",
     "longRunning": true,
     "deprecated": false,
@@ -333,8 +333,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "caas.apps.get",
-    "summary": "Obtener una app",
-    "description": "Devuelve **solo** los campos declarados. El backend responde con el objeto interno completo del motor de despliegue —que incluye las variables de entorno en claro—; nada de eso sale por acá. Para los nombres de las variables, `GET /v1/caas/{id}/apps/{app_id}/env`.",
+    "summary": "Get an app",
+    "description": "Returns **only** the declared fields. The backend responds with the deployment engine's full internal object —including plaintext environment variables—; none of that leaves through here. For variable names, use `GET /v1/caas/{id}/apps/{app_id}/env`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -364,8 +364,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "caas.apps.list",
-    "summary": "Listar las apps del servicio",
-    "description": "`source` viene en `null`: el backend no lo trae en el listado.",
+    "summary": "List the service's apps",
+    "description": "`source` comes back `null`: the backend does not include it in the listing.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -403,8 +403,8 @@ export const COMMANDS: CommandSpec[] = [
       "logs"
     ],
     "operationId": "caas.apps.logs",
-    "summary": "Logs de una app",
-    "description": "**Es una foto, no un stream.** Devuelve lo que el backend tenga en el momento de la llamada y no hay forma de pedir \"lo que vino después\": el backend acepta un cursor pero nunca emite el siguiente, así que este endpoint no publica ninguno. Para seguir una aplicación en vivo, volvé a llamar.",
+    "summary": "Get an app's logs",
+    "description": "**A snapshot, not a stream.** Returns whatever the backend has at call time, and there is no way to ask for \"what came after\": the backend accepts a cursor but never emits the next one, so this endpoint publishes none. To follow an application live, call again.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -434,8 +434,8 @@ export const COMMANDS: CommandSpec[] = [
       "restart"
     ],
     "operationId": "caas.apps.restart",
-    "summary": "Reiniciar una app",
-    "description": "Reinicia el proceso sin volver a construir la imagen: toma las variables de entorno actuales pero **no** trae código nuevo. Para eso es `deploy`.",
+    "summary": "Restart an app",
+    "description": "Restarts the process without rebuilding the image: it picks up the current environment variables but does **not** pull new code. That is what `deploy` is for.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -465,8 +465,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "caas.databases.create",
-    "summary": "Crear una base de datos",
-    "description": "La contraseña la genera la plataforma y **no se devuelve acá ni en ningún otro endpoint de `/v1`**: no hay forma de recuperarla por esta API. Conectate desde una app del mismo servicio, donde la cadena de conexión ya está disponible.\n\nBorrar una base no está en esta versión: el backend todavía no lo implementa y publicar un endpoint que siempre falla sería publicar roadmap.",
+    "summary": "Create a database",
+    "description": "The platform generates the password and **it is not returned here or by any other `/v1` endpoint**: there is no way to recover it through this API. Connect from an app in the same service, where the connection string is already available.\n\nDeleting a database is not in this version: the backend does not implement it yet, and publishing an endpoint that always fails would be publishing roadmap.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -512,8 +512,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "caas.databases.list",
-    "summary": "Bases de datos del servicio",
-    "description": "Son del servicio, no de una app: varias apps del mismo servicio pueden usar la misma base. **Las credenciales no se devuelven** por ningún endpoint de esta API.",
+    "summary": "List the service's databases",
+    "description": "They belong to the service, not to an app: several apps in the same service can use the same database. **Credentials are not returned** by any endpoint of this API.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -552,8 +552,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "caas.deployments.list",
-    "summary": "Historial de despliegues de una app",
-    "description": "Del más reciente al más viejo, según lo devuelve el backend.",
+    "summary": "List an app's deployment history",
+    "description": "Newest first, as the backend returns it.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -598,8 +598,8 @@ export const COMMANDS: CommandSpec[] = [
       "add"
     ],
     "operationId": "caas.domains.create",
-    "summary": "Agregar un dominio a una app",
-    "description": "El DNS del host tiene que estar apuntado a la IP del servicio **antes** de llamar: la emisión del certificado se valida por HTTP.\n\nDos cosas más que hay que saber:\n\n- **No es atómico.** El alta registra el dominio y después reconstruye el ruteo de entrada; si lo segundo falla, la llamada devuelve error con el dominio ya creado. Reintentar es seguro y es lo correcto — el alta es idempotente por host.\n- **El certificado se emite después**, de forma asíncrona y sin ningún estado ni id que consultar. Por eso `certificate_type` viene en `null` acá. La única verificación real es una petición HTTPS al host.",
+    "summary": "Add a domain to an app",
+    "description": "The host's DNS must point at the service's IP **before** you call: certificate issuance is validated over HTTP.\n\nTwo more things to know:\n\n- **It is not atomic.** Creation registers the domain and then rebuilds the ingress routing; if the second step fails, the call returns an error with the domain already created. Retrying is safe and is the right move — creation is idempotent per host.\n- **The certificate is issued afterwards**, asynchronously, with no state or id to query. That is why `certificate_type` comes back `null` here. The only real check is an HTTPS request to the host.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -627,7 +627,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "Tiene que resolver a la IP del servicio **antes** de crearlo: el certificado se valida por HTTP y sin el DNS apuntado la emisión falla en silencio."
+        "description": "It must resolve to the service's IP **before** you create it: the certificate is validated over HTTP, and without DNS pointed, issuance fails silently."
       }
     ]
   },
@@ -638,8 +638,8 @@ export const COMMANDS: CommandSpec[] = [
       "remove"
     ],
     "operationId": "caas.domains.delete",
-    "summary": "Quitar un dominio de una app",
-    "description": "Borrar un host que no está en la app no es un error: el ruteo de entrada se reconstruye igual, que es lo que hace que reintentar sea seguro.",
+    "summary": "Remove a domain from an app",
+    "description": "Deleting a host that is not on the app is not an error: the ingress routing is rebuilt either way, which is what makes retrying safe.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -675,7 +675,7 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "caas.domains.list",
-    "summary": "Dominios de una app",
+    "summary": "List an app's domains",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -706,8 +706,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "caas.env.list",
-    "summary": "Nombres de las variables de entorno",
-    "description": "**Devuelve los nombres, nunca los valores.** No hay una versión de este endpoint que los devuelva: una vez escrito, un valor solo lo lee la aplicación. El backend enmascara aplicando una regex al nombre de la clave, lo que deja pasar en claro cualquier cosa que no se llame como un secreto (`DATABASE_URL`, `SENTRY_DSN`); eso no es una política de clasificación y no se publica.",
+    "summary": "List environment variable names",
+    "description": "**Returns names, never values.** There is no version of this endpoint that returns them: once written, a value is read only by the application. The backend masks by applying a regex to the key name, which lets anything not named like a secret (`DATABASE_URL`, `SENTRY_DSN`) through in plaintext; that is not a classification policy and it is not published.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -737,8 +737,8 @@ export const COMMANDS: CommandSpec[] = [
       "set"
     ],
     "operationId": "caas.env.replace",
-    "summary": "Reemplazar las variables de entorno",
-    "description": "**Reemplaza el conjunto entero**: lo que no venga en `vars` se borra. No es una limitación, es la semántica del backend, que escribe el bloque completo de una.\n\nComo `GET /env` no devuelve valores, el set tiene que salir de tu lado — de tu gestor de secretos o de tu repositorio de configuración. Eso es lo natural para infraestructura declarativa, y de paso elimina el modo de fallo del panel, donde guardar sin volver a escribir los secretos los borraba.\n\nLos cambios toman efecto en el próximo `deploy` o `restart`.",
+    "summary": "Replace the environment variables",
+    "description": "**Replaces the entire set**: anything missing from `vars` is deleted. Not a limitation — it is the semantics of the backend, which writes the whole block at once.\n\nSince `GET /env` returns no values, the set has to come from your side — your secrets manager or your configuration repository. That is the natural shape for declarative infrastructure, and it also removes the panel's failure mode, where saving without rewriting the secrets erased them.\n\nChanges take effect on the next `deploy` or `restart`.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -766,7 +766,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "json",
         "required": true,
-        "description": "El conjunto **completo**. Lo que no esté acá se borra: mandar `[]` deja la app sin ninguna variable. Como `GET /env` no devuelve valores, el set entero tiene que salir de tu lado —de tu gestor de secretos o de tu repositorio de configuración—, que es como funciona cualquier infraestructura declarativa."
+        "description": "The **complete** set. Anything not listed here is deleted: sending `[]` leaves the app with no variables. Since `GET /env` returns no values, the whole set has to come from your side —your secrets manager or your configuration repository— which is how any declarative infrastructure works."
       }
     ]
   },
@@ -776,8 +776,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "caas.instances.get",
-    "summary": "Obtener un servicio CaaS con su estado real",
-    "description": "Consulta el control plane. Si no responde, `provisioning_state` y `machine` vuelven en `null` en vez de fallar: un hipo del control plane no debería impedirte leer el resto del recurso ni sus `capabilities`.",
+    "summary": "Get a CaaS service with its live state",
+    "description": "Queries the control plane. If it does not respond, `provisioning_state` and `machine` come back `null` instead of failing: a control plane hiccup should not stop you from reading the rest of the resource or its `capabilities`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -800,8 +800,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "caas.instances.list",
-    "summary": "Listar los servicios CaaS de la cuenta",
-    "description": "Sale de la base, sin consultar el control plane: `provisioning_state` y `machine` vienen en `null`. Traerlos costaría dos llamadas por elemento de la página.\n\nUna página puede venir con menos elementos que el `limit` aunque haya más: todos los productos del control plane comparten un mismo módulo de aprovisionamiento, así que el filtro por familia solo puede aplicarse después de leer la página. `has_more` sigue siendo la señal correcta de si queda algo por traer.",
+    "summary": "List CaaS services",
+    "description": "Served from the database, without querying the control plane: `provisioning_state` and `machine` come back `null`. Fetching them would cost two calls per page item.\n\nA page can come back with fewer items than `limit` even when more exist: every control plane product shares the same provisioning module, so the family filter can only be applied after reading the page. `has_more` remains the correct signal for whether anything is left to fetch.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -833,8 +833,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "dbaas.backups.create",
-    "summary": "Crear un backup",
-    "description": "Devuelve `202` en cuanto la tarea arranca, no cuando el archivo está listo: un dump puede tardar minutos, muy por encima de cualquier timeout HTTP. La operación **se resuelve contra la lista de backups** —aparece uno nuevo o no— y no contra el resultado del POST, así que sobrevive a que la llamada expire con el backup corriendo. Esperala con `GET /v1/operations/{id}`.",
+    "summary": "Create a backup",
+    "description": "Returns `202` as soon as the task starts, not when the archive is ready: a dump can take minutes, far beyond any HTTP timeout. The operation **resolves against the backup list** —a new one appears or it does not— rather than against the POST result, so it survives the call timing out while the backup is still running. Wait on it with `GET /v1/operations/{id}`.",
     "danger": "reversible",
     "longRunning": true,
     "deprecated": false,
@@ -858,8 +858,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "dbaas.backups.list",
-    "summary": "Backups del servicio",
-    "description": "Del más nuevo al más viejo. Un servicio cuyo motor no tiene backups gestionados devuelve una lista vacía, no un error.",
+    "summary": "List the service's backups",
+    "description": "Newest first. A service whose engine has no managed backups returns an empty list, not an error.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -897,8 +897,8 @@ export const COMMANDS: CommandSpec[] = [
       "connection"
     ],
     "operationId": "dbaas.connection.get",
-    "summary": "Datos de conexión, sin la credencial",
-    "description": "Host, puerto, base, usuario administrador, modo TLS y la CA del servicio — que es **pública** y sirve para verificar al servidor. **No incluye la password ni ninguna URI que la contenga**: la credencial sale de `POST /v1/dbaas/{id}/credentials`, que exige el scope `dbaas:credentials`.",
+    "summary": "Get connection details, without the credential",
+    "description": "Host, port, database, admin username, TLS mode, and the service's CA — which is **public** and used to verify the server. **It does not include the password or any URI containing it**: the credential comes from `POST /v1/dbaas/{id}/credentials`, which requires the `dbaas:credentials` scope.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -921,8 +921,8 @@ export const COMMANDS: CommandSpec[] = [
       "credentials"
     ],
     "operationId": "dbaas.credentials.create",
-    "summary": "Revelar la credencial de administración",
-    "description": "Devuelve la password del administrador **en claro**. No rota nada: es la credencial que ya está en uso.\n\nEs un POST y no un GET a propósito. Un GET queda en el historial del navegador, en los logs de cualquier proxy y en cachés intermedias, y se puede disparar sin querer desde un link; un POST obliga a una acción deliberada y entra al audit log como mutación, así que revelar la credencial de una base deja rastro. Por lo mismo vive en su propio scope (`dbaas:credentials`): `dbaas:write` crea bases y usuarios acotados, esto da acceso total a los datos y sobrevive a revocar la key.",
+    "summary": "Reveal the admin credential",
+    "description": "Returns the admin password **in plaintext**. It rotates nothing: this is the credential already in use.\n\nIt is a POST rather than a GET on purpose. A GET lands in browser history, in any proxy's logs, and in intermediate caches, and can be triggered accidentally from a link; a POST forces a deliberate action and enters the audit log as a mutation, so revealing a database's credential leaves a trace. For the same reason it lives in its own scope (`dbaas:credentials`): `dbaas:write` creates scoped databases and users, while this grants full access to the data and survives revoking the key.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -946,8 +946,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "dbaas.databases.create",
-    "summary": "Crear una base",
-    "description": "`charset` y `collation` son de MySQL; `owner`, de PostgreSQL. El resto de los motores los ignora. La respuesta no trae tamaño ni conteo de tablas: la base nace vacía y releerla costaría otra llamada para informar un cero.",
+    "summary": "Create a database",
+    "description": "`charset` and `collation` are MySQL-only; `owner` is PostgreSQL-only. Other engines ignore them. The response carries no size or table count: the database is born empty and re-reading it would cost another call just to report a zero.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -976,7 +976,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Solo MySQL. Default `utf8mb4`."
+        "description": "MySQL only. Defaults to `utf8mb4`."
       },
       {
         "flag": "collation",
@@ -984,7 +984,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Solo MySQL. Default `utf8mb4_unicode_ci`."
+        "description": "MySQL only. Defaults to `utf8mb4_unicode_ci`."
       },
       {
         "flag": "owner",
@@ -992,7 +992,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Solo PostgreSQL. Usuario dueño de la base; por defecto el administrador."
+        "description": "PostgreSQL only. The user that owns the database; defaults to the admin."
       }
     ]
   },
@@ -1003,8 +1003,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "dbaas.databases.delete",
-    "summary": "Borrar una base",
-    "description": "**Destructivo e irreversible**: se van los datos y no hay papelera. Lo único que queda es lo que haya en `GET /v1/dbaas/{id}/backups`.",
+    "summary": "Delete a database",
+    "description": "**Destructive and irreversible**: the data is gone and there is no trash bin. All that remains is whatever is in `GET /v1/dbaas/{id}/backups`.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1034,7 +1034,7 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "dbaas.databases.list",
-    "summary": "Listar las bases del servicio",
+    "summary": "List the service's databases",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -1073,8 +1073,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "dbaas.instances.get",
-    "summary": "Obtener una base de datos con su estado real",
-    "description": "Consulta el backend. Si no responde, los campos de estado vuelven en `null` y `capabilities` queda sin `databases`/`users` en vez de fallar: que el backend tenga un hipo no debería impedirte leer el resto del recurso.",
+    "summary": "Get a database with its live state",
+    "description": "Queries the backend. If it does not respond, the state fields come back `null` and `capabilities` omits `databases`/`users` instead of failing: a backend hiccup should not stop you from reading the rest of the resource.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1097,8 +1097,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "dbaas.instances.list",
-    "summary": "Listar las bases de datos gestionadas de la cuenta",
-    "description": "Sale de la base, sin consultar el backend: `engine`, `state`, `host` y `plan` vienen en `null`, y `capabilities` **omite** `databases` y `users` porque saber si el motor las tiene costaría una llamada por elemento de la página. Una clave ausente es \"no se consultó\", que no es lo mismo que `false`. Para el estado real de una, `GET /v1/dbaas/{id}`.",
+    "summary": "List managed databases",
+    "description": "Served from the database, without querying the backend: `engine`, `state`, `host`, and `plan` come back `null`, and `capabilities` **omits** `databases` and `users` because knowing whether the engine has them would cost one call per page item. An absent key means \"not queried\", which is not the same as `false`. For the live state of one, use `GET /v1/dbaas/{id}`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1129,8 +1129,8 @@ export const COMMANDS: CommandSpec[] = [
       "restart"
     ],
     "operationId": "dbaas.instances.restart",
-    "summary": "Reiniciar el motor",
-    "description": "Corta las conexiones abiertas: las transacciones en vuelo se pierden. Devuelve `202` con una operación ya terminada —el reinicio es síncrono en los dos backends— para que el cliente trate todas las mutaciones largas igual, y para que el día que deje de serlo no cambie el contrato sino la columna `backend` de la operación.",
+    "summary": "Restart the engine",
+    "description": "Drops open connections: in-flight transactions are lost. Returns `202` with an already-completed operation —the restart is synchronous in both backends— so clients treat every long mutation the same way, and so the day it stops being synchronous, only the operation's `backend` column changes, not the contract.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1153,8 +1153,8 @@ export const COMMANDS: CommandSpec[] = [
       "logs"
     ],
     "operationId": "dbaas.logs.get",
-    "summary": "Últimas líneas del log del motor",
-    "description": "La cola del log del proceso del motor, de la más vieja a la más nueva. No es un log de consultas ni de auditoría: son los mensajes de arranque, errores y avisos del motor.",
+    "summary": "Get the engine log's last lines",
+    "description": "The tail of the engine process's log, oldest to newest. It is not a query log or an audit log: these are the engine's startup messages, errors, and warnings.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1185,8 +1185,8 @@ export const COMMANDS: CommandSpec[] = [
       "stats"
     ],
     "operationId": "dbaas.stats.get",
-    "summary": "Métricas de la instancia",
-    "description": "Instantánea, no serie temporal. Qué campos vienen llenos depende del backend del servicio: unos miden el contenedor y otros el motor.",
+    "summary": "Get instance metrics",
+    "description": "A snapshot, not a time series. Which fields are populated depends on the service's backend: some measure the container and others the engine.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1210,8 +1210,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "dbaas.users.create",
-    "summary": "Crear un usuario",
-    "description": "La password no se guarda de nuestro lado ni se devuelve después: si se pierde, se cambia con `POST /v1/dbaas/{id}/users/{username}/password`.",
+    "summary": "Create a user",
+    "description": "The password is neither stored on our side nor returned later: if it is lost, change it with `POST /v1/dbaas/{id}/users/{username}/password`.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1240,7 +1240,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "No se guarda ni se devuelve: si se pierde, se cambia con `POST /v1/dbaas/{id}/users/{username}/password`."
+        "description": "Never stored or returned: if it is lost, change it with `POST /v1/dbaas/{id}/users/{username}/password`."
       },
       {
         "flag": "host",
@@ -1248,7 +1248,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Solo MySQL. Default `%` (cualquier origen)."
+        "description": "MySQL only. Defaults to `%` (any origin)."
       },
       {
         "flag": "databases",
@@ -1256,7 +1256,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string[]",
         "required": false,
-        "description": "Bases sobre las que se le otorgan permisos."
+        "description": "Databases the user is granted permissions on."
       },
       {
         "flag": "privileges",
@@ -1264,7 +1264,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string[]",
         "required": false,
-        "description": "MySQL: privilegios de SQL (`SELECT`, `INSERT`, …); default `ALL` sobre `databases`. PostgreSQL: se usa el primero como rol (`readwrite`, `readonly`). Una palabra por elemento: los privilegios compuestos (`ALL PRIVILEGES`) no se aceptan porque el valor termina dentro de un `GRANT` que el motor arma por concatenación."
+        "description": "MySQL: SQL privileges (`SELECT`, `INSERT`, …); defaults to `ALL` over `databases`. PostgreSQL: the first one is used as the role (`readwrite`, `readonly`). One word per element: compound privileges (`ALL PRIVILEGES`) are rejected because the value ends up inside a `GRANT` the engine builds by concatenation."
       }
     ]
   },
@@ -1275,8 +1275,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "dbaas.users.delete",
-    "summary": "Borrar un usuario",
-    "description": "**Corta el acceso de todo lo que estuviera conectado con ese usuario.** No borra datos: las bases que creó siguen ahí.",
+    "summary": "Delete a user",
+    "description": "**Cuts off everything currently connected as that user.** It deletes no data: the databases the user created remain.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1314,8 +1314,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "dbaas.users.list",
-    "summary": "Listar los usuarios del motor",
-    "description": "Incluye al administrador. En MySQL el mismo nombre puede aparecer con varios `host`: el par `usuario@host` es lo que identifica al usuario, y por eso es el `id` del recurso.",
+    "summary": "List the engine's users",
+    "description": "Includes the admin. On MySQL the same name can appear with several `host` values: the `user@host` pair is what identifies the user, and that is why it is the resource's `id`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1354,8 +1354,8 @@ export const COMMANDS: CommandSpec[] = [
       "password"
     ],
     "operationId": "dbaas.users.set_password",
-    "summary": "Cambiar la password de un usuario",
-    "description": "Toma efecto de inmediato: las aplicaciones que sigan usando la anterior van a fallar al reconectar. Sirve también para el usuario administrador.",
+    "summary": "Change a user's password",
+    "description": "Takes effect immediately: applications still using the old one will fail on reconnect. It also works for the admin user.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1393,8 +1393,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "dns.records.delete",
-    "summary": "Borrar un RRset",
-    "description": "Borra todos los valores de ese nombre y tipo.",
+    "summary": "Delete an RRset",
+    "description": "Deletes every value for that name and type.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1430,7 +1430,7 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "dns.records.get",
-    "summary": "Obtener un RRset",
+    "summary": "Get an RRset",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -1467,8 +1467,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "dns.records.list",
-    "summary": "Listar los registros de una zona",
-    "description": "Agrupados en RRsets: un `A` con dos IPs es **un** registro con dos valores. La respuesta trae un `ETag`; pasalo como `If-Match` al escribir y ningún cambio concurrente se pierde.",
+    "summary": "List a zone's records",
+    "description": "Grouped into RRsets: an `A` record with two IPs is **one** record with two values. The response carries an `ETag`; pass it as `If-Match` when writing and no concurrent change gets lost.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1507,8 +1507,8 @@ export const COMMANDS: CommandSpec[] = [
       "apply"
     ],
     "operationId": "dns.records.patch",
-    "summary": "Aplicar varios cambios a la vez",
-    "description": "Cada elemento reemplaza su RRset; `values: []` lo borra. Es la forma de aplicar un cambio coherente —mover un sitio y su correo juntos— sin que quede a medias entre dos llamadas. **No es atómico en el backend**: si un cambio falla, los anteriores ya se aplicaron y la respuesta dice cuál cortó.",
+    "summary": "Apply several changes at once",
+    "description": "Each element replaces its RRset; `values: []` deletes it. It is how you apply a coherent change —moving a site and its mail together— without it landing halfway between two calls. **It is not atomic in the backend**: if one change fails, the earlier ones were already applied and the response says which one stopped.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1540,8 +1540,8 @@ export const COMMANDS: CommandSpec[] = [
       "set"
     ],
     "operationId": "dns.records.put",
-    "summary": "Crear o reemplazar un RRset",
-    "description": "Reemplaza el RRset **entero**: los valores que no vengan en `values` se borran. Es la semántica del DNS y la del backend — no existe \"agregar una IP\" sin reescribir el conjunto. Leé el RRset, agregá el valor a la lista y mandá la lista completa con el `ETag` en `If-Match`.",
+    "summary": "Create or replace an RRset",
+    "description": "Replaces the **entire** RRset: values missing from `values` are deleted. That is DNS semantics and the backend's — there is no \"add an IP\" without rewriting the set. Read the RRset, add the value to the list, and send the full list with the `ETag` in `If-Match`.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1575,7 +1575,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "number",
         "required": false,
-        "description": "Segundos, 60–604800. Default 3600."
+        "description": "Seconds, 60–604800. Defaults to 3600."
       },
       {
         "flag": "values",
@@ -1583,7 +1583,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string[]",
         "required": true,
-        "description": "Reemplaza el RRset **entero**. Los valores que no estén acá se borran: para agregar uno, leé el RRset, agregalo a la lista y mandá la lista completa."
+        "description": "Replaces the **entire** RRset. Values not listed here are deleted: to add one, read the RRset, append it to the list, and send the full list."
       }
     ]
   },
@@ -1594,8 +1594,8 @@ export const COMMANDS: CommandSpec[] = [
       "export"
     ],
     "operationId": "dns.zones.export",
-    "summary": "Exportar la zona en formato BIND",
-    "description": "El archivo de zona tal como lo emite el backend. Útil para respaldo o migración.",
+    "summary": "Export the zone in BIND format",
+    "description": "The zone file exactly as the backend emits it. Useful for backup or migration.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1619,7 +1619,7 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "dns.zones.get",
-    "summary": "Obtener una zona",
+    "summary": "Get a zone",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -1644,8 +1644,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "dns.zones.list",
-    "summary": "Listar las zonas DNS de la cuenta",
-    "description": "Sale de la base, sin consultar el backend de DNS: `record_count` y `serial` vienen en `null`. Traerlos costaría una llamada por zona y hay cuentas con decenas.",
+    "summary": "List DNS zones",
+    "description": "Served from the database, without querying the DNS backend: `record_count` and `serial` come back `null`. Fetching them would cost one call per zone, and some accounts have dozens.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1677,8 +1677,8 @@ export const COMMANDS: CommandSpec[] = [
       "add"
     ],
     "operationId": "lb.backends.create",
-    "summary": "Agregar un destino a un listener",
-    "description": "Atajo sobre `PUT /listeners` para el caso frecuente de sumar una máquina. Revalida y aplica la configuración completa, así que hereda la misma garantía: o el destino queda recibiendo tráfico, o no cambió nada.",
+    "summary": "Add a backend to a listener",
+    "description": "A shortcut over `PUT /listeners` for the common case of adding a machine. It revalidates and applies the full configuration, so it inherits the same guarantee: either the backend ends up receiving traffic, or nothing changed.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1700,7 +1700,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "Nombre de un listener existente."
+        "description": "The name of an existing listener."
       },
       {
         "flag": "ip",
@@ -1732,8 +1732,8 @@ export const COMMANDS: CommandSpec[] = [
       "remove"
     ],
     "operationId": "lb.backends.delete",
-    "summary": "Quitar un destino de un listener",
-    "description": "Los tres valores que identifican al destino van en la ruta. El backend los espera en el cuerpo de un `DELETE`, cosa que proxies y CDNs descartan y que varios clientes HTTP no mandan; el cuerpo se arma de este lado.\n\n**Un listener no puede quedarse sin destinos.** Quitar el último devuelve `400 validation_failed`: para eliminar el listener entero usá `PUT /listeners` sin él.",
+    "summary": "Remove a backend from a listener",
+    "description": "The three values identifying the backend go in the path. The upstream expects them in the body of a `DELETE`, which proxies and CDNs discard and several HTTP clients refuse to send; the body is built on this side.\n\n**A listener cannot be left without backends.** Removing the last one returns `400 validation_failed`: to remove the whole listener, use `PUT /listeners` without it.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1775,8 +1775,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "lb.backends.list",
-    "summary": "Listar los destinos",
-    "description": "Los destinos de todos los listeners, aplanados, cada uno con el listener al que pertenece. Es una vista sobre la misma configuración que devuelve `GET /listeners`.",
+    "summary": "List the backends",
+    "description": "The backends of every listener, flattened, each with the listener it belongs to. It is a view over the same configuration that `GET /listeners` returns.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1799,8 +1799,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "lb.instances.get",
-    "summary": "Obtener un load balancer con su estado real",
-    "description": "Consulta el control plane, que a su vez sondea el balanceador. Si no responde, los campos de estado vuelven en `null` en vez de fallar.",
+    "summary": "Get a load balancer with its live state",
+    "description": "Queries the control plane, which in turn probes the balancer. If it does not respond, the state fields come back `null` instead of failing.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1823,8 +1823,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "lb.instances.list",
-    "summary": "Listar los load balancers de la cuenta",
-    "description": "Sale de la base, sin consultar el control plane: `provisioning_state`, `healthy` y `listener_count` vienen en `null`. Traerlos costaría una llamada por elemento de la página.\n\nUna página puede venir con menos elementos que el `limit` aunque haya más: todos los productos del control plane comparten un mismo módulo de aprovisionamiento, así que el filtro por familia solo puede aplicarse después de leer la página. `has_more` sigue siendo la señal correcta de si queda algo por traer.",
+    "summary": "List load balancers",
+    "description": "Served from the database, without querying the control plane: `provisioning_state`, `healthy`, and `listener_count` come back `null`. Fetching them would cost one call per page item.\n\nA page can come back with fewer items than `limit` even when more exist: every control plane product shares the same provisioning module, so the family filter can only be applied after reading the page. `has_more` remains the correct signal for whether anything is left to fetch.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1856,8 +1856,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "lb.listeners.list",
-    "summary": "Listar los listeners",
-    "description": "La configuración completa del balanceador, incluidos los destinos de cada listener. Es lo que hay que leer, modificar y volver a mandar en `PUT`.",
+    "summary": "List the listeners",
+    "description": "The balancer's full configuration, including each listener's backends. It is what you read, modify, and send back in `PUT`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1881,8 +1881,8 @@ export const COMMANDS: CommandSpec[] = [
       "apply"
     ],
     "operationId": "lb.listeners.replace",
-    "summary": "Reemplazar la configuración de listeners",
-    "description": "**Reemplaza el conjunto entero**: los listeners que no vengan en `listeners` se borran, con sus destinos. Mandar `[]` deja el balanceador sin nada escuchando y corta el tráfico. Leé `GET /listeners`, modificá y mandá todo de vuelta.\n\n**El cambio se aplica dentro de la llamada**: cuando esto devuelve, la configuración nueva ya está sirviendo tráfico. Si la configuración resultante es inválida no se aplica nada y la respuesta es `400 validation_failed` — el servicio nunca queda a medias.",
+    "summary": "Replace the listener configuration",
+    "description": "**Replaces the entire set**: listeners missing from `listeners` are deleted, along with their backends. Sending `[]` leaves the balancer with nothing listening and cuts traffic. Read `GET /listeners`, modify, and send everything back.\n\n**The change is applied within the call**: by the time this returns, the new configuration is already serving traffic. If the resulting configuration is invalid, nothing is applied and the response is `400 validation_failed` — the service is never left half-configured.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1904,7 +1904,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "json",
         "required": true,
-        "description": "El conjunto **completo**. Lo que no esté acá se borra, incluidos sus destinos; mandar `[]` deja el balanceador sin nada escuchando. Nombres y puertos son únicos dentro del conjunto."
+        "description": "The **complete** set. Anything not listed here is deleted, including its backends; sending `[]` leaves the balancer with nothing listening. Names and ports are unique within the set."
       }
     ]
   },
@@ -1914,8 +1914,8 @@ export const COMMANDS: CommandSpec[] = [
       "stats"
     ],
     "operationId": "lb.stats.get",
-    "summary": "Estado y tráfico por listener",
-    "description": "Una foto del momento: conexiones en curso y bytes acumulados desde el último arranque del balanceador, más la salud de cada destino según el último sondeo. No hay serie histórica.\n\nSi el balanceador no contesta el sondeo, los listeners igual aparecen —salen de la configuración guardada— con `state: unknown` y los contadores en cero. Un listener que existe y no responde y uno que existe sin tráfico no se distinguen por los contadores: miralos por `state`.",
+    "summary": "Get per-listener state and traffic",
+    "description": "A point-in-time snapshot: current connections and bytes accumulated since the balancer's last start, plus each backend's health from the latest probe. There is no historical series.\n\nIf the balancer does not answer the probe, the listeners still appear —they come from the stored configuration— with `state: unknown` and zeroed counters. A listener that exists but does not respond and one that exists with no traffic cannot be told apart by the counters: check `state`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -1939,8 +1939,8 @@ export const COMMANDS: CommandSpec[] = [
       "add"
     ],
     "operationId": "mailgateway.domains.create",
-    "summary": "Agregar un dominio de envío",
-    "description": "Devuelve **los registros DNS que hay que publicar** en la zona del dominio. Eso es lo importante de esta llamada: hasta que estén publicados y SES los vea, el dominio no verifica y no se puede enviar desde él. Cada registro trae `purpose`, `type`, `host`, `value` y `status`; `purpose` es la clave estable con la que automatizar la publicación.\n\nLa verificación es **asíncrona y del lado de SES**: esta llamada no espera. Consultá el estado con `POST /v1/mail-gateway/domains/{domain}/verify`.\n\nEs idempotente: repetirla sobre un dominio ya dado de alta reusa el mismo par de llaves DKIM y devuelve los mismos registros, así que un reintento no invalida lo ya publicado.",
+    "summary": "Add a sending domain",
+    "description": "Returns **the DNS records you must publish** in the domain's zone. That is the point of this call: until they are published and SES sees them, the domain does not verify and you cannot send from it. Each record carries `purpose`, `type`, `host`, `value`, and `status`; `purpose` is the stable key for automating publication.\n\nVerification is **asynchronous and on the SES side**: this call does not wait. Check the status with `POST /v1/mail-gateway/domains/{domain}/verify`.\n\nIt is idempotent: repeating it for an already-added domain reuses the same DKIM key pair and returns the same records, so a retry does not invalidate what is already published.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1954,7 +1954,7 @@ export const COMMANDS: CommandSpec[] = [
         "key": "domain",
         "required": true,
         "type": "string",
-        "description": "Dominio de envío. Se normaliza a minúsculas. Tenés que poder editar su DNS: el alta devuelve los registros a publicar."
+        "description": "The sending domain. Normalized to lowercase. You must be able to edit its DNS: the creation call returns the records to publish."
       }
     ],
     "flags": []
@@ -1966,8 +1966,8 @@ export const COMMANDS: CommandSpec[] = [
       "remove"
     ],
     "operationId": "mailgateway.domains.delete",
-    "summary": "Quitar un dominio de envío",
-    "description": "Corta el envío desde ese dominio: sale de la política del SMTP y de las keys. Los registros DNS quedan publicados en tu zona; borrarlos es cosa tuya. Volver a agregarlo genera llaves DKIM nuevas, así que el TXT viejo deja de servir.",
+    "summary": "Remove a sending domain",
+    "description": "Cuts off sending from that domain: it leaves the SMTP policy and the keys. The DNS records remain published in your zone; removing them is up to you. Adding it back generates new DKIM keys, so the old TXT record stops working.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -1991,8 +1991,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "mailgateway.domains.list",
-    "summary": "Listar los dominios de envío",
-    "description": "Cada dominio viene con los registros DNS que le corresponden y el estado de cada uno. Solo se puede enviar desde un dominio `verified`.",
+    "summary": "List sending domains",
+    "description": "Each domain comes with its DNS records and the status of each one. You can only send from a `verified` domain.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2024,8 +2024,8 @@ export const COMMANDS: CommandSpec[] = [
       "verify"
     ],
     "operationId": "mailgateway.domains.verify",
-    "summary": "Consultar la verificación de un dominio",
-    "description": "**Consulta, no fuerza.** SES revisa el DNS público por su cuenta y a su ritmo; esto lee ese resultado y actualiza el estado del dominio y el de cada registro. Que vuelva `pending` no es un error: significa que SES todavía no vio los registros, sea porque no propagaron o porque falta publicarlos.\n\nLos registros `dkim` y `mail_from_mx` son los que SES verifica. `spf`, `mail_from_spf` y `dmarc` quedan siempre en `info`: mejoran la entrega, pero no hay quien los chequee.\n\n`verified_at` viene en `null` en esta respuesta aunque el estado sea `verified`; el dato está en `GET /v1/mail-gateway/domains`.",
+    "summary": "Check a domain's verification",
+    "description": "**A check, not a trigger.** SES inspects public DNS on its own and at its own pace; this reads that result and updates the domain's status and each record's. Getting `pending` back is not an error: it means SES has not seen the records yet, either because they have not propagated or because they are not published.\n\nThe `dkim` and `mail_from_mx` records are the ones SES verifies. `spf`, `mail_from_spf`, and `dmarc` always stay `info`: they improve deliverability, but nothing checks them.\n\n`verified_at` comes back `null` in this response even when the status is `verified`; the value is in `GET /v1/mail-gateway/domains`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2049,8 +2049,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "mailgateway.keys.create",
-    "summary": "Crear una API key de envío",
-    "description": "Devuelve la key completa en `secret`, **una sola vez**: guardamos su hash, así que no hay forma de volver a mostrarla. Si se pierde, se crea otra y se revoca esta.\n\nEsta key **no sirve contra esta API**: se usa en el plano de envío, `POST {api_endpoint}/emails` (hoy `https://mg.truo.cloud/v1/emails`), con `Authorization: Bearer mg_live_…`. El envío no pasa por `api.truo.cloud` a propósito: un salto de más en el camino del correo es un modo de falla de más.\n\nPide `mailgateway:send` y no `mailgateway:write` porque emitir esta credencial **es** poder enviar en nombre de la cuenta, y eso sobrevive a que revoquen la key de esta API.",
+    "summary": "Create a sending API key",
+    "description": "Returns the full key in `secret`, **exactly once**: we store its hash, so there is no way to show it again. If it is lost, create another and revoke this one.\n\nThis key **does not work against this API**: it is used on the sending plane, `POST {api_endpoint}/emails` (currently `https://mg.truo.cloud/v1/emails`), with `Authorization: Bearer mg_live_…`. Sending deliberately does not go through `api.truo.cloud`: one extra hop on the mail path is one extra failure mode.\n\nIt requires `mailgateway:send` rather than `mailgateway:write` because issuing this credential **is** the ability to send on the account's behalf, and it survives this API's key being revoked.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -2067,8 +2067,8 @@ export const COMMANDS: CommandSpec[] = [
       "revoke"
     ],
     "operationId": "mailgateway.keys.delete",
-    "summary": "Revocar una API key de envío",
-    "description": "Efecto casi inmediato: la key sale del índice del gateway. Lo que ya se aceptó, se entrega. Revocar es `write` y no `send` a propósito: quitarle capacidad de envío a la cuenta no debería exigir el scope que **otorga** capacidad de envío.",
+    "summary": "Revoke a sending API key",
+    "description": "Takes effect almost immediately: the key leaves the gateway's index. Whatever was already accepted is delivered. Revoking requires `write` rather than `send` on purpose: removing the account's ability to send should not require the scope that **grants** the ability to send.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -2092,8 +2092,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "mailgateway.keys.list",
-    "summary": "Listar las API keys de envío",
-    "description": "Incluye las revocadas, para que se pueda auditar qué hubo. `secret` siempre es `null`: de la key guardamos su hash y no hay forma de recuperarla.",
+    "summary": "List sending API keys",
+    "description": "Includes revoked keys, so history can be audited. `secret` is always `null`: we store the key's hash and there is no way to recover it.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2125,8 +2125,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "mailgateway.messages.list",
-    "summary": "Listar los mensajes enviados",
-    "description": "Un elemento por mensaje, del más reciente al más viejo, con el estado agregado del evento de mayor severidad que se vio (`bounced` gana a `delivered`). Se retienen 90 días.\n\nSin `total`: el backend no sabe cuántos mensajes matchean sin recorrer la historia entera, y ninguna colección de `/v1` publica totales. Paginá con `next_cursor`.",
+    "summary": "List sent messages",
+    "description": "One element per message, newest first, with the aggregate status of the highest-severity event seen (`bounced` beats `delivered`). Retained for 90 days.\n\nNo `total`: the backend cannot know how many messages match without walking the entire history, and no `/v1` collection publishes totals. Paginate with `next_cursor`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2171,8 +2171,8 @@ export const COMMANDS: CommandSpec[] = [
       "metrics"
     ],
     "operationId": "mailgateway.metrics.get",
-    "summary": "Métricas de entrega y reputación",
-    "description": "Tasas de entrega, apertura, rebote y queja del rango, con la serie diaria, la latencia envío→entrega y el desglose por dominio. Las tasas son fracciones (0–1), no porcentajes. `bounce_rate_limit` y `complaint_rate_limit` son los umbrales de SES: cruzarlos suspende el envío para proteger la reputación compartida.",
+    "summary": "Get delivery and reputation metrics",
+    "description": "Delivery, open, bounce, and complaint rates for the range, with the daily series, send-to-delivery latency, and the per-domain breakdown. Rates are fractions (0–1), not percentages. `bounce_rate_limit` and `complaint_rate_limit` are the SES thresholds: crossing them suspends sending to protect the shared reputation.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2202,8 +2202,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "mailgateway.smtp.get",
-    "summary": "Ver la configuración SMTP",
-    "description": "Host, puerto, usuario y estado, **sin la password**. Es lo que hace falta para configurar o revisar un cliente de correo sin manipular el secreto. Para la password, `POST /v1/mail-gateway/smtp`.",
+    "summary": "View the SMTP configuration",
+    "description": "Host, port, username, and status, **without the password**. It is what you need to configure or review a mail client without handling the secret. For the password, use `POST /v1/mail-gateway/smtp`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2220,8 +2220,8 @@ export const COMMANDS: CommandSpec[] = [
       "reveal"
     ],
     "operationId": "mailgateway.smtp.reveal",
-    "summary": "Revelar la password SMTP",
-    "description": "Devuelve la password SMTP en claro. **Es un POST a propósito, aunque no cambie nada.** El backend la expone en un GET, y un GET que devuelve un secreto queda en el historial del navegador, en la caché de cualquier proxy y en el `curl` de ayer. Un POST obliga a una acción deliberada, no es cacheable, y entra al audit log como mutación — que es exactamente cómo hay que poder auditar \"quién sacó la clave de envío y cuándo\".\n\nLa password es recuperable (se guarda cifrada, no hasheada) porque un servidor de correo la necesita entera en cada conexión. Si la comprometieron, no alcanza con dejar de mirarla: rotala con `POST /v1/mail-gateway/smtp/rotate`.",
+    "summary": "Reveal the SMTP password",
+    "description": "Returns the SMTP password in plaintext. **It is a POST on purpose, even though it changes nothing.** The backend exposes it in a GET, and a GET that returns a secret lands in browser history, in any proxy's cache, and in yesterday's `curl`. A POST forces a deliberate action, is not cacheable, and enters the audit log as a mutation — which is exactly how \"who pulled the sending password, and when\" has to be auditable.\n\nThe password is recoverable (stored encrypted, not hashed) because a mail server needs it whole on every connection. If it was compromised, no longer looking at it is not enough: rotate it with `POST /v1/mail-gateway/smtp/rotate`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2238,8 +2238,8 @@ export const COMMANDS: CommandSpec[] = [
       "rotate"
     ],
     "operationId": "mailgateway.smtp.rotate",
-    "summary": "Rotar la credencial SMTP",
-    "description": "Emite usuario y password nuevos y devuelve los dos. La credencial anterior queda desactivada, no borrada, para que una aplicación que todavía la tenga en memoria no se caiga en el instante de la rotación — pero dejará de funcionar, así que actualizá tus sistemas. No hay vuelta atrás: la vieja no se puede reactivar desde acá.",
+    "summary": "Rotate the SMTP credential",
+    "description": "Issues a new username and password and returns both. The previous credential is deactivated, not deleted, so an application that still holds it in memory does not crash at the instant of rotation — but it will stop working, so update your systems. There is no going back: the old one cannot be reactivated from here.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -2255,8 +2255,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "mailgateway.tenant.get",
-    "summary": "Obtener el Mail Gateway de la cuenta",
-    "description": "No lleva id: hay un solo Mail Gateway por cuenta. Trae el estado, el uso del mes y cuántos dominios y keys hay; el detalle de cada uno tiene su propio endpoint. Si la cuenta no tiene el servicio, devuelve 404.",
+    "summary": "Get the account's Mail Gateway",
+    "description": "It takes no id: there is one Mail Gateway per account. Returns the status, the month's usage, and how many domains and keys exist; each has its own detail endpoint. If the account does not have the service, it returns 404.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2272,8 +2272,8 @@ export const COMMANDS: CommandSpec[] = [
       "usage"
     ],
     "operationId": "mailgateway.usage.get",
-    "summary": "Uso del mes en curso",
-    "description": "Envíos aceptados y rechazados del mes calendario UTC en curso. Es el número que factura. Los rechazados no se cobran: son los que el gateway frenó antes de SES.",
+    "summary": "Get the current month's usage",
+    "description": "Accepted and rejected sends for the current UTC calendar month. This is the number that gets billed. Rejected sends are not charged: they are the ones the gateway stopped before SES.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2290,8 +2290,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "objectstorage.buckets.create",
-    "summary": "Crear un bucket",
-    "description": "Devuelve el mismo recurso que `GET /v1/object-storage/buckets/{bucket}`. El alta del backend responde la fila cruda del registro —otra forma, con otro formato de fecha— así que se relee antes de contestar: cuesta una llamada y compra que el alta y la lectura devuelvan el mismo objeto.",
+    "summary": "Create a bucket",
+    "description": "Returns the same resource as `GET /v1/object-storage/buckets/{bucket}`. The backend's create call responds with the raw registry row —a different shape, with a different date format— so it is re-read before responding: it costs one call and buys create and read returning the same object.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -2318,7 +2318,7 @@ export const COMMANDS: CommandSpec[] = [
           "private",
           "public"
         ],
-        "description": "Default `private`."
+        "description": "Defaults to `private`."
       }
     ]
   },
@@ -2329,8 +2329,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "objectstorage.buckets.delete",
-    "summary": "Borrar un bucket",
-    "description": "Un bucket con objetos no se borra: el request falla y no toca nada. `?purge=true` lo borra con todo el contenido, y eso **no se puede deshacer** — no hay papelera ni versiones. Si querés saber cuántos objetos se van a perder, vaciálo primero con `POST .../empty`, que devuelve la cuenta.",
+    "summary": "Delete a bucket",
+    "description": "A bucket with objects is not deleted: the request fails and touches nothing. `?purge=true` deletes it along with all its contents, and that **cannot be undone** — there is no trash bin and no versioning. To know how many objects will be lost, empty it first with `POST .../empty`, which returns the count.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -2366,8 +2366,8 @@ export const COMMANDS: CommandSpec[] = [
       "empty"
     ],
     "operationId": "objectstorage.buckets.empty",
-    "summary": "Vaciar un bucket",
-    "description": "Borra todos los objetos y conserva el bucket con su configuración. **No se puede deshacer.** Sobre un bucket grande puede tardar: el borrado va objeto por objeto contra el almacenamiento.",
+    "summary": "Empty a bucket",
+    "description": "Deletes every object and keeps the bucket with its configuration. **It cannot be undone.** On a large bucket it can take a while: deletion runs object by object against the storage.",
     "danger": "destructive",
     "longRunning": true,
     "deprecated": false,
@@ -2391,7 +2391,7 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "objectstorage.buckets.get",
-    "summary": "Obtener un bucket",
+    "summary": "Get a bucket",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -2416,8 +2416,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "objectstorage.buckets.list",
-    "summary": "Listar los buckets",
-    "description": "Incluye los buckets creados directamente por el protocolo S3, que no tienen fila de registro: se listan igual —ocultarlos escondería datos que existen— con `created_at` en `null` y acceso privado.",
+    "summary": "List buckets",
+    "description": "Includes buckets created directly through the S3 protocol, which have no registry row: they are listed anyway —hiding them would hide data that exists— with `created_at` set to `null` and private access.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2449,8 +2449,8 @@ export const COMMANDS: CommandSpec[] = [
       "metrics"
     ],
     "operationId": "objectstorage.buckets.metrics",
-    "summary": "Métricas de un bucket",
-    "description": "Almacenamiento, egress y requests del rango pedido. Las series traen un punto por día UTC y vienen vacías mientras no haya datos, en vez de rellenarse con ceros que se confundirían con un día sin tráfico.",
+    "summary": "Get a bucket's metrics",
+    "description": "Storage, egress, and requests for the requested range. The series carry one point per UTC day and come back empty until there is data, rather than being padded with zeros that would be indistinguishable from a day without traffic.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2487,8 +2487,8 @@ export const COMMANDS: CommandSpec[] = [
       "update"
     ],
     "operationId": "objectstorage.buckets.update",
-    "summary": "Cambiar la visibilidad de un bucket",
-    "description": "Publicar el bucket le acuña una URL de lectura anónima (`public_url`) y la conserva si después se vuelve privado: republicar devuelve la misma URL, no una nueva.",
+    "summary": "Change a bucket's visibility",
+    "description": "Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -2514,7 +2514,7 @@ export const COMMANDS: CommandSpec[] = [
           "private",
           "public"
         ],
-        "description": "`public` publica el bucket en una URL de solo lectura (`public_url`). `private` la retira: los objetos siguen accesibles con llave o con una URL prefirmada."
+        "description": "`public` publishes the bucket at a read-only URL (`public_url`). `private` withdraws it: objects remain accessible with a key or a presigned URL."
       }
     ]
   },
@@ -2525,8 +2525,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "objectstorage.keys.create",
-    "summary": "Emitir una llave de acceso",
-    "description": "Es el **único** endpoint que devuelve `secret_access_key`, y lo devuelve una sola vez: no se guarda en claro de nuestro lado y no hay forma de recuperarlo después. Si se pierde, la salida es borrar la llave y emitir otra. Las llaves conviven: emitir una no revoca las anteriores. Acotá cada una a un bucket con `scope` para que perder una no comprometa el resto.",
+    "summary": "Issue an access key",
+    "description": "The **only** endpoint that returns `secret_access_key`, and it returns it exactly once: it is not stored in plaintext on our side and there is no way to recover it later. If it is lost, the way out is to delete the key and issue another. Keys coexist: issuing one does not revoke the previous ones. Limit each one to a bucket with `scope` so that losing one does not compromise the rest.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -2540,7 +2540,7 @@ export const COMMANDS: CommandSpec[] = [
         "key": "name",
         "required": true,
         "type": "string",
-        "description": "Para reconocerla después. No tiene efecto sobre los permisos."
+        "description": "To recognize it later. It has no effect on permissions."
       }
     ],
     "flags": [
@@ -2550,7 +2550,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Nombre de bucket para acotar la llave, o `*` (default) para todos. Una llave por bucket es lo que hace que perder una no comprometa el resto."
+        "description": "A bucket name to limit the key to, or `*` (the default) for all. One key per bucket is what keeps losing one from compromising the rest."
       },
       {
         "flag": "permission",
@@ -2563,7 +2563,7 @@ export const COMMANDS: CommandSpec[] = [
           "readwrite",
           "full"
         ],
-        "description": "Default `readwrite`."
+        "description": "Defaults to `readwrite`."
       }
     ]
   },
@@ -2574,8 +2574,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "objectstorage.keys.delete",
-    "summary": "Revocar una llave de acceso",
-    "description": "La revocación es inmediata. Revocar una llave **invalida también las URLs prefirmadas que se firmaron con ella**, aunque no hayan expirado: la firma se valida contra la llave, y una llave revocada ya no existe. Es la única forma de cortar una URL prefirmada antes de tiempo.",
+    "summary": "Revoke an access key",
+    "description": "Revocation is immediate. Revoking a key **also invalidates the presigned URLs signed with it**, even if they have not expired: the signature is validated against the key, and a revoked key no longer exists. It is the only way to cut off a presigned URL early.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -2599,8 +2599,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "objectstorage.keys.list",
-    "summary": "Listar las llaves de acceso",
-    "description": "Solo las activas, y nunca el secreto.",
+    "summary": "List access keys",
+    "description": "Active keys only, and never the secret.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2632,8 +2632,8 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "objectstorage.objects.delete",
-    "summary": "Borrar objetos",
-    "description": "Borrado en lote por key. Es un `POST` y no un `DELETE` porque la lista de keys va en el cuerpo: un `DELETE` con body no lo mandan igual todos los clientes HTTP. **No se puede deshacer.** `deleted` puede ser menor que la cantidad de keys pedidas: las que no existían no cuentan.",
+    "summary": "Delete objects",
+    "description": "Batch delete by key. It is a `POST` rather than a `DELETE` because the key list goes in the body: not every HTTP client sends a `DELETE` with a body. **It cannot be undone.** `deleted` can be lower than the number of keys requested: keys that did not exist do not count.",
     "danger": "destructive",
     "longRunning": false,
     "deprecated": false,
@@ -2655,7 +2655,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string[]",
         "required": true,
-        "description": "Keys relativas al bucket. Una key que no existe no es un error: no se cuenta."
+        "description": "Keys relative to the bucket. A key that does not exist is not an error: it is not counted."
       }
     ]
   },
@@ -2666,8 +2666,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "objectstorage.objects.list",
-    "summary": "Listar objetos de un bucket",
-    "description": "Un nivel a la vez, como un explorador de archivos: las entradas con `is_folder: true` son prefijos, y se navegan pasando su `key` como `prefix`. No acepta `limit`: el backend fija el tamaño de página (hasta 1000 entradas) y recortar acá perdería objetos en silencio al avanzar el cursor.",
+    "summary": "List a bucket's objects",
+    "description": "One level at a time, like a file explorer: entries with `is_folder: true` are prefixes, navigated by passing their `key` as `prefix`. It does not accept `limit`: the backend sets the page size (up to 1000 entries) and trimming here would silently drop objects as the cursor advances.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2706,8 +2706,8 @@ export const COMMANDS: CommandSpec[] = [
       "presign"
     ],
     "operationId": "objectstorage.objects.presign",
-    "summary": "Firmar una URL temporal",
-    "description": "Devuelve un link que funciona sin credenciales hasta que expira. `method: \"GET\"` para descargar (requiere `objectstorage:read`), `method: \"PUT\"` para subir (requiere `objectstorage:write`). La URL es una credencial de portador: funciona para cualquiera que la tenga y la única forma de cortarla antes de que venza es revocar la llave S3 que la firmó. Pedí el TTL más corto que te sirva. Hereda además el alcance de esa llave: si está acotada a un bucket o es de solo lectura, la URL no puede más que ella.",
+    "summary": "Presign a temporary URL",
+    "description": "Returns a link that works without credentials until it expires. `method: \"GET\"` to download (requires `objectstorage:read`), `method: \"PUT\"` to upload (requires `objectstorage:write`). The URL is a bearer credential: it works for anyone who holds it, and the only way to cut it off before it expires is to revoke the S3 key that signed it. Request the shortest TTL that works for you. It also inherits the scope of that key: if the key is limited to one bucket or is read-only, the URL can do no more than the key can.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -2727,7 +2727,7 @@ export const COMMANDS: CommandSpec[] = [
         "key": "key",
         "required": true,
         "type": "string",
-        "description": "Key relativa al bucket."
+        "description": "The key, relative to the bucket."
       }
     ],
     "flags": [
@@ -2741,7 +2741,7 @@ export const COMMANDS: CommandSpec[] = [
           "GET",
           "PUT"
         ],
-        "description": "Qué habilita la URL: `GET` descarga, `PUT` sube. Default `GET`. Firmar un `PUT` requiere `objectstorage:write`."
+        "description": "What the URL enables: `GET` downloads, `PUT` uploads. Defaults to `GET`. Signing a `PUT` requires `objectstorage:write`."
       },
       {
         "flag": "expires-in",
@@ -2749,7 +2749,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "number",
         "required": false,
-        "description": "Segundos de validez, 1–604800 (7 días). Default 900."
+        "description": "Validity in seconds, 1–604800 (7 days). Defaults to 900."
       }
     ]
   },
@@ -2759,8 +2759,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "objectstorage.tenant.get",
-    "summary": "Obtener el Object Storage de la cuenta",
-    "description": "Uso, endpoint y estado. Es singleton por cuenta: no hay listado ni id que pasar. El almacenamiento y el conteo de objetos salen del último snapshot diario, no de un escaneo en vivo, así que un objeto recién subido puede tardar en reflejarse en los totales.",
+    "summary": "Get the account's Object Storage",
+    "description": "Usage, endpoint, and status. It is a per-account singleton: there is no listing and no id to pass. Storage and object counts come from the latest daily snapshot, not a live scan, so a freshly uploaded object can take a while to show up in the totals.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2776,8 +2776,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "operations.get",
-    "summary": "Estado de una operación",
-    "description": "Se consulta el backend real al leer, con caché de 2 s. Si el backend no responde se devuelve el último estado conocido con `stale: true` y **nunca un 500**: un cliente haciendo polling no debe perder su operación por un hipo del backend, ni ser empujado a reintentar la mutación.",
+    "summary": "Get the status of an operation",
+    "description": "Reads consult the real backend, with a 2 s cache. If the backend does not respond, the last known state is returned with `stale: true` and **never a 500**: a polling client must not lose its operation to a backend hiccup, nor be pushed into retrying the mutation.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2800,7 +2800,7 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "operations.list",
-    "summary": "Listar operaciones recientes de la cuenta",
+    "summary": "List the account's recent operations",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -2832,8 +2832,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "services.get",
-    "summary": "Obtener un servicio",
-    "description": "Un 404 acá significa tanto \"no existe\" como \"existe pero esta credencial no puede verlo\". Es deliberado: un 403 confirmaría la existencia del servicio y convertiría la API en un oráculo de enumeración.",
+    "summary": "Get a service",
+    "description": "A 404 here means both \"does not exist\" and \"exists but this credential cannot see it\". That is deliberate: a 403 would confirm the service's existence and turn the API into an enumeration oracle.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2856,8 +2856,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "services.list",
-    "summary": "Listar los servicios de la cuenta",
-    "description": "Devuelve solo los servicios que esta credencial puede ver: se aplican la allowlist de la key y los permisos por servicio del usuario dueño. Es el punto de entrada para obtener los `service_id` que usan los demás recursos.",
+    "summary": "List the services in the account",
+    "description": "Returns only the services this credential can see: the key's allowlist and the owning user's per-service permissions both apply. It is the entry point for obtaining the `service_id` values used by every other resource.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2906,8 +2906,8 @@ export const COMMANDS: CommandSpec[] = [
       "create"
     ],
     "operationId": "vps.backups.create",
-    "summary": "Crear un backup",
-    "description": "Encola un `vzdump`. Con `mode: snapshot` (default) la máquina sigue andando. La operación refleja que la tarea quedó encolada, no que el archivo esté listo: el tamaño final aparece en `GET /v1/vps/{id}/backups` cuando el hipervisor termina.",
+    "summary": "Create a backup",
+    "description": "Queues a `vzdump`. With `mode: snapshot` (the default) the machine keeps running. The operation reflects that the task was queued, not that the archive is ready: the final size appears in `GET /v1/vps/{id}/backups` once the hypervisor finishes.",
     "danger": "reversible",
     "longRunning": true,
     "deprecated": false,
@@ -2947,7 +2947,7 @@ export const COMMANDS: CommandSpec[] = [
           "suspend",
           "stop"
         ],
-        "description": "`snapshot` no interrumpe el servicio. `stop` apaga la VM durante el backup."
+        "description": "`snapshot` does not interrupt the service. `stop` powers off the VM during the backup."
       },
       {
         "flag": "storage",
@@ -2965,7 +2965,7 @@ export const COMMANDS: CommandSpec[] = [
       "delete"
     ],
     "operationId": "vps.backups.delete",
-    "summary": "Borrar un backup",
+    "summary": "Delete a backup",
     "description": "",
     "danger": "destructive",
     "longRunning": false,
@@ -2996,7 +2996,7 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "vps.backups.list",
-    "summary": "Backups del VPS",
+    "summary": "List the VPS backups",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -3036,8 +3036,8 @@ export const COMMANDS: CommandSpec[] = [
       "restore"
     ],
     "operationId": "vps.backups.restore",
-    "summary": "Restaurar un backup",
-    "description": "**Destructivo.** Apaga la máquina y sobreescribe el disco entero: todo lo escrito después de ese backup se pierde. El backend verifica que el backup pertenezca a este VPS antes de tocar nada.",
+    "summary": "Restore a backup",
+    "description": "**Destructive.** Powers off the machine and overwrites the entire disk: everything written after that backup is lost. The backend verifies the backup belongs to this VPS before touching anything.",
     "danger": "destructive",
     "longRunning": true,
     "deprecated": false,
@@ -3066,7 +3066,7 @@ export const COMMANDS: CommandSpec[] = [
       "config"
     ],
     "operationId": "vps.config.get",
-    "summary": "Configuración de la máquina",
+    "summary": "Get the machine configuration",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -3090,8 +3090,8 @@ export const COMMANDS: CommandSpec[] = [
       "console"
     ],
     "operationId": "vps.console.create",
-    "summary": "Abrir una consola",
-    "description": "Emite un ticket de un solo uso. **Da acceso total al sistema operativo**, sin pasar por la red ni por SSH, y por eso vive en su propio scope (`vps:console`) en vez de caer bajo `vps:write`. No lo loguees: el `file` de SPICE lleva la contraseña adentro.",
+    "summary": "Open a console",
+    "description": "Issues a single-use ticket. **It grants full access to the operating system**, bypassing the network and SSH, which is why it lives in its own scope (`vps:console`) instead of falling under `vps:write`. Do not log it: the SPICE `file` carries the password inside.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -3126,8 +3126,8 @@ export const COMMANDS: CommandSpec[] = [
       "get"
     ],
     "operationId": "vps.get",
-    "summary": "Obtener un VPS con su estado real",
-    "description": "Consulta el hipervisor. Si no responde, los campos de estado vuelven en `null` en vez de fallar: que el hipervisor tenga un hipo no debería impedirte leer el resto del recurso ni sus `capabilities`.",
+    "summary": "Get a VPS with its live state",
+    "description": "Queries the hypervisor. If it does not respond, the state fields come back `null` instead of failing: a hypervisor hiccup should not stop you from reading the rest of the resource or its `capabilities`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -3151,7 +3151,7 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "vps.ips.list",
-    "summary": "IPs asignadas al VPS",
+    "summary": "List the IPs assigned to the VPS",
     "description": "",
     "danger": "none",
     "longRunning": false,
@@ -3190,8 +3190,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "vps.list",
-    "summary": "Listar los VPS de la cuenta",
-    "description": "Sale de la base, sin consultar el hipervisor: `state`, `cpu`, `memory` y `disk` vienen en `null`. Traerlos costaría una llamada al backend por cada elemento de la página. Para el estado vivo de uno, `GET /v1/vps/{id}`.",
+    "summary": "List VPS instances",
+    "description": "Served from the database, without querying the hypervisor: `state`, `cpu`, `memory`, and `disk` come back `null`. Fetching them would cost one backend call per page item. For the live state of one instance, use `GET /v1/vps/{id}`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -3222,8 +3222,8 @@ export const COMMANDS: CommandSpec[] = [
       "stats"
     ],
     "operationId": "vps.metrics.list",
-    "summary": "Serie de uso de CPU, memoria, disco y red",
-    "description": "Serie RRD del hipervisor. La resolución la fija el `timeframe` y no es configurable: `hour` da minutos, `year` da semanas. `cpu_percent` es porcentaje del total asignado.",
+    "summary": "Get CPU, memory, disk, and network usage series",
+    "description": "The hypervisor's RRD series. Resolution is set by `timeframe` and is not configurable: `hour` yields minutes, `year` yields weeks. `cpu_percent` is a percentage of the allocated total.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -3261,8 +3261,8 @@ export const COMMANDS: CommandSpec[] = [
       "power"
     ],
     "operationId": "vps.power",
-    "summary": "Encender, apagar o reiniciar",
-    "description": "Devuelve `202` en cuanto la orden sale, no cuando la máquina llegó al estado pedido. La operación se resuelve contra el **estado real de la VM**, así que sobrevive a que el backend tarde más que el timeout HTTP — un `reboot` es apagar, esperar y encender, y eso no entra en una request. Esperá con `GET /v1/operations/{id}`.",
+    "summary": "Start, stop, or reboot",
+    "description": "Returns `202` as soon as the order is issued, not when the machine reaches the requested state. The operation resolves against the **VM's actual state**, so it survives the backend taking longer than the HTTP timeout — a `reboot` is stop, wait, and start, which does not fit in one request. Wait on it with `GET /v1/operations/{id}`.",
     "danger": "reversible",
     "longRunning": true,
     "deprecated": false,
@@ -3288,7 +3288,7 @@ export const COMMANDS: CommandSpec[] = [
           "shutdown",
           "reboot"
         ],
-        "description": "`shutdown` pide un apagado ordenado al sistema operativo y cae a corte duro si no responde. `stop` corta la energía de una: puede corromper el sistema de archivos."
+        "description": "`shutdown` asks the operating system for an orderly shutdown and falls back to a hard cut if it does not respond. `stop` cuts power immediately: it can corrupt the filesystem."
       }
     ],
     "flags": []
@@ -3299,8 +3299,8 @@ export const COMMANDS: CommandSpec[] = [
       "reinstall"
     ],
     "operationId": "vps.reinstall",
-    "summary": "Reinstalar el sistema operativo",
-    "description": "**Destructivo e irreversible: borra el disco entero.** Encola un job que corre la misma máquina de estados que un alta nueva (aprovisionar → esperar el boot → chequeo de salud), así que la operación reporta progreso real y puede tardar varios minutos. La IP se conserva.",
+    "summary": "Reinstall the operating system",
+    "description": "**Destructive and irreversible: it wipes the entire disk.** Queues a job that runs the same state machine as a fresh provision (provision → wait for boot → health check), so the operation reports real progress and can take several minutes. The IP is preserved.",
     "danger": "destructive",
     "longRunning": true,
     "deprecated": false,
@@ -3322,7 +3322,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "Un `id` de `GET /v1/vps/{id}/templates`."
+        "description": "An `id` from `GET /v1/vps/{id}/templates`."
       },
       {
         "flag": "root-password",
@@ -3330,7 +3330,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "Password de root del sistema nuevo. No se guarda ni se devuelve nunca: si se pierde, la única salida es otra reinstalación."
+        "description": "The new system's root password. Never stored or returned: if it is lost, the only way out is another reinstall."
       }
     ]
   },
@@ -3341,8 +3341,8 @@ export const COMMANDS: CommandSpec[] = [
       "list"
     ],
     "operationId": "vps.templates.list",
-    "summary": "Sistemas operativos disponibles para reinstalar",
-    "description": "Depende del tipo de máquina y del nodo donde vive, así que se pide por VPS y no global.",
+    "summary": "List the operating systems available for reinstall",
+    "description": "Depends on the machine type and the node it lives on, so it is requested per VPS rather than globally.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -3380,8 +3380,8 @@ export const COMMANDS: CommandSpec[] = [
       "rename"
     ],
     "operationId": "vps.update",
-    "summary": "Renombrar un VPS",
-    "description": "Cambia el hostname del sistema operativo. En LXC toma efecto al vuelo; en KVM cambia el nombre de la VM y el sistema operativo lo adopta al reiniciar.",
+    "summary": "Rename a VPS",
+    "description": "Changes the operating system hostname. On LXC it takes effect immediately; on KVM it renames the VM and the operating system picks it up on the next reboot.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -3403,13 +3403,13 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": true,
-        "description": "Etiqueta simple o FQDN. El backend valida el formato."
+        "description": "A plain label or an FQDN. The backend validates the format."
       }
     ]
   }
 ];
 
-/** Indexados por `truo <a> <b>`, que es como los busca el dispatcher. */
+/** Indexed by `truo <a> <b>`, which is how the dispatcher looks them up. */
 export const COMMANDS_BY_PATH: Record<string, CommandSpec> = Object.fromEntries(
   COMMANDS.map((c) => [c.path.join(" "), c]),
 );

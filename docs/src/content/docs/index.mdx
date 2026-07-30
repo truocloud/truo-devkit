@@ -1,28 +1,28 @@
 ---
-title: API de TruoCloud
-description: Operá VPS, DNS, bases de datos, contenedores, balanceadores, Object Storage y Mail Gateway desde código, desde la terminal o desde un agente.
+title: TruoCloud API
+description: Manage VPS, DNS, managed databases, containers, load balancers, Object Storage, and Mail Gateway from code, from the terminal, or from an agent.
 template: splash
 hero:
-  tagline: Infraestructura cloud que se opera con código. Y con un agente, si querés.
+  tagline: Cloud infrastructure you operate with code. And with an agent, if you want.
   actions:
-    - text: Empezar
-      link: /empezar/autenticacion/
+    - text: Get started
+      link: /getting-started/authentication/
       icon: right-arrow
-    - text: Referencia interactiva
-      link: /reference/
+    - text: API playground
+      link: /api/
       icon: open-book
       variant: minimal
 ---
 
 import { Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
 
-## Los mismos treinta segundos, en cuatro superficies
+## The same thirty seconds, on four surfaces
 
-Cada operación de la API existe como llamada HTTP, como comando del CLI, como
-método del SDK y —cuando salga— como acción de MCP. **Las cuatro se generan del
-mismo contrato**, así que no pueden contradecirse.
+Every API operation exists as an HTTP call, a CLI command, an SDK method,
+and — once it ships — an MCP action. **All four are generated from the same
+contract**, so they can't contradict each other.
 
-<Tabs syncKey="superficie">
+<Tabs syncKey="surface">
 <TabItem label="curl">
 
 ```bash
@@ -51,7 +51,7 @@ truo vps power svc_10432 stop
 ```ts
 import { TruoClient } from "@truocloud/sdk";
 
-const truo = new TruoClient();               // lee TRUO_TOKEN
+const truo = new TruoClient();               // reads TRUO_TOKEN
 
 for await (const svc of truo.services.listAll()) console.log(svc.id);
 
@@ -63,31 +63,31 @@ await truo.operations.wait(op.id);
 </Tabs>
 
 <CardGrid>
-  <Card title="Un contrato, no una superficie" icon="approve-check">
-    El OpenAPI sale de los schemas de validación de los propios handlers. Un
-    endpoint no puede aceptar algo que el spec no describa.
-    [Cómo funciona](/empezar/contrato/)
+  <Card title="One contract, not one surface" icon="approve-check">
+    The OpenAPI document is generated from the handlers' own validation
+    schemas. An endpoint can't accept anything the spec doesn't describe.
+    [How it works](/getting-started/api-contract/)
   </Card>
-  <Card title="Credenciales que se pueden acotar" icon="setting">
-    Scopes por recurso y acción, allowlist por servicio, y una key **nunca**
-    puede crear otra key. [Autenticación](/empezar/autenticacion/)
+  <Card title="Credentials you can scope down" icon="setting">
+    Per-resource, per-action scopes, a per-service allowlist, and a key can
+    **never** create another key. [Authentication](/getting-started/authentication/)
   </Card>
-  <Card title="Doce meses de aviso" icon="information">
-    Nada se elimina ni se renombra sin `Deprecation`/`Sunset` y un año de
-    ventana. [La política](/deprecation/)
+  <Card title="Twelve months' notice" icon="information">
+    Nothing gets removed or renamed without `Deprecation`/`Sunset` headers and
+    a one-year window. [The policy](/deprecation/)
   </Card>
-  <Card title="Pensada para agentes" icon="rocket">
-    Cada operación declara su scope, si es destructiva y si es asíncrona.
-    [Darle acceso a un agente](/agentes/)
+  <Card title="Built for agents" icon="rocket">
+    Every operation declares its scope, whether it's destructive, and whether
+    it's asynchronous. [Giving an agent access](/ai-agents/)
   </Card>
 </CardGrid>
 
-## Qué se puede operar
+## What you can manage
 
-VPS · DNS · bases de datos administradas · contenedores · balanceadores ·
-Object Storage · Mail Gateway. **103 operaciones** en total —
-[la referencia completa](/referencia/vps/).
+VPS · DNS · managed databases · containers · load balancers ·
+Object Storage · Mail Gateway. **103 operations** in total —
+[the full reference](/reference/vps/).
 
-WordPress, cPanel, dominios, tickets y facturación llegan en `v1.1`. Lo que no
-está en [`/v1/openapi.json`](https://api.truo.cloud/v1/openapi.json) no tiene
-contrato todavía.
+WordPress, cPanel, domains, tickets, and billing arrive in `v1.1`. Anything
+not in [`/v1/openapi.json`](https://api.truo.cloud/v1/openapi.json) has no
+contract yet.

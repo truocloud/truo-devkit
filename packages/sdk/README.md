@@ -1,8 +1,8 @@
 # `@truocloud/sdk`
 
-Cliente TypeScript de la API pública de TruoCloud (`api.truo.cloud/v1`).
-**Cero dependencias**: todo lo que usa —`fetch`, `AbortSignal`, `crypto`— es
-estándar en Node 20+, Bun, Deno y el navegador.
+TypeScript client for the TruoCloud public API (`api.truo.cloud/v1`).
+**Zero dependencies**: everything it uses — `fetch`, `AbortSignal`, `crypto` —
+is standard in Node 20+, Bun, Deno and the browser.
 
 ```bash
 npm i @truocloud/sdk
@@ -11,35 +11,35 @@ npm i @truocloud/sdk
 ```ts
 import { TruoClient } from "@truocloud/sdk";
 
-const truo = new TruoClient();              // lee TRUO_TOKEN del entorno
+const truo = new TruoClient();              // reads TRUO_TOKEN from the environment
 const vps = await truo.vps.get("svc_10432");
 
-// Las listas paginan solas: el cursor no se toca nunca.
+// Lists paginate on their own: you never touch the cursor.
 for await (const svc of truo.services.listAll()) console.log(svc.id);
 
-// Lo que tarda devuelve una operación, y se espera.
+// Anything slow returns an operation, and you wait for it.
 const op = await truo.vps.power("svc_10432", { action: "stop" });
 await truo.operations.wait(op.id);
 ```
 
-Los métodos, los tipos y los metadatos se **generan del OpenAPI**: si la API
-renombra un campo, el código que lo usa deja de compilar en vez de devolver
-`undefined` en producción.
+The methods, the types and the metadata are **generated from the OpenAPI
+spec**: if the API renames a field, the code using it stops compiling instead
+of returning `undefined` in production.
 
-## Lo que hace el transporte por vos
+## What the transport does for you
 
-- **Reintentos** con backoff exponencial y jitter en 429/5xx, respetando
-  `Retry-After`. Nunca reintenta un POST no idempotente salvo que lleve
+- **Retries** with exponential backoff and jitter on 429/5xx, honoring
+  `Retry-After`. It never retries a non-idempotent POST unless it carries an
   `Idempotency-Key`.
-- **Idempotencia automática** en las operaciones que la aceptan, para que un
-  reintento no cree dos veces la misma cosa.
-- **Paginación por cursor**, con `listAll()` como iterador asíncrono.
-- **Avisos de deprecación**: si un endpoint trae `Deprecation`/`Sunset`, se
-  avisa una vez por operación en vez de que te enteres el día que se apaga.
+- **Automatic idempotency** on the operations that accept it, so a retry does
+  not create the same thing twice.
+- **Cursor pagination**, with `listAll()` as an async iterator.
+- **Deprecation notices**: if an endpoint carries `Deprecation`/`Sunset`, you
+  get warned once per operation instead of finding out the day it goes dark.
 
-## Errores
+## Errors
 
-Jerarquía tipada, para poder distinguir sin leer strings:
+Typed hierarchy, to tell them apart without reading strings:
 
 ```ts
 import { AuthorizationError, RateLimitError } from "@truocloud/sdk";
@@ -47,12 +47,12 @@ import { AuthorizationError, RateLimitError } from "@truocloud/sdk";
 try {
   await truo.vps.power("svc_1", { action: "stop" });
 } catch (err) {
-  if (err instanceof AuthorizationError) /* falta scope o permiso */;
+  if (err instanceof AuthorizationError) /* missing scope or permission */;
   if (err instanceof RateLimitError) /* err.retryAfter */;
 }
 ```
 
 ---
 
-Documentación: **[docs.truo.cloud](https://docs.truo.cloud)** ·
-Código: [truocloud/truo-devkit](https://github.com/truocloud/truo-devkit) · MIT
+Documentation: **[docs.truo.cloud](https://docs.truo.cloud)** ·
+Code: [truocloud/truo-devkit](https://github.com/truocloud/truo-devkit) · MIT

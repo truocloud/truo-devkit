@@ -1,60 +1,61 @@
 ---
-title: Política de deprecación
-description: Doce meses de aviso, headers Deprecation y Sunset, y qué cambia sin aviso.
+title: Deprecation policy
+description: Twelve months' notice, Deprecation and Sunset headers, and what changes without notice.
 ---
 
-Esto es un compromiso, no una nota de ingeniería. Es también el criterio por el
-que la API puede llamarse **v1** y no beta.
+This is a commitment, not an engineering note. It's also the criterion by
+which the API gets to call itself **v1** and not beta.
 
-## Qué garantiza `v1`
+## What `v1` guarantees
 
-Mientras `v1` esté vigente, **nada de esto pasa** sin cumplir el aviso de abajo:
+While `v1` is current, **none of this happens** without the notice described
+below:
 
-- Eliminar un endpoint, un campo de respuesta, un parámetro, un valor de enum o
-  un `operationId`.
-- Renombrar cualquiera de ellos. Renombrar es eliminar y crear.
-- Volver obligatorio un parámetro que era opcional, o restringir el rango de
-  valores aceptados.
-- Cambiar el tipo de un campo, el código de estado HTTP de un caso ya
-  documentado, o el `code` de un error.
+- Removing an endpoint, a response field, a parameter, an enum value, or an
+  `operationId`.
+- Renaming any of them. Renaming is removing plus creating.
+- Making an optional parameter required, or narrowing the range of accepted
+  values.
+- Changing a field's type, the HTTP status code of an already-documented case,
+  or the `code` of an error.
 
-Los `operationId` (`vps.power`, `dns.records.patch`) son **estables para
-siempre**: son la clave con la que el SDK, el CLI, las herramientas de agente y
-esta documentación se referencian entre sí. Un `operationId` no se recicla ni
-después de eliminada la operación.
+`operationId`s (`vps.power`, `dns.records.patch`) are **stable forever**:
+they're the key by which the SDK, the CLI, agent tooling, and this
+documentation reference each other. An `operationId` is never recycled, even
+after the operation is removed.
 
-## Qué cambia sin aviso
+## What changes without notice
 
-Estos cambios son **aditivos** y pueden salir cualquier día. Un cliente que se
-rompe con ellos tiene un bug propio, y lo decimos de antemano para que no sea una
-discusión:
+These changes are **additive** and can ship any day. A client that breaks on
+them has a bug of its own — and we say so up front so it never becomes an
+argument:
 
-- **Campos nuevos** en cualquier respuesta. Deserializá ignorando lo desconocido;
-  no uses parsers estrictos que fallen ante un campo de más.
-- **Valores nuevos** en un enum de respuesta — un estado de VPS nuevo, un motor
-  de base de datos nuevo. Tené siempre una rama `default`.
-- **Endpoints, recursos y parámetros opcionales nuevos.**
-- **El contenido del cursor de paginación.** Es una cadena opaca: se pasa tal
-  cual y no se almacena entre sesiones.
-- **Correcciones de seguridad** que cierren un acceso que nunca debió existir. Si
-  un permiso estaba mal aplicado, arreglarlo no espera doce meses.
-- **Comportamiento no documentado**: el orden de una lista sin `sort`, el texto
-  exacto de un `message` de error (el `code` sí es estable), los tiempos de una
-  operación asíncrona.
-- **Los límites de uso**, dentro de lo razonable y comunicados en los headers
-  `RateLimit-*` de cada respuesta.
+- **New fields** in any response. Deserialize ignoring the unknown; don't use
+  strict parsers that fail on an extra field.
+- **New values** in a response enum — a new VPS state, a new database engine.
+  Always have a `default` branch.
+- **New endpoints, resources, and optional parameters.**
+- **The contents of the pagination cursor.** It's an opaque string: pass it
+  through as-is and don't store it across sessions.
+- **Security fixes** that close access that should never have existed. If a
+  permission was misapplied, fixing it doesn't wait twelve months.
+- **Undocumented behavior**: the order of a list without `sort`, the exact
+  text of an error `message` (the `code` is stable), the timing of an
+  asynchronous operation.
+- **The rate limits**, within reason and communicated in the `RateLimit-*`
+  headers of every response.
 
-## El aviso: doce meses
+## The notice: twelve months
 
-Todo cambio breaking sobre `v1` lleva **doce meses** entre el anuncio y el corte.
-Durante esa ventana:
+Every breaking change to `v1` gets **twelve months** between the announcement
+and the cutoff. During that window:
 
-1. **Se publica en el changelog**, con la fecha de corte y la ruta de migración
-   concreta.
-2. **Se avisa por correo** al dueño de cada API key que haya llamado la operación
-   afectada en los 90 días previos. No es un boletín: si tu key no la usa, no te
-   escribimos.
-3. **Las respuestas llevan headers** desde el día del anuncio:
+1. **It's published in the changelog**, with the cutoff date and the concrete
+   migration path.
+2. **We email** the owner of every API key that called the affected operation
+   in the previous 90 days. It's not a newsletter: if your key doesn't use it,
+   we don't write to you.
+3. **Responses carry headers** from the day of the announcement:
 
    ```http
    Deprecation: Sun, 27 Jul 2026 00:00:00 GMT
@@ -62,36 +63,39 @@ Durante esa ventana:
    Link: <https://docs.truo.cloud/changelog/…>; rel="deprecation"
    ```
 
-   `Deprecation` es la fecha del anuncio y `Sunset` la del corte
-   ([RFC 9745](https://datatracker.ietf.org/doc/html/rfc9745) y
-   [RFC 8594](https://datatracker.ietf.org/doc/html/rfc8594)). Podés detectar que
-   estás usando algo condenado **sin leer nada**: alcanza con loguear la
-   presencia del header. El SDK y el CLI lo emiten como warning por `stderr`.
-4. **El OpenAPI marca la operación** `deprecated: true`, así el diff del spec lo
-   hace visible en cualquier pipeline.
+   `Deprecation` is the announcement date and `Sunset` the cutoff
+   ([RFC 9745](https://datatracker.ietf.org/doc/html/rfc9745) and
+   [RFC 8594](https://datatracker.ietf.org/doc/html/rfc8594)). You can detect
+   that you're using something doomed **without reading anything**: logging
+   the header's presence is enough. The SDK and the CLI emit it as a warning
+   on `stderr`.
+4. **The OpenAPI document marks the operation** `deprecated: true`, so a spec
+   diff makes it visible in any pipeline.
 
-Una operación deprecada **sigue funcionando igual** hasta la fecha de `Sunset`.
-No se degrada, no se le baja el límite, no se le mete latencia.
+A deprecated operation **keeps working exactly the same** until the `Sunset`
+date. It isn't degraded, its limits aren't lowered, no latency is added.
 
-## Versiones nuevas
+## New versions
 
-Un cambio que no cabe en lo aditivo produce **`/v2`**, no un `v1` roto. `v1` y
-`v2` conviven, y los doce meses de `v1` corren desde que `v2` sale de beta.
+A change that doesn't fit in the additive bucket produces **`/v2`**, not a
+broken `v1`. `v1` and `v2` run side by side, and `v1`'s twelve months start
+when `v2` leaves beta.
 
-La versión está en la URL: es visible en cualquier log y no depende de que
-configures un header.
+The version is in the URL: visible in any log, and not dependent on you
+configuring a header.
 
-## Lo que queda fuera
+## What's excluded
 
-- **Todo lo marcado `beta`** en el OpenAPI y en esta documentación. La marca es
-  explícita, la garantía es ninguna, y nada entra a beta sin decirlo.
-- **Cualquier endpoint que no esté en
-  [`/v1/openapi.json`](https://api.truo.cloud/v1/openapi.json).** Si no está en
-  el spec, no tiene contrato.
+- **Anything marked `beta`** in the OpenAPI document and in this
+  documentation. The marker is explicit, the guarantee is none, and nothing
+  enters beta unannounced.
+- **Any endpoint not in
+  [`/v1/openapi.json`](https://api.truo.cloud/v1/openapi.json).** If it's not
+  in the spec, it has no contract.
 
-## Cómo se hace cumplir
+## How it's enforced
 
-No depende de que alguien se acuerde. El spec se genera del código —los schemas
-de validación son a la vez validador de runtime y fuente del documento— y **CI
-falla ante cualquier cambio breaking**, salvo que el cambio lleve la etiqueta que
-fuerza justamente esta conversación.
+It doesn't depend on anyone remembering. The spec is generated from the
+code — the validation schemas are both the runtime validator and the source of
+the document — and **CI fails on any breaking change**, unless the change
+carries the label that forces exactly this conversation.

@@ -2,15 +2,15 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 export const BANNER = `// ─────────────────────────────────────────────────────────────────────────────
-// ARCHIVO GENERADO — no editar a mano.
+// GENERATED FILE — do not edit by hand.
 //
-// Sale de packages/openapi/openapi/v1.json a traves de packages/codegen.
-// Para cambiarlo: cambia el handler en la API (los schemas Zod son la fuente de
-// verdad), regenera el spec alla, 'bun run sync:spec' aca, y 'bun run gen'.
+// It comes from packages/openapi/openapi/v1.json via packages/codegen.
+// To change it: change the handler in the API (the Zod schemas are the source
+// of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 `;
 
-/** `dns.zones.records` → `DnsZonesRecords`. Tambien parte en `_` y `-`. */
+/** `dns.zones.records` → `DnsZonesRecords`. Also splits on `_` and `-`. */
 export function pascal(input: string): string {
   return input
     .split(/[.\-_/]/)
@@ -19,13 +19,13 @@ export function pascal(input: string): string {
     .join("");
 }
 
-/** `set_password` → `setPassword`. Deja intacto lo que ya es camelCase. */
+/** `set_password` → `setPassword`. Leaves anything already camelCase intact. */
 export function camel(input: string): string {
   const p = pascal(input);
   return p.charAt(0).toLowerCase() + p.slice(1);
 }
 
-/** Un identificador JS valido no necesita comillas como clave de objeto. */
+/** A valid JS identifier needs no quotes as an object key. */
 export function isIdent(name: string): boolean {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name);
 }
@@ -34,7 +34,7 @@ export function quoteKey(name: string): string {
   return isIdent(name) ? name : JSON.stringify(name);
 }
 
-/** Comentario JSDoc a partir de un texto libre; devuelve "" si no hay nada que decir. */
+/** JSDoc comment from free text; returns "" if there is nothing to say. */
 export function jsdoc(text: string | undefined, indent = ""): string {
   if (!text) return "";
   const lines = text.trim().split("\n");
@@ -51,13 +51,13 @@ export interface WriteResult {
 }
 
 /**
- * Escribe solo si cambio, y en modo `--check` no escribe nada: informa.
+ * Writes only if it changed, and in `--check` mode writes nothing: it reports.
  *
- * Los dos comportamientos son el mismo gate visto desde dos lados. En local, no tocar
- * archivos identicos deja `git status` limpio y hace obvio que la generacion es
- * deterministica. En CI, `--check` falla si alguien edito a mano un archivo generado o
- * si actualizo el spec sin regenerar — que es la unica forma de que el SDK publicado y
- * el contrato publicado se separen sin que nadie se entere.
+ * The two behaviors are the same gate seen from two sides. Locally, not touching
+ * identical files keeps `git status` clean and makes it obvious that generation is
+ * deterministic. In CI, `--check` fails if someone hand-edited a generated file or
+ * updated the spec without regenerating — which is the only way for the published SDK
+ * and the published contract to drift apart with nobody noticing.
  */
 export function writeGenerated(path: string, content: string, check: boolean): WriteResult {
   const next = content.endsWith("\n") ? content : content + "\n";

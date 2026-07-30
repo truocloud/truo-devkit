@@ -1,12 +1,12 @@
 /**
- * Construye el CLI.
+ * Builds the CLI.
  *
- *   bun run build             # dist/truo.js — el paquete npm (Node 20+)
- *   bun run build --binaries  # + binarios single-file para brew/scoop/curl|sh
+ *   bun run build             # dist/truo.js — the npm package (Node 20+)
+ *   bun run build --binaries  # + single-file binaries for brew/scoop/curl|sh
  *
- * Las dos salidas son **bundles**: el SDK y el spec viajan adentro. Por eso
- * `@truocloud/cli` se publica sin una sola dependencia, y por eso `npx @truocloud/cli`
- * baja un archivo y no un arbol de node_modules.
+ * Both outputs are **bundles**: the SDK and the spec travel inside. That is why
+ * `@truocloud/cli` is published with zero dependencies, and why `npx @truocloud/cli`
+ * downloads one file rather than a node_modules tree.
  */
 import { mkdirSync, rmSync, existsSync, chmodSync } from "node:fs";
 import { resolve } from "node:path";
@@ -19,9 +19,9 @@ const BIN = resolve(ROOT, "bin");
 const withBinaries = process.argv.includes("--binaries");
 
 /**
- * Las seis plataformas que cubren a cualquiera que instale por brew, scoop o `curl|sh`.
- * Compilar los seis desde una sola maquina es justamente lo que hace innecesario un
- * runner por sistema operativo en CI.
+ * The six platforms that cover anyone installing via brew, scoop or `curl|sh`.
+ * Compiling all six from a single machine is exactly what makes a runner per
+ * operating system in CI unnecessary.
  */
 const TARGETS = [
   { target: "bun-linux-x64", out: "truo-linux-x64" },
@@ -35,13 +35,13 @@ const TARGETS = [
 rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
 
-console.log("Bundle para npm (target: node)…");
+console.log("Bundle for npm (target: node)…");
 const bundle = await Bun.build({
   entrypoints: [ENTRY],
   outdir: DIST,
   target: "node",
   format: "esm",
-  minify: false, // Un CLI que falla y muestra un stack minificado no ayuda a nadie.
+  minify: false, // A CLI that fails showing a minified stack helps nobody.
   naming: "truo.js",
 });
 
@@ -52,9 +52,9 @@ if (!bundle.success) {
 
 const output = resolve(DIST, "truo.js");
 
-// El shebang se antepone despues del bundle y no con la opcion `banner`: Bun emite su
-// propio preambulo primero, y un `#!` en la linea 2 no es un shebang — es un error de
-// sintaxis en cuanto Node intenta cargar el archivo.
+// The shebang is prepended after the bundle rather than via the `banner` option: Bun
+// emits its own preamble first, and a `#!` on line 2 is not a shebang — it is a syntax
+// error the moment Node tries to load the file.
 {
   const built = await Bun.file(output).text();
   const body = built.replace(/^#!.*\n/, "");
@@ -65,14 +65,14 @@ if (existsSync(output)) {
   try {
     chmodSync(output, 0o755);
   } catch {
-    /* Windows no aplica el bit de ejecucion; npm lo arregla al instalar por el campo `bin`. */
+    /* Windows does not apply the execute bit; npm fixes it at install time via the `bin` field. */
   }
 }
 const size = (await Bun.file(output).arrayBuffer()).byteLength;
 console.log(`  dist/truo.js  ${(size / 1024).toFixed(0)} KB`);
 
 if (!withBinaries) {
-  console.log("\nListo. Para los binarios: bun run build:binaries");
+  console.log("\nDone. For the binaries: bun run build:binaries");
   process.exit(0);
 }
 
@@ -81,7 +81,7 @@ mkdirSync(BIN, { recursive: true });
 
 for (const { target, out } of TARGETS) {
   const dest = resolve(BIN, out);
-  console.log(`Compilando ${target}…`);
+  console.log(`Compiling ${target}…`);
   const proc = Bun.spawnSync([
     "bun",
     "build",
@@ -102,9 +102,9 @@ for (const { target, out } of TARGETS) {
 /**
  * Checksums.
  *
- * Los binarios se bajan por `curl | sh`, por brew y por scoop; los tres formatos
- * verifican contra un sha256. Calcularlos aca y no en el workflow deja que
- * cualquiera reproduzca el archivo y compare, sin leer YAML de CI.
+ * The binaries are downloaded via `curl | sh`, brew and scoop; all three formats
+ * verify against a sha256. Computing them here rather than in the workflow lets
+ * anyone reproduce the file and compare, without reading CI YAML.
  */
 {
   const lines: string[] = [];
@@ -113,9 +113,9 @@ for (const { target, out } of TARGETS) {
     const digest = new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
     lines.push(`${digest}  ${out}`);
   }
-  // Formato de `sha256sum`: `<hash>  <archivo>`, para que `sha256sum -c` lo lea.
+  // `sha256sum` format: `<hash>  <file>`, so `sha256sum -c` can read it.
   await Bun.write(resolve(BIN, "SHA256SUMS"), lines.join("\n") + "\n");
   console.log("  bin/SHA256SUMS");
 }
 
-console.log(`\nListo: ${TARGETS.length} binarios en packages/cli/bin/.`);
+console.log(`\nDone: ${TARGETS.length} binaries in packages/cli/bin/.`);

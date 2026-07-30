@@ -1,21 +1,21 @@
 # TruoCloud devkit
 
-Herramientas para operar [TruoCloud](https://www.truocloud.com) desde código, desde la terminal y —pronto— desde un agente de IA. Todo sale de un solo contrato: el OpenAPI de [`api.truo.cloud/v1`](https://api.truo.cloud/v1/openapi.json).
+Tools to operate [TruoCloud](https://www.truocloud.com) from code, from the terminal and — soon — from an AI agent. Everything comes from a single contract: the OpenAPI spec of [`api.truo.cloud/v1`](https://api.truo.cloud/v1/openapi.json).
 
-| Paquete | Qué es | Estado |
+| Package | What it is | Status |
 |---|---|---|
-| [`@truocloud/openapi`](packages/openapi) | La especificación OpenAPI, versionada | beta |
-| [`@truocloud/sdk`](packages/sdk) | Cliente TypeScript. **Cero dependencias** | beta |
-| [`@truocloud/cli`](packages/cli) | El comando `truo` | beta |
+| [`@truocloud/openapi`](packages/openapi) | The OpenAPI specification, versioned | beta |
+| [`@truocloud/sdk`](packages/sdk) | TypeScript client. **Zero dependencies** | beta |
+| [`@truocloud/cli`](packages/cli) | The `truo` command | beta |
 | [`docs/`](docs) | [docs.truo.cloud](https://docs.truo.cloud) — Astro Starlight + Scalar | beta |
-| `@truocloud/mcp` | Servidor MCP para agentes | *(no existe todavía)* |
+| `@truocloud/mcp` | MCP server for agents | *(does not exist yet)* |
 
 ---
 
-## Instalación
+## Installation
 
 ```bash
-# CLI — elegí uno
+# CLI — pick one
 npm install -g @truocloud/cli
 brew install truocloud/tap/truo
 scoop bucket add truocloud https://github.com/truocloud/scoop-bucket && scoop install truo
@@ -27,23 +27,23 @@ truo auth login
 npm install @truocloud/sdk
 ```
 
-`truo auth login` abre un login en el navegador (device flow, RFC 8628): muestra un código, lo aprobás desde cualquier navegador —puede ser el del teléfono— y el CLI crea **su propia API key**, acotada y revocable por separado. Nadie copia y pega una key. En CI: `--token` o `TRUO_TOKEN`.
+`truo auth login` opens a browser login (device flow, RFC 8628): it shows a code, you approve it from any browser — your phone's works — and the CLI creates **its own API key**, scoped down and revocable on its own. Nobody copies and pastes a key. In CI: `--token` or `TRUO_TOKEN`.
 
-Los binarios se publican con su `SHA256SUMS`, y brew, scoop y `install.sh` los verifican. Los paquetes de npm se publican con [provenance](https://docs.npmjs.com/generating-provenance-statements): se puede comprobar que el tarball salió de este repo y de este workflow.
+Binaries are published with their `SHA256SUMS`, and brew, scoop and `install.sh` verify them. The npm packages are published with [provenance](https://docs.npmjs.com/generating-provenance-statements): you can verify that the tarball came from this repo and this workflow.
 
-## En treinta segundos
+## In thirty seconds
 
 ```bash
-truo services list                       # qué tengo
+truo services list                       # what do I have
 truo vps list -o json | jq '.[].hostname'
-truo vps power svc_10432 stop            # espera a que termine, sola
-truo dns record list ejemplo.com
+truo vps power svc_10432 stop            # waits until it finishes, on its own
+truo dns record list example.com
 ```
 
 ```ts
 import { TruoClient } from "@truocloud/sdk";
 
-const truo = new TruoClient();                    // lee TRUO_TOKEN
+const truo = new TruoClient();                    // reads TRUO_TOKEN
 
 for await (const svc of truo.services.listAll({ family: "vps" })) {
   console.log(svc.id, svc.name);
@@ -55,87 +55,87 @@ await truo.operations.wait(op.id);
 
 ---
 
-## Cómo está construido
+## How it is built
 
 ```
-openapi/v1.json  ──┬─→  sdk/generated/types.ts        tipos del contrato
-                   ├─→  sdk/generated/operations.ts   metadatos (scope, peligro, async)
-                   ├─→  sdk/generated/resources.ts    el árbol tipado del cliente
-                   └─→  cli/generated/commands.ts     el árbol de comandos
+openapi/v1.json  ──┬─→  sdk/generated/types.ts        contract types
+                   ├─→  sdk/generated/operations.ts   metadata (scope, danger, async)
+                   ├─→  sdk/generated/resources.ts    the client's typed tree
+                   └─→  cli/generated/commands.ts     the command tree
 ```
 
-**Ningún eslabón se escribe a mano.** El spec sale de los schemas Zod de los handlers de la API; de ahí salen los tipos, los métodos del SDK y los comandos del CLI. Una operación nueva que declare `x-truo-cli` aparece en el CLI en el siguiente `bun run gen`, con su ayuda, sus argumentos y sus valores válidos.
+**No link in the chain is written by hand.** The spec comes from the Zod schemas of the API's handlers; from there come the types, the SDK methods and the CLI commands. A new operation that declares `x-truo-cli` shows up in the CLI on the next `bun run gen`, with its help, its arguments and its valid values.
 
-Lo que sí está escrito a mano es lo que un generador no debería tocar nunca: el transporte del SDK (reintentos, idempotencia, errores, cursor) y el dispatcher del CLI. Ahí un bug cuesta caro y no queremos que se reescriba solo cada vez que la API crece.
+What *is* written by hand is what a generator should never touch: the SDK transport (retries, idempotency, errors, cursor) and the CLI dispatcher. A bug there is expensive, and we do not want it rewriting itself every time the API grows.
 
-### Sin dependencias, a propósito
+### Zero dependencies, on purpose
 
-Ni el SDK ni el CLI tienen dependencias en runtime, y el codegen tampoco tiene dependencias de build. Tres consecuencias concretas:
+Neither the SDK nor the CLI has runtime dependencies, and the codegen has no build dependencies either. Three concrete consequences:
 
-- `npm i @truocloud/sdk` no agrega nada al árbol de la aplicación del cliente.
-- El CLI se compila a un binario de un solo archivo (`bun build --compile`) para brew, scoop y `curl | sh`.
-- Cualquiera puede clonar este repo, correr `bun run gen` y obtener exactamente los mismos artefactos, sin instalar nada.
+- `npm i @truocloud/sdk` adds nothing to the client application's tree.
+- The CLI compiles to a single-file binary (`bun build --compile`) for brew, scoop and `curl | sh`.
+- Anyone can clone this repo, run `bun run gen` and get exactly the same artifacts, without installing anything.
 
-El costo es un emisor de tipos propio (`packages/codegen/src/ts-types.ts`) en vez de `openapi-typescript`. Se paga porque el subconjunto de JSON Schema que Zod produce es chico y conocido, y porque cuando el emisor encuentra algo que no soporta **falla el build** en vez de emitir `any` en silencio.
+The cost is a homegrown type emitter (`packages/codegen/src/ts-types.ts`) instead of `openapi-typescript`. It is worth paying because the subset of JSON Schema that Zod produces is small and well-known, and because when the emitter finds something it does not support it **fails the build** instead of silently emitting `any`.
 
 ---
 
-## Desarrollo
+## Development
 
 ```bash
 bun install
-bun run sync:spec          # baja el spec de api.truo.cloud
-bun run gen                # regenera SDK + CLI
-bun test                   # 52 tests, sin red
-bun run gen:check          # falla si lo generado quedó viejo (esto corre en CI)
+bun run sync:spec          # fetches the spec from api.truo.cloud
+bun run gen                # regenerates SDK + CLI
+bun test                   # 52 tests, no network
+bun run gen:check          # fails if generated code went stale (this runs in CI)
 
-bun packages/cli/src/index.ts vps list   # el CLI desde el fuente
+bun packages/cli/src/index.ts vps list   # the CLI from source
 bun run build                            # dist/truo.js (npm)
-bun run build --binaries                 # 6 binarios single-file + SHA256SUMS
-bun run build:npm                        # los tres paquetes listos para publicar
+bun run build --binaries                 # 6 single-file binaries + SHA256SUMS
+bun run build:npm                        # the three packages ready to publish
 ```
 
-### Publicar
+### Publishing
 
-Un tag `vX.Y.Z` dispara todo. **El tag es la única fuente de la versión**: el workflow la escribe en los tres `package.json` antes de construir, así que no se puede taggear `v0.3.0` y publicar `0.2.9` por un commit olvidado.
+A `vX.Y.Z` tag triggers everything. **The tag is the single source of the version**: the workflow writes it into the three `package.json` files before building, so you cannot tag `v0.3.0` and publish `0.2.9` because of a forgotten commit.
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-De ahí sale: los tres paquetes en npm con provenance, un release de GitHub con los seis binarios y el spec, y la fórmula de brew y el manifiesto de scoop actualizados. Las mismas puertas que en cada push (`sync:spec --check`, `gen:check`, `typecheck`, tests) corren también acá — un release es justo el momento en que un spec desincronizado se convierte en un paquete publicado que miente sobre la API.
+From there come: the three packages on npm with provenance, a GitHub release with the six binaries and the spec, and the brew formula and scoop manifest updated. The same gates as on every push (`sync:spec --check`, `gen:check`, `typecheck`, tests) run here too — a release is exactly the moment an out-of-sync spec becomes a published package that lies about the API.
 
-Para ensayar sin publicar: *Actions → Release → Run workflow*.
+To rehearse without publishing: *Actions → Release → Run workflow*.
 
-Los tres paquetes comparten versión (`bun run version:set 0.2.0`). Versiones distintas obligarían a mantener una tabla de compatibilidad entre cosas que salen del mismo commit del mismo spec.
+The three packages share a version (`bun run version:set 0.2.0`). Different versions would force maintaining a compatibility table between things that come out of the same commit of the same spec.
 
-### Documentación
+### Documentation
 
-`docs/` vive **fuera** del workspace `packages/*`: el devkit se clona y se corre sin instalar nada, y Astro es un árbol de dependencias que no tiene por qué estar en el medio de eso. Se instala solo si vas a tocar la documentación.
+`docs/` lives **outside** the `packages/*` workspace: the devkit clones and runs without installing anything, and Astro is a dependency tree that has no business in the middle of that. Install it only if you are going to touch the documentation.
 
 ```bash
 cd docs && bun install
-bun run dev        # genera del spec y levanta Astro
-bun run generate   # solo lo generado, para inspeccionarlo
+bun run dev        # generates from the spec and starts Astro
+bun run generate   # only the generated parts, for inspection
 ```
 
-De `openapi/v1.json` salen: `public/openapi.json` (lo que consume Scalar en `/reference`), `public/llms.txt` y `llms-full.txt` (el catálogo para agentes), y una página de referencia por familia donde **cada operación aparece en sus cuatro formas** — curl, CLI, SDK y MCP — derivadas todas del mismo `operationId`. Esa paridad automática *es* la prueba del "API-first"; escritas a mano, tres de las cuatro quedarían viejas en el primer endpoint nuevo.
+From `openapi/v1.json` come: `public/openapi.json` (what Scalar consumes at `/reference`), `public/llms.txt` and `llms-full.txt` (the catalog for agents), and one reference page per family where **every operation appears in its four forms** — curl, CLI, SDK and MCP — all derived from the same `operationId`. That automatic parity *is* the proof of "API-first"; written by hand, three of the four would go stale at the first new endpoint.
 
-Se despliega a GitHub Pages en cada push a `main` que toque `docs/` o el spec.
+It deploys to GitHub Pages on every push to `main` that touches `docs/` or the spec.
 
-### Gates de CI
+### CI gates
 
-Dos, y los dos existen por la misma razón — que "v1" signifique algo:
+Two, and both exist for the same reason — so that "v1" means something:
 
-1. **`sync:spec --check`** — el devkit no puede quedar viejo respecto de la API sin que el build se ponga rojo. Sin esto, esta copia del spec envejece en silencio y el SDK publicado deja de describir el contrato publicado.
-2. **`gen:check`** — nadie edita a mano un archivo generado, y nadie actualiza el spec sin regenerar.
+1. **`sync:spec --check`** — the devkit cannot go stale relative to the API without the build turning red. Without this, this copy of the spec ages in silence and the published SDK stops describing the published contract.
+2. **`gen:check`** — nobody hand-edits a generated file, and nobody updates the spec without regenerating.
 
-## Contrato y estabilidad
+## Contract and stability
 
-La API es **v1** con **política de deprecación de doce meses**: nada se elimina ni se renombra sin ese aviso, con headers `Deprecation`/`Sunset` en las respuestas afectadas y una entrada en el changelog. Los cambios aditivos (campos nuevos, valores de enum nuevos, endpoints nuevos) salen sin aviso, así que **deserializá ignorando lo desconocido y tené siempre una rama `default`**.
+The API is **v1** with a **twelve-month deprecation policy**: nothing is removed or renamed without that notice, with `Deprecation`/`Sunset` headers on the affected responses and a changelog entry. Additive changes (new fields, new enum values, new endpoints) ship without notice, so **deserialize ignoring the unknown and always keep a `default` branch**.
 
-La política completa: <https://docs.truo.cloud/deprecation>.
+The full policy: <https://docs.truo.cloud/deprecation>.
 
-## Licencia
+## License
 
 MIT.

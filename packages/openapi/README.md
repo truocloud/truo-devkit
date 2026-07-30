@@ -1,6 +1,6 @@
 # `@truocloud/openapi`
 
-El documento OpenAPI 3.1 de `api.truo.cloud/v1`, tal cual lo sirve la API.
+The OpenAPI 3.1 document for `api.truo.cloud/v1`, exactly as the API serves it.
 
 ```bash
 npm i @truocloud/openapi
@@ -15,41 +15,41 @@ for (const { path, method, op } of eachOperation()) {
 }
 ```
 
-O el JSON crudo, para las herramientas que lo quieren así:
+Or the raw JSON, for tools that want it that way:
 
 ```ts
 import spec from "@truocloud/openapi/v1.json" with { type: "json" };
 ```
 
-## Por qué existe como paquete
+## Why it exists as a package
 
-Para que el SDK, el CLI y las herramientas de terceros consuman **exactamente el
-mismo documento** que `GET /v1/openapi.json`. Cualquier divergencia entre lo que
-publica la API y lo que asume una herramienta es un bug, y tenerlo en un solo
-lugar es lo que permite detectarlo con un diff.
+So that the SDK, the CLI and third-party tools consume **exactly the same
+document** as `GET /v1/openapi.json`. Any divergence between what the API
+publishes and what a tool assumes is a bug, and keeping it in one place is what
+makes it detectable with a diff.
 
-La cadena entera es: handler → schema de validación → spec → SDK/CLI. **No hay
-ningún eslabón escrito a mano.**
+The full chain is: handler → validation schema → spec → SDK/CLI. **No link is
+written by hand.**
 
-## Extensiones `x-truo-*`
+## `x-truo-*` extensions
 
-Cada operación declara lo que no cabe en OpenAPI estándar:
+Every operation declares what does not fit in standard OpenAPI:
 
 | | |
 |---|---|
-| `x-truo-scope` | Scope requerido (`vps:write`) |
+| `x-truo-scope` | Required scope (`vps:write`) |
 | `x-truo-danger` | `none` · `reversible` · `destructive` |
-| `x-truo-long-running` | Devuelve `202` + una operación que hay que esperar |
-| `x-truo-idempotent` | Acepta `Idempotency-Key` |
+| `x-truo-long-running` | Returns `202` + an operation to wait for |
+| `x-truo-idempotent` | Accepts `Idempotency-Key` |
 | `x-truo-rate-bucket` | `read` · `write` · `expensive` |
-| `x-truo-cli` | Comando y posicionales del CLI |
-| `x-truo-mcp` | Toolset, acción y si es de solo lectura |
+| `x-truo-cli` | CLI command and positionals |
+| `x-truo-mcp` | Toolset, action and whether it is read-only |
 
-El `operationId` es **contrato permanente**: es la clave de join entre los
-métodos del SDK, los comandos del CLI, las acciones del MCP y las anclas de la
-documentación.
+The `operationId` is **permanent contract**: it is the join key between the
+SDK's methods, the CLI's commands, the MCP's actions and the documentation's
+anchors.
 
 ---
 
-Documentación: **[docs.truo.cloud](https://docs.truo.cloud)** ·
-Código: [truocloud/truo-devkit](https://github.com/truocloud/truo-devkit) · MIT
+Documentation: **[docs.truo.cloud](https://docs.truo.cloud)** ·
+Code: [truocloud/truo-devkit](https://github.com/truocloud/truo-devkit) · MIT

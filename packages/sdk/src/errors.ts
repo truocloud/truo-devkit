@@ -1,10 +1,10 @@
 /**
- * La jerarquia de errores del SDK.
+ * The SDK's error hierarchy.
  *
- * Refleja el campo `type` del envelope de error de la API, que existe justamente para
- * esto: `type` es la clase gruesa con la que se hace `catch` selectivo, y `code` es la
- * identidad especifica y estable con la que se decide que hacer. Un integrador escribe
- * `catch (e) { if (e instanceof RateLimitError) …}` sin comparar strings.
+ * It mirrors the `type` field of the API's error envelope, which exists precisely for
+ * this: `type` is the coarse class you `catch` selectively on, and `code` is the specific,
+ * stable identity you use to decide what to do. An integrator writes
+ * `catch (e) { if (e instanceof RateLimitError) …}` without comparing strings.
  */
 
 export interface ApiErrorBody {
@@ -26,16 +26,16 @@ export interface ErrorOpts {
 }
 
 export class TruoError extends Error {
-  /** `X-Request-Id`. **Citalo siempre al reportar un problema**: es la clave del audit log. */
+  /** `X-Request-Id`. **Always quote it when reporting a problem**: it is the audit log key. */
   readonly requestId: string | null;
   readonly status: number | null;
-  /** Clase gruesa que devolvio la API (`rate_limit_error`). */
+  /** Coarse class the API returned (`rate_limit_error`). */
   readonly type: string | null;
-  /** Identidad especifica y estable (`insufficient_scope`). Nunca se renombra. */
+  /** Specific, stable identity (`insufficient_scope`). Never renamed. */
   readonly code: string | null;
-  /** Campo que causo el problema, cuando la API lo puede senalar. */
+  /** The field that caused the problem, when the API can point at one. */
   readonly param: string | null;
-  /** Cuerpo crudo, por si la API dice algo que esta clase todavia no modela. */
+  /** Raw body, in case the API says something this class does not model yet. */
   readonly raw: unknown;
 
   constructor(message: string, opts: ErrorOpts = {}) {
@@ -55,16 +55,16 @@ export class TruoError extends Error {
   }
 }
 
-/** 401 — credencial ausente, invalida, revocada o vencida. */
+/** 401 — credential missing, invalid, revoked, or expired. */
 export class AuthenticationError extends TruoError {}
 
-/** 403 — la credencial existe pero no alcanza (scope, permiso del usuario, o del servicio). */
+/** 403 — the credential exists but is not enough (scope, user permission, or service permission). */
 export class AuthorizationError extends TruoError {}
 
-/** 400/404/409 — el request esta mal, el recurso no existe, o hay conflicto. */
+/** 400/404/409 — the request is malformed, the resource does not exist, or there is a conflict. */
 export class InvalidRequestError extends TruoError {}
 
-/** 429. `retryAfterMs` viene de `Retry-After`; el SDK ya lo respeto en sus reintentos. */
+/** 429. `retryAfterMs` comes from `Retry-After`; the SDK already honored it in its retries. */
 export class RateLimitError extends TruoError {
   readonly retryAfterMs: number | null;
   constructor(message: string, opts: ErrorOpts & { retryAfterMs?: number | null } = {}) {
@@ -73,13 +73,13 @@ export class RateLimitError extends TruoError {
   }
 }
 
-/** 5xx — el problema es nuestro. Reintentar tiene sentido. */
+/** 5xx — the problem is on our side. Retrying makes sense. */
 export class ApiError extends TruoError {}
 
-/** No hubo respuesta: DNS, TCP, TLS, timeout, o el proceso aborto la request. */
+/** No response at all: DNS, TCP, TLS, timeout, or the process aborted the request. */
 export class ApiConnectionError extends TruoError {}
 
-/** `operations.wait()` termino con la operacion en `failed`. */
+/** `operations.wait()` finished with the operation in `failed`. */
 export class OperationFailedError extends TruoError {
   readonly operationId: string;
   constructor(message: string, operationId: string, opts: ErrorOpts = {}) {
@@ -89,8 +89,8 @@ export class OperationFailedError extends TruoError {
 }
 
 /**
- * `operations.wait()` se quedo sin tiempo. **La operacion sigue corriendo**: el id esta
- * en la excepcion justamente para poder retomarla en vez de volver a lanzarla.
+ * `operations.wait()` ran out of time. **The operation is still running**: the id is on
+ * the exception precisely so you can resume it instead of starting it again.
  */
 export class OperationTimeoutError extends TruoError {
   readonly operationId: string;
@@ -118,12 +118,12 @@ function byStatus(status: number): typeof TruoError {
 }
 
 /**
- * Construye la excepcion a partir de la respuesta.
+ * Builds the exception from the response.
  *
- * Se prefiere `type` sobre el status porque el status puede cambiar de significado detras
- * de un proxy (un 502 de Cloudflare no es un `api_error` nuestro), mientras que `type`
- * solo aparece si el cuerpo lo escribio la API. Cuando no hay cuerpo util —justamente el
- * caso del proxy— se cae al status.
+ * `type` is preferred over the status because the status can change meaning behind a
+ * proxy (a 502 from Cloudflare is not an `api_error` of ours), while `type` only shows up
+ * if the body was written by the API. When there is no useful body — exactly the proxy
+ * case — it falls back to the status.
  */
 export function errorFromResponse(
   status: number,

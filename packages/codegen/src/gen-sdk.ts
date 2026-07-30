@@ -1,12 +1,12 @@
 /**
- * Genera los tres archivos del SDK: los tipos, el manifiesto de operaciones y el arbol
- * de recursos tipado.
+ * Generates the SDK's three files: the types, the operations manifest and the typed
+ * resource tree.
  *
- * El arbol se emite como un object literal dentro de `createResources()` y **no** como un
- * puñado de interfaces declaradas: TypeScript infiere la firma exacta de cada metodo del
- * literal, asi que el tipado que ve el usuario es identico con una fraccion del codigo
- * generado — y no hay forma de que la declaracion y la implementacion se desincronicen,
- * porque hay una sola.
+ * The tree is emitted as an object literal inside `createResources()` and **not** as a
+ * pile of declared interfaces: TypeScript infers the exact signature of every method from
+ * the literal, so the typing the user sees is identical with a fraction of the generated
+ * code — and there is no way for declaration and implementation to drift apart, because
+ * there is only one.
  */
 import { resolve } from "node:path";
 import type { JsonSchema, OpenApiDocument } from "../../openapi/src/index.ts";
@@ -16,7 +16,7 @@ import { BANNER, jsdoc, pascal, camel, quoteKey, writeGenerated, type WriteResul
 
 const SDK = (f: string) => resolve(import.meta.dirname, "../../sdk/src/generated", f);
 
-/** Claves de `RequestOptions`. Un query param que se llame igual haria ambigua la firma. */
+/** Keys of `RequestOptions`. A query param with the same name would make the signature ambiguous. */
 const RESERVED = new Set(["signal", "idempotencyKey", "headers", "timeoutMs", "maxRetries"]);
 
 function paramsToObject(params: ParamIR[], ctx: EmitCtx, indent: string): string {
@@ -28,7 +28,7 @@ function paramsToObject(params: ParamIR[], ctx: EmitCtx, indent: string): string
   return `{\n${lines.join("\n")}\n${indent}}`;
 }
 
-/** Resuelve `$ref` una sola vez; alcanza para preguntar por la forma de una respuesta. */
+/** Resolves `$ref` a single level; enough to ask about a response's shape. */
 function deref(schema: JsonSchema | null, doc: OpenApiDocument): JsonSchema | null {
   if (!schema) return null;
   if (!schema.$ref) return schema;
@@ -36,18 +36,18 @@ function deref(schema: JsonSchema | null, doc: OpenApiDocument): JsonSchema | nu
   return doc.components?.schemas?.[name] ?? null;
 }
 
-/** Una coleccion paginada es la que trae `data` + `has_more`; asi lo define el contrato. */
+/** A paginated collection is one that carries `data` + `has_more`; the contract defines it that way. */
 function isPaginated(op: OpIR, doc: OpenApiDocument): boolean {
   const s = deref(op.successSchema, doc);
   return Boolean(s?.properties?.["data"] && s.properties?.["has_more"]);
 }
 
-/** El tipo de UN elemento de una coleccion paginada, para tipar el iterador. */
+/** The type of ONE item of a paginated collection, to type the iterator. */
 function itemSchema(op: OpIR, doc: OpenApiDocument): JsonSchema | null {
   return deref(op.successSchema, doc)?.properties?.["data"]?.items ?? null;
 }
 
-/** `{ id: id }` es ruido; `{ id }` no. Solo se explicita cuando los nombres difieren. */
+/** `{ id: id }` is noise; `{ id }` is not. Only spelled out when the names differ. */
 function pathObject(op: OpIR): string {
   if (!op.pathParams.length) return "undefined";
   const parts = op.pathParams.map((p) =>
@@ -66,7 +66,7 @@ export function genSdk(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
     typeChunks.push(declareSchema(name, schema, ctx));
   }
 
-  /** Nombre del tipo de la respuesta / body / query de una operacion. */
+  /** Type name for an operation's response / body / query. */
   const responseType = new Map<string, string>();
   const bodyType = new Map<string, string>();
   const queryType = new Map<string, string>();
@@ -79,7 +79,7 @@ export function genSdk(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
     } else if (op.successSchema) {
       const name = `${P}Response`;
       typeChunks.push(
-        jsdoc(`Respuesta ${op.successStatus} de \`${op.method.toUpperCase()} ${op.path}\`.`) +
+        jsdoc(`${op.successStatus} response of \`${op.method.toUpperCase()} ${op.path}\`.`) +
           `export type ${name} = ${tsType(op.successSchema, ctx, "")};\n`,
       );
       responseType.set(op.id, name);
@@ -93,7 +93,7 @@ export function genSdk(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
       } else {
         const name = `${P}Body`;
         typeChunks.push(
-          jsdoc(`Cuerpo de \`${op.method.toUpperCase()} ${op.path}\`.`) +
+          jsdoc(`Body of \`${op.method.toUpperCase()} ${op.path}\`.`) +
             `export type ${name} = ${tsType(op.body.schema, ctx, "")};\n`,
         );
         bodyType.set(op.id, name);
@@ -104,13 +104,13 @@ export function genSdk(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
       const collision = op.queryParams.find((p) => RESERVED.has(p.jsName));
       if (collision) {
         throw new Error(
-          `${op.id}: el query param "${collision.name}" choca con una opcion de request del SDK ` +
-            `(${[...RESERVED].join(", ")}). Renombralo en la API antes de publicar.`,
+          `${op.id}: the query param "${collision.name}" collides with an SDK request option ` +
+            `(${[...RESERVED].join(", ")}). Rename it in the API before publishing.`,
         );
       }
       const name = `${P}Query`;
       typeChunks.push(
-        jsdoc(`Parametros de consulta de \`${op.method.toUpperCase()} ${op.path}\`.`) +
+        jsdoc(`Query parameters of \`${op.method.toUpperCase()} ${op.path}\`.`) +
           `export type ${name} = ${paramsToObject(op.queryParams, ctx, "")};\n`,
       );
       queryType.set(op.id, name);
@@ -119,7 +119,7 @@ export function genSdk(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
 
   const typesFile =
     BANNER +
-    `\n/** Tipos del contrato de \`api.truo.cloud/v1\` (OpenAPI ${doc.info.version}). */\n\n` +
+    `\n/** Contract types for \`api.truo.cloud/v1\` (OpenAPI ${doc.info.version}). */\n\n` +
     typeChunks.join("\n");
 
   // ── operations.ts ──────────────────────────────────────────────────────────
@@ -145,39 +145,39 @@ export function genSdk(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
     return `  ${quoteKey(op.id)}: ${JSON.stringify(meta)},`;
   });
 
-  // Las dos constantes se inyectan aca y no se importan de `@truocloud/openapi` a
-  // proposito: asi `@truocloud/sdk` se publica **sin una sola dependencia**, ni siquiera
-  // de un paquete hermano. El spec completo pesa medio mega y no tiene por que viajar
-  // dentro de la aplicacion de un cliente que solo quiere llamar tres endpoints.
+  // The two constants are inlined here rather than imported from `@truocloud/openapi` on
+  // purpose: that way `@truocloud/sdk` is published **without a single dependency**, not
+  // even on a sibling package. The full spec weighs half a megabyte and has no reason to
+  // travel inside the application of a client who only wants to call three endpoints.
   const operationsFile =
     BANNER +
     `
-/** Version del contrato (\`info.version\` del OpenAPI). */
+/** Contract version (the OpenAPI \`info.version\`). */
 export const API_VERSION = ${JSON.stringify(doc.info.version)};
 
-/** Base URL de produccion (\`servers[0].url\` del OpenAPI). */
+/** Production base URL (the OpenAPI \`servers[0].url\`). */
 export const API_BASE_URL = ${JSON.stringify(doc.servers?.[0]?.url ?? "https://api.truo.cloud")};
 
-/** Metadatos de una operacion, tal como los declara el OpenAPI. */
+/** Metadata for one operation, as declared by the OpenAPI spec. */
 export interface OperationMeta {
-  /** \`operationId\`. Estable para siempre: es la clave de join entre SDK, CLI, MCP y docs. */
+  /** \`operationId\`. Stable forever: it is the join key between SDK, CLI, MCP and docs. */
   id: string;
   method: string;
-  /** Template con placeholders, p. ej. \`/v1/vps/{id}/power\`. */
+  /** Template with placeholders, e.g. \`/v1/vps/{id}/power\`. */
   path: string;
   tag: string;
   summary: string;
-  /** Scope requerido (\`vps:write\`), o \`null\` si no exige ninguno. */
+  /** Required scope (\`vps:write\`), or \`null\` if none is required. */
   scope: string | null;
-  /** Cuanto duele equivocarse. Lo usan el gate de confirmacion del CLI y el del MCP. */
+  /** How much a mistake hurts. Used by the CLI's confirmation gate and the MCP's. */
   danger: "none" | "reversible" | "destructive";
-  /** Devuelve 202 + una operacion asincrona que hay que esperar. */
+  /** Returns 202 + an asynchronous operation that must be awaited. */
   longRunning: boolean;
-  /** Acepta \`Idempotency-Key\` — y por lo tanto el SDK puede reintentarla con seguridad. */
+  /** Accepts \`Idempotency-Key\` — and therefore the SDK can retry it safely. */
   idempotent: boolean;
   rateBucket: string | null;
   deprecated: boolean;
-  /** La respuesta es una coleccion con cursor (\`data\` + \`has_more\`). */
+  /** The response is a cursor collection (\`data\` + \`has_more\`). */
   paginated: boolean;
   pathParams: string[];
   queryParams: string[];
@@ -185,7 +185,7 @@ export interface OperationMeta {
   successStatus: number;
 }
 
-/** Las ${ops.length} operaciones de \`/v1\`, indexadas por \`operationId\`. */
+/** The ${ops.length} operations of \`/v1\`, indexed by \`operationId\`. */
 export const OPERATIONS = {
 ${entries.join("\n")}
 } as const satisfies Record<string, OperationMeta>;
@@ -243,8 +243,8 @@ export function getOperation(id: string): OperationMeta | undefined {
         op.summary,
         op.description,
         op.scope ? `\nScope: \`${op.scope}\`` : "",
-        op.danger === "destructive" ? "**Destructiva: no tiene vuelta atras.**" : "",
-        op.longRunning ? "Devuelve una operacion asincrona; espera con `operations.wait()`." : "",
+        op.danger === "destructive" ? "**Destructive: there is no undo.**" : "",
+        op.longRunning ? "Returns an asynchronous operation; await it with `operations.wait()`." : "",
         op.deprecated ? "@deprecated" : "",
       ]
         .filter(Boolean)
@@ -269,12 +269,12 @@ export function getOperation(id: string): OperationMeta | undefined {
       ? `[${op.queryParams.map((p) => JSON.stringify(p.jsName)).join(", ")}]`
       : "undefined";
     const item = itemSchema(op, doc);
-    // Un `$ref` resuelve a un nombre de `types.ts` y hay que calificarlo; cualquier otra
-    // cosa es una expresion de tipo inline que ya se basta sola.
+    // A `$ref` resolves to a name from `types.ts` and must be qualified; anything else
+    // is an inline type expression that stands on its own.
     const itemType = item ? (item.$ref ? `T.${tsType(item, ctx, indent)}` : tsType(item, ctx, indent)) : "unknown";
     const jsdocText = jsdoc(
-      `Itera **todas** las paginas de \`${op.id}\`, siguiendo el cursor sola.\n` +
-        `Un \`for await\` sobre esto nunca deja resultados afuera por olvidar \`next_cursor\`.`,
+      `Iterates **all** pages of \`${op.id}\`, following the cursor on its own.\n` +
+        `A \`for await\` over this never drops results by forgetting \`next_cursor\`.`,
       indent,
     );
     return (
@@ -307,11 +307,11 @@ import type * as T from "./types.ts";
 import type { Call, Paginate, RequestOptions } from "../types.ts";
 
 /**
- * Construye el arbol de recursos del cliente sobre un transporte.
+ * Builds the client's resource tree on top of a transport.
  *
- * Cada metodo es una linea: resuelve el \`operationId\`, arma path/query/body y delega.
- * Toda la logica de verdad —reintentos, idempotencia, errores, cursor— vive en el
- * transporte, no aca, asi que regenerar este archivo nunca puede romperla.
+ * Every method is one line: it resolves the \`operationId\`, assembles path/query/body
+ * and delegates. All the real logic — retries, idempotency, errors, cursor — lives in
+ * the transport, not here, so regenerating this file can never break it.
  */
 export function createResources(call: Call, paginate: Paginate) {
   return {
@@ -319,14 +319,14 @@ ${nodeSource(root, "    ")}
   };
 }
 
-/** El arbol de recursos, inferido. Es lo que expone \`TruoClient\`. */
+/** The resource tree, inferred. It is what \`TruoClient\` exposes. */
 export type Resources = ReturnType<typeof createResources>;
 `;
 
   const orphans = [...ctx.known].filter((n) => !ctx.used.has(n));
   if (orphans.length) {
     console.warn(
-      `  aviso: ${orphans.length} schema(s) declarados y no referenciados: ${orphans.slice(0, 6).join(", ")}${
+      `  warning: ${orphans.length} schema(s) declared but never referenced: ${orphans.slice(0, 6).join(", ")}${
         orphans.length > 6 ? "…" : ""
       }`,
     );

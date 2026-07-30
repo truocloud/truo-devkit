@@ -1,9 +1,9 @@
 /**
- * Ayuda, construida del mismo arbol que ejecuta los comandos.
+ * Help text, built from the same tree that executes the commands.
  *
- * No hay texto de ayuda escrito a mano para las operaciones de la API: el resumen, la
- * descripcion, los argumentos y los valores validos salen del OpenAPI. Una ayuda que se
- * escribe aparte del codigo que ejecuta es una ayuda que en seis meses miente.
+ * There is no hand-written help for the API operations: the summary, the description,
+ * the arguments and the valid values come from the OpenAPI spec. Help written apart from
+ * the code that runs is help that lies within six months.
  */
 import type { CommandSpec } from "./generated/commands.ts";
 import { COMMANDS } from "./generated/commands.ts";
@@ -17,41 +17,41 @@ export interface Builtin {
 }
 
 const GLOBAL_FLAGS = `
-${color.bold("Flags globales")}
+${color.bold("Global flags")}
   -o, --output <fmt>      table (default) | json | jsonl | yaml | id
-      --field <ruta>      Recorta la salida: --field data.0.hostname
-      --profile <nombre>  Perfil de ~/.truo/config.json
-      --token <tc_…>      Token explicito (gana sobre TRUO_TOKEN y sobre el perfil)
-      --base-url <url>    Apunta a otra instancia de la API
-  -y, --yes               No preguntar en las operaciones destructivas
-  -q, --quiet             Sin progreso ni mensajes de cortesia
-      --no-wait           No esperar a que termine una operacion asincrona
-      --body-json '{…}'   Cuerpo crudo, para lo que las flags no cubren
-  -h, --help              Esta ayuda
-  -v, --version           Version del CLI y del contrato`;
+      --field <path>      Trims the output: --field data.0.hostname
+      --profile <name>    Profile from ~/.truo/config.json
+      --token <tc_…>      Explicit token (wins over TRUO_TOKEN and over the profile)
+      --base-url <url>    Points at another API instance
+  -y, --yes               Do not ask on destructive operations
+  -q, --quiet             No progress or courtesy messages
+      --no-wait           Do not wait for an asynchronous operation to finish
+      --body-json '{…}'   Raw body, for what the flags do not cover
+  -h, --help              This help
+  -v, --version           CLI and contract version`;
 
 function line(name: string, summary: string, width: number): string {
   return `  ${color.cyan(name.padEnd(width))}  ${summary}`;
 }
 
-/** Nombre del grupo → una linea que lo describa, escrita a mano porque el spec no la tiene. */
+/** Group name → one line describing it, hand-written because the spec does not have one. */
 const GROUP_SUMMARY: Record<string, string> = {
-  auth: "Credenciales: iniciar sesion, ver estado, gestionar tokens",
-  config: "Perfiles y configuracion local",
-  services: "Inventario de servicios de la cuenta",
-  vps: "Servidores virtuales: power, consola, backups, firewall, IPs",
-  dns: "Zonas y registros DNS",
-  dbaas: "Bases de datos administradas",
-  caas: "Aplicaciones en contenedores (Truo Apps / CaaS)",
-  lb: "Balanceadores de carga",
-  "object-storage": "Object Storage compatible con S3",
-  "mail-gateway": "Mail Gateway: dominios, API keys, dominios verificados y uso",
-  operation: "Operaciones asincronas",
-  account: "Datos de la cuenta",
-  audit: "Registro de auditoria",
-  api: "Llamada cruda a cualquier endpoint (escape hatch)",
-  mcp: "Servidor MCP para agentes de IA",
-  completion: "Autocompletado del shell",
+  auth: "Credentials: sign in, check status, manage tokens",
+  config: "Profiles and local configuration",
+  services: "Inventory of the account's services",
+  vps: "Virtual servers: power, console, backups, firewall, IPs",
+  dns: "DNS zones and records",
+  dbaas: "Managed databases",
+  caas: "Containerized applications (Truo Apps / CaaS)",
+  lb: "Load balancers",
+  "object-storage": "S3-compatible Object Storage",
+  "mail-gateway": "Mail Gateway: domains, API keys, verified domains and usage",
+  operation: "Asynchronous operations",
+  account: "Account details",
+  audit: "Audit log",
+  api: "Raw call to any endpoint (escape hatch)",
+  mcp: "MCP server for AI agents",
+  completion: "Shell completion",
 };
 
 export function rootHelp(builtins: Builtin[]): string {
@@ -62,25 +62,25 @@ export function rootHelp(builtins: Builtin[]): string {
   const names = [...groups.keys()].sort();
   const width = Math.max(...names.map((n) => n.length));
 
-  return `${color.bold("truo")} — la infraestructura de TruoCloud desde la terminal.
+  return `${color.bold("truo")} — TruoCloud infrastructure from the terminal.
 
-${color.bold("Uso")}
-  truo <grupo> <comando> [argumentos] [flags]
+${color.bold("Usage")}
+  truo <group> <command> [arguments] [flags]
 
-${color.bold("Grupos")}
+${color.bold("Groups")}
 ${names.map((n) => line(n, groups.get(n) || "", width)).join("\n")}
 ${GLOBAL_FLAGS}
 
-${color.bold("Ejemplos")}
+${color.bold("Examples")}
   truo auth login
   truo services list
   truo vps list -o json | jq '.[].hostname'
   truo vps power svc_10432 stop
-  truo dns record list ejemplo.com
+  truo dns record list example.com
 
-Ayuda de un grupo:    truo vps --help
-Ayuda de un comando:  truo vps power --help
-Documentacion:        https://docs.truo.cloud
+Help for a group:    truo vps --help
+Help for a command:  truo vps power --help
+Documentation:       https://docs.truo.cloud
 `;
 }
 
@@ -89,10 +89,10 @@ export function groupHelp(group: string, builtins: Builtin[]): string {
   const built = builtins.filter((b) => b.path[0] === group && b.path.length > 1);
   if (commands.length === 0 && built.length === 0) return "";
 
-  // Un builtin puede tapar a un comando generado del mismo nombre (`auth status`
-  // reemplaza a `GET /v1/account` para mostrar tambien de donde sale el token).
-  // El dispatcher ya le da prioridad al builtin; sin este dedup la ayuda listaba
-  // los dos, con dos descripciones distintas para lo que se escribe igual.
+  // A builtin may shadow a generated command of the same name (`auth status`
+  // replaces `GET /v1/account` so it can also show where the token comes from).
+  // The dispatcher already gives the builtin priority; without this dedup the
+  // help listed both, with two different descriptions for the same thing you type.
   const seen = new Set(built.map((b) => b.path.slice(1).join(" ")));
   const entries: { name: string; summary: string }[] = [
     ...built.map((b) => ({ name: b.path.slice(1).join(" "), summary: b.summary })),
@@ -104,10 +104,10 @@ export function groupHelp(group: string, builtins: Builtin[]): string {
   const width = Math.max(...entries.map((e) => e.name.length));
   return `${color.bold(`truo ${group}`)} — ${GROUP_SUMMARY[group] ?? ""}
 
-${color.bold("Comandos")}
+${color.bold("Commands")}
 ${entries.map((e) => line(e.name, e.summary, width)).join("\n")}
 
-Ayuda de un comando: truo ${group} <comando> --help
+Help for a command: truo ${group} <command> --help
 `;
 }
 
@@ -129,7 +129,7 @@ export function commandHelp(spec: CommandSpec): string {
   if (spec.positionals.length) {
     const width = Math.max(...spec.positionals.map((p) => p.label.length));
     sections.push(
-      `${color.bold("Argumentos")}\n` +
+      `${color.bold("Arguments")}\n` +
         spec.positionals
           .map((p) => {
             const values = p.values ? ` ${color.dim(`(${p.values.join(" | ")})`)}` : "";
@@ -147,7 +147,7 @@ export function commandHelp(spec: CommandSpec): string {
         spec.flags
           .map((f, i) => {
             const values = f.values ? ` ${color.dim(`(${f.values.join(" | ")})`)}` : "";
-            const req = f.required ? color.yellow(" [obligatoria]") : "";
+            const req = f.required ? color.yellow(" [required]") : "";
             return line(labels[i]!, (f.description ?? "").split("\n")[0] + values + req, width);
           })
           .join("\n"),
@@ -155,10 +155,10 @@ export function commandHelp(spec: CommandSpec): string {
   }
 
   const notes: string[] = [];
-  if (spec.scope) notes.push(`Scope requerido: ${color.cyan(spec.scope)}`);
-  if (spec.danger === "destructive") notes.push(color.red("Destructiva: pide confirmacion salvo con --yes."));
-  if (spec.longRunning) notes.push("Asincrona: espera por defecto; usa --no-wait para no esperar.");
-  if (spec.deprecated) notes.push(color.yellow("DEPRECADA: va a dejar de existir."));
+  if (spec.scope) notes.push(`Required scope: ${color.cyan(spec.scope)}`);
+  if (spec.danger === "destructive") notes.push(color.red("Destructive: asks for confirmation unless --yes."));
+  if (spec.longRunning) notes.push("Asynchronous: waits by default; use --no-wait to skip waiting.");
+  if (spec.deprecated) notes.push(color.yellow("DEPRECATED: going away."));
   notes.push(color.dim(`operationId: ${spec.operationId}`));
   sections.push(notes.join("\n"));
 

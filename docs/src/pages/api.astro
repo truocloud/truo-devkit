@@ -1,0 +1,78 @@
+---
+/**
+ * API playground (Scalar) running on the same `openapi.json` the API serves.
+ *
+ * Outside Starlight on purpose: Scalar brings its own three-column layout and
+ * its own playground, and nesting it inside the docs layout produces two
+ * sidebars fighting over the width.
+ *
+ * The standalone bundle is loaded from a CDN instead of importing the
+ * package: it's the path Scalar documents as stable for any HTML, and it
+ * avoids tying the docs build to an incompatibility between Scalar's version
+ * and Vite's. `openapi.json` is copied into `public/` by `scripts/generate.ts`.
+ */
+const title = "API reference · TruoCloud";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta
+      name="description"
+      content="Interactive reference for the TruoCloud public API: try every endpoint against your own account."
+    />
+    <link rel="canonical" href="https://docs.truo.cloud/api/" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      /* Our own back link: without it there's no way back to the docs. */
+      .back {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 100;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #0f1410;
+        color: #ccd5cf;
+        border: 1px solid #27352b;
+        font: 500 13px/1 system-ui, sans-serif;
+        text-decoration: none;
+      }
+      .back:hover {
+        color: #fff;
+        border-color: #3b4e42;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="/">← Documentation</a>
+    <div id="app"></div>
+
+    <script
+      is:inline
+      src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1/dist/browser/standalone.js"
+    ></script>
+    <script is:inline>
+      // `createApiReference` is exposed by the standalone bundle on `window.Scalar`.
+      window.Scalar.createApiReference("#app", {
+        url: "/openapi.json",
+        theme: "purple",
+        darkMode: true,
+        hideDownloadButton: false,
+        metaData: { title: "TruoCloud API" },
+        // The production server already comes in the spec; declaring it again
+        // here would be a second place for it to go stale.
+        authentication: {
+          preferredSecurityScheme: "bearerAuth",
+        },
+      });
+    </script>
+  </body>
+</html>

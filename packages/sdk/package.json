@@ -1,7 +1,7 @@
 {
   "name": "@truocloud/sdk",
   "version": "0.1.0",
-  "description": "Cliente TypeScript de la API publica de TruoCloud (api.truo.cloud). Sin dependencias.",
+  "description": "TypeScript client for the TruoCloud public API (api.truo.cloud). Zero dependencies.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,7 @@
       "default": "./dist/index.js"
     }
   },
-  "//files": "Se publica lo construido, no los fuentes: importan con extension .ts y Node no los carga.",
+  "//files": "The build output is published, not the sources: they import with the .ts extension and Node does not load them.",
   "files": ["dist", "README.md"],
   "publishConfig": {
     "access": "public"

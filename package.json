@@ -2,7 +2,7 @@
   "name": "truo-devkit",
   "version": "0.0.0",
   "private": true,
-  "description": "SDK, CLI y (proximamente) servidor MCP de la API publica de TruoCloud",
+  "description": "SDK, CLI and (soon) MCP server for the TruoCloud public API",
   "type": "module",
   "workspaces": [
     "packages/*"

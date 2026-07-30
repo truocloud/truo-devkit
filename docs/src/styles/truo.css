@@ -1,5 +1,5 @@
-/* Paleta de Truo sobre los tokens de Starlight. Solo se tocan las variables:
-   sobrescribir selectores concretos rompe con cada actualizacion del tema. */
+/* Truo's palette on top of Starlight's tokens. Only the variables are
+   touched: overriding concrete selectors breaks with every theme update. */
 :root {
   --sl-color-accent-low: #0c2b18;
   --sl-color-accent: #21c063;
@@ -21,8 +21,8 @@
   --sl-color-accent-high: #0a3d21;
 }
 
-/* Las pestañas curl/CLI/SDK/MCP son el argumento entero de la referencia:
-   conviene que se lean como pestañas y no como tres bloques de código sueltos. */
+/* The curl/CLI/SDK/MCP tabs are the entire argument of the reference: they
+   should read as tabs, not as loose blocks of code. */
 starlight-tabs [role="tablist"] {
   border-bottom-color: var(--sl-color-gray-5);
 }

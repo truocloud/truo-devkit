@@ -1,32 +1,32 @@
 /**
- * Codigos de salida. **Son contrato publico**: van en `--help` y en la documentacion.
+ * Exit codes. **They are public contract**: they appear in `--help` and in the docs.
  *
- * Existen para que un script pueda distinguir "no tengo permiso" de "no existe" sin
- * parsear el texto del error — que es lo que termina haciendo todo el mundo cuando un CLI
- * devuelve 1 para todo, y lo que se rompe la primera vez que alguien mejora un mensaje.
+ * They exist so a script can tell "I lack permission" from "it does not exist" without
+ * parsing the error text — which is what everyone ends up doing when a CLI returns 1 for
+ * everything, and what breaks the first time someone improves a message.
  */
 export const EXIT = {
-  /** Todo bien. */
+  /** All good. */
   OK: 0,
-  /** Error interno del CLI: un bug nuestro. */
+  /** Internal CLI error: a bug on our side. */
   INTERNAL: 1,
-  /** Uso incorrecto: comando desconocido, falta un argumento, flag invalida. */
+  /** Incorrect usage: unknown command, missing argument, invalid flag. */
   USAGE: 2,
-  /** Sin credencial, o la credencial no vale (401). */
+  /** No credential, or the credential is not valid (401). */
   UNAUTHENTICATED: 3,
-  /** La credencial vale pero no alcanza: falta scope o permiso (403). */
+  /** The credential is valid but not enough: missing scope or permission (403). */
   FORBIDDEN: 4,
-  /** No existe — o no existe *para esta credencial*, que la API no distingue a proposito (404). */
+  /** Not found — or not found *for this credential*, which the API does not distinguish on purpose (404). */
   NOT_FOUND: 5,
-  /** Conflicto: ya existe, o el estado cambio debajo (409, 412). */
+  /** Conflict: already exists, or the state changed underneath (409, 412). */
   CONFLICT: 6,
   /** Rate limit (429). */
   RATE_LIMITED: 7,
-  /** La API fallo (5xx) o no se pudo llegar. */
+  /** The API failed (5xx) or could not be reached. */
   API_ERROR: 8,
-  /** Se vencio la espera de una operacion asincrona. **La operacion sigue corriendo.** */
+  /** The wait for an asynchronous operation timed out. **The operation is still running.** */
   OPERATION_TIMEOUT: 9,
-  /** El usuario dijo que no en la confirmacion. */
+  /** The user said no at the confirmation prompt. */
   ABORTED: 10,
   /** Ctrl-C. */
   SIGINT: 130,
@@ -34,10 +34,10 @@ export const EXIT = {
 
 export type ExitCode = (typeof EXIT)[keyof typeof EXIT];
 
-/** Error del CLI con un codigo de salida ya decidido. */
+/** CLI error with an exit code already decided. */
 export class CliError extends Error {
   readonly code: ExitCode;
-  /** Sugerencia concreta de que hacer. Se imprime debajo del mensaje. */
+  /** Concrete suggestion of what to do. Printed under the message. */
   readonly hint: string | undefined;
 
   constructor(message: string, code: ExitCode = EXIT.USAGE, hint?: string) {
@@ -48,7 +48,7 @@ export class CliError extends Error {
   }
 }
 
-/** Traduce un error del SDK al codigo de salida que le corresponde. */
+/** Translates an SDK error into its corresponding exit code. */
 export function exitCodeForStatus(status: number | null | undefined): ExitCode {
   switch (status) {
     case 401:

@@ -1,14 +1,14 @@
 /**
- * Sincroniza la copia local del spec con la fuente de verdad.
+ * Syncs the local copy of the spec with the source of truth.
  *
- *   bun run sync:spec                    # desde la API en vivo (api.truo.cloud)
- *   bun run sync:spec --from ../api      # desde un checkout local de la API (sin deploy)
- *   bun run sync:spec --check            # no escribe; sale 1 si hay diferencia
+ *   bun run sync:spec                    # from the live API (api.truo.cloud)
+ *   bun run sync:spec --from ../api      # from a local checkout of the API (no deploy)
+ *   bun run sync:spec --check            # writes nothing; exits 1 if there is a difference
  *
- * El `--check` es el que importa: corre en CI y convierte "el devkit quedo viejo" de algo
- * que se descubre cuando a un cliente le falta un endpoint, en un build rojo. Sin el, este
- * paquete es una copia que envejece en silencio: una spec duplicada que nada compara con su
- * original siempre termina divergiendo.
+ * `--check` is the one that matters: it runs in CI and turns "the devkit went stale" from
+ * something discovered when a client is missing an endpoint into a red build. Without it,
+ * this package is a copy that ages in silence: a duplicated spec that nothing compares
+ * with its original always ends up diverging.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -26,25 +26,25 @@ const check = process.argv.includes("--check");
 const from = arg("from");
 
 /**
- * Se re-serializa siempre con el mismo formato en vez de guardar el cuerpo crudo. Un
- * cambio de whitespace del generador upstream no debe verse como un cambio de contrato:
- * el diff que queremos leer en el PR es el de la API, no el del pretty-printer.
+ * Always re-serialized with the same format instead of storing the raw body. A whitespace
+ * change from the upstream generator must not read as a contract change: the diff we want
+ * to read in the PR is the API's, not the pretty-printer's.
  */
 function canonical(doc: unknown): string {
   return JSON.stringify(doc, null, 2) + "\n";
 }
 
 /**
- * Solo se guarda el JSON. El YAML del panel existe para leerlo a ojo y **la API no lo
- * sirve**, asi que una copia aca no tendria contra que compararse: seria justamente el
- * archivo que deriva en silencio que este gate existe para evitar.
+ * Only the JSON is stored. The YAML upstream exists for reading by eye and **the API
+ * does not serve it**, so a copy here would have nothing to compare against: it would be
+ * exactly the silently-drifting file this gate exists to prevent.
  */
 async function fetchSpec(): Promise<{ json: unknown; origin: string }> {
   if (from) {
     const base = resolve(process.cwd(), from);
     const j = resolve(base, "apps/public-api/openapi/v1.json");
     if (!existsSync(j)) {
-      console.error(`No existe ${j}. --from debe apuntar a la raiz del repo de la API.`);
+      console.error(`${j} does not exist. --from must point at the root of the API repo.`);
       process.exit(2);
     }
     return { json: JSON.parse(readFileSync(j, "utf8")), origin: j };
@@ -65,20 +65,20 @@ const version = (json as { info?: { version?: string } }).info?.version ?? "?";
 const paths = Object.keys((json as { paths?: object }).paths ?? {}).length;
 
 if (next === current) {
-  console.log(`Spec al dia (v${version}, ${paths} paths) — fuente: ${origin}`);
+  console.log(`Spec up to date (v${version}, ${paths} paths) — source: ${origin}`);
   process.exit(0);
 }
 
 if (check) {
   console.error(
-    `El spec del devkit difiere de ${origin}.\n` +
-      `Corre 'bun run sync:spec' y commitea el resultado; el diff es el cambio de contrato.`,
+    `The devkit's spec differs from ${origin}.\n` +
+      `Run 'bun run sync:spec' and commit the result; the diff is the contract change.`,
   );
   process.exit(1);
 }
 
 writeFileSync(DEST_JSON, next, "utf8");
 console.log(
-  `Spec actualizado (v${version}, ${paths} paths) desde ${origin}.\n` +
-    `Siguiente: 'bun run gen' para regenerar SDK y CLI.`,
+  `Spec updated (v${version}, ${paths} paths) from ${origin}.\n` +
+    `Next: 'bun run gen' to regenerate the SDK and CLI.`,
 );

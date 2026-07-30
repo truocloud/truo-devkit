@@ -1,10 +1,11 @@
 /**
- * Tests del device flow. Sin red: se reemplaza el `fetch` global.
+ * Device flow tests. No network: the global `fetch` is replaced.
  *
- * Lo que se prueba es el protocolo, no el happy path: `authorization_pending`
- * hasta que la persona aprueba, `slow_down` subiendo el intervalo, y los tres
- * finales que no son un token (denegado, vencido, error). Ese manejo es todo lo
- * que separa "aprobá en el navegador" de "el login falló y no sé por qué".
+ * What gets tested is the protocol, not the happy path: `authorization_pending`
+ * until the person approves, `slow_down` raising the interval, and the three
+ * endings that are not a token (denied, expired, error). That handling is all
+ * that separates "approve in the browser" from "the login failed and I don't
+ * know why".
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import { grantableScopes, pollForToken, requestDeviceCode } from "./device.ts";
@@ -15,7 +16,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-/** Encola respuestas: cada llamada consume la siguiente. */
+/** Queues responses: each call consumes the next one. */
 function stub(responses: Array<{ status: number; body: unknown }>): { calls: number } {
   const state = { calls: 0 };
   globalThis.fetch = (async () => {
@@ -38,36 +39,36 @@ const CODE_OK = {
     user_code: "WXYZ-1234",
     verification_uri: "/device",
     expires_in: 30,
-    // 0 para que los tests no esperen de verdad; el codigo lo eleva al piso de 1 s.
+    // 0 so tests do not actually wait; the code raises it to the 1 s floor.
     interval: 0,
   },
 };
 
 describe("grantableScopes", () => {
-  test("sale del contrato y excluye lo que no es otorgable a una key", () => {
+  test("comes from the contract and excludes what is not grantable to a key", () => {
     const scopes = grantableScopes();
     expect(scopes.length).toBeGreaterThan(10);
-    // Pedirlos haria fallar el alta entera con 403: la API no los otorga a keys.
+    // Requesting them would fail the whole creation with a 403: the API does not grant them to keys.
     expect(scopes.some((s) => s.startsWith("apikeys:"))).toBe(false);
     expect(scopes.some((s) => s.startsWith("users:"))).toBe(false);
-    // Y lo que si es otorgable tiene que estar, o el CLI se crea una key con la
-    // que sus propios comandos dan 403.
+    // And what is grantable must be there, or the CLI creates a key its own
+    // commands get 403s with.
     expect(scopes).toContain("vps:read");
     expect(scopes).toContain("dns:write");
   });
 });
 
 describe("requestDeviceCode", () => {
-  test("absolutiza una verification_uri relativa", async () => {
+  test("absolutizes a relative verification_uri", async () => {
     stub([CODE_OK]);
     const auth = await requestDeviceCode(IDP, ["vps:read"]);
     expect(auth.verificationUri).toBe("https://idp.example/device");
     expect(auth.verificationUriComplete).toContain("user_code=WXYZ-1234");
-    // El piso del RFC: un servidor que devuelve 0 no debe hacernos martillarlo.
+    // The RFC floor: a server returning 0 must not make us hammer it.
     expect(auth.interval).toBeGreaterThanOrEqual(1);
   });
 
-  test("un rechazo del IdP sale como error de autenticacion, no como crash", async () => {
+  test("an IdP rejection comes out as an authentication error, not a crash", async () => {
     stub([{ status: 400, body: { error: "invalid_client" } }]);
     const err = (await requestDeviceCode(IDP, ["vps:read"]).catch((e) => e)) as CliError;
     expect(err).toBeInstanceOf(CliError);
@@ -86,7 +87,7 @@ describe("pollForToken", () => {
     interval: 1,
   };
 
-  /** Registra cuanto se hubiera esperado, sin esperar. */
+  /** Records how long it would have waited, without waiting. */
   function fakeClock(): { waits: number[]; wait: (ms: number) => Promise<void> } {
     const waits: number[] = [];
     return {
@@ -97,7 +98,7 @@ describe("pollForToken", () => {
     };
   }
 
-  test("sigue esperando mientras el servidor dice authorization_pending", async () => {
+  test("keeps waiting while the server says authorization_pending", async () => {
     const state = stub([
       { status: 400, body: { error: "authorization_pending" } },
       { status: 400, body: { error: "authorization_pending" } },
@@ -106,11 +107,11 @@ describe("pollForToken", () => {
     const clock = fakeClock();
     expect(await pollForToken(IDP, auth, { wait: clock.wait })).toBe("sess_123");
     expect(state.calls).toBe(3);
-    // El intervalo no se mueve solo: solo `slow_down` lo sube.
+    // The interval does not move on its own: only `slow_down` raises it.
     expect(clock.waits).toEqual([1000, 1000, 1000]);
   });
 
-  test("slow_down sube el intervalo 5 s, como manda el RFC", async () => {
+  test("slow_down raises the interval by 5 s, as the RFC requires", async () => {
     stub([
       { status: 400, body: { error: "slow_down" } },
       { status: 400, body: { error: "slow_down" } },
@@ -121,27 +122,27 @@ describe("pollForToken", () => {
     expect(clock.waits).toEqual([1000, 6000, 11_000]);
   });
 
-  test("un intervalo de 0 no se convierte en un bucle cerrado contra el IdP", async () => {
+  test("an interval of 0 does not become a tight loop against the IdP", async () => {
     stub([{ status: 200, body: { access_token: "sess_000" } }]);
     const clock = fakeClock();
     await pollForToken(IDP, { ...auth, interval: 0 }, { wait: clock.wait });
     expect(clock.waits[0]).toBeGreaterThanOrEqual(1000);
   });
 
-  test("rechazar en el navegador termina en ABORTED", async () => {
+  test("declining in the browser ends in ABORTED", async () => {
     stub([{ status: 400, body: { error: "access_denied" } }]);
     const err = (await pollForToken(IDP, auth, { wait: async () => {} }).catch((e) => e)) as CliError;
     expect(err.code).toBe(EXIT.ABORTED);
   });
 
-  test("un codigo vencido dice como reintentar", async () => {
+  test("an expired code says how to retry", async () => {
     stub([{ status: 400, body: { error: "expired_token" } }]);
     const err = (await pollForToken(IDP, auth, { wait: async () => {} }).catch((e) => e)) as CliError;
     expect(err.code).toBe(EXIT.UNAUTHENTICATED);
     expect(err.hint).toContain("truo auth login");
   });
 
-  test("un corte de red reintenta en vez de perder la aprobacion", async () => {
+  test("a network blip retries instead of losing the approval", async () => {
     let calls = 0;
     globalThis.fetch = (async () => {
       calls++;

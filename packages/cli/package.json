@@ -1,7 +1,7 @@
 {
   "name": "@truocloud/cli",
   "version": "0.1.0",
-  "description": "CLI de TruoCloud: opera VPS, DNS, bases de datos, contenedores y balanceadores desde la terminal",
+  "description": "TruoCloud CLI: operate VPS, DNS, databases, containers and load balancers from the terminal",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -25,7 +25,7 @@
   "engines": {
     "node": ">=20"
   },
-  "//deps": "Sin dependencias: el CLI se publica bundleado (el SDK viaja adentro), asi que un `npm i -g` no arrastra nada y el binario compilado es un solo archivo.",
+  "//deps": "Zero dependencies: the CLI is published bundled (the SDK travels inside), so `npm i -g` drags nothing along and the compiled binary is a single file.",
   "dependencies": {},
   "scripts": {
     "dev": "bun src/index.ts",

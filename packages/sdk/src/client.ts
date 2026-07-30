@@ -6,18 +6,18 @@ import type { CallArgs, ClientOptions, RawResponse, RequestOptions } from "./typ
 import type { Operation } from "./generated/types.ts";
 
 export interface WaitOptions extends RequestOptions {
-  /** Cuanto esperar antes de rendirse. Default 15 min, igual que el CLI. */
+  /** How long to wait before giving up. Default 15 min, same as the CLI. */
   timeoutMs?: number;
-  /** Intervalo inicial de polling; crece hasta `maxIntervalMs`. Default 1 s. */
+  /** Initial polling interval; grows up to `maxIntervalMs`. Default 1 s. */
   intervalMs?: number;
-  /** Techo del intervalo. Default 5 s. */
+  /** Interval ceiling. Default 5 s. */
   maxIntervalMs?: number;
-  /** Se llama en cada consulta. Sirve para pintar una barra de progreso. */
+  /** Called on every poll. Useful for drawing a progress bar. */
   onProgress?: (op: Operation) => void;
 }
 
 /**
- * Cliente de `api.truo.cloud/v1`.
+ * Client for `api.truo.cloud/v1`.
  *
  * ```ts
  * const truo = new TruoClient({ token: process.env.TRUO_TOKEN });
@@ -32,7 +32,7 @@ export class TruoClient {
   private readonly transport: Transport;
   private readonly resources: ReturnType<typeof createResources>;
 
-  // ── Recursos (generados del OpenAPI) ─────────────────────────────────────
+  // ── Resources (generated from the OpenAPI spec) ──────────────────────────
   readonly account: ReturnType<typeof createResources>["account"];
   readonly apiKeys: ReturnType<typeof createResources>["apiKeys"];
   readonly auditLogs: ReturnType<typeof createResources>["auditLogs"];
@@ -47,9 +47,9 @@ export class TruoClient {
   readonly vps: ReturnType<typeof createResources>["vps"];
 
   /**
-   * `operations` es el unico recurso que el cliente extiende: a lo generado (`get`,
-   * `list`) le suma `wait()`, que no puede salir del spec porque no es un endpoint sino
-   * un bucle de polling sobre uno.
+   * `operations` is the only resource the client extends: on top of what is generated
+   * (`get`, `list`) it adds `wait()`, which cannot come from the spec because it is not an
+   * endpoint but a polling loop over one.
    */
   readonly operations: ReturnType<typeof createResources>["operations"] & {
     wait: (id: string, options?: WaitOptions) => Promise<Operation>;
@@ -81,40 +81,39 @@ export class TruoClient {
     };
   }
 
-  /** Base URL efectiva. Util para mensajes de error y para tests. */
+  /** Effective base URL. Useful for error messages and for tests. */
   get baseUrl(): string {
     return this.transport.baseUrl;
   }
 
   /**
-   * Llamada cruda por `operationId`, con status y headers.
+   * Raw call by `operationId`, with status and headers.
    *
-   * Es el escape hatch para lo que el arbol tipado todavia no cubre — y para leer headers
-   * como `RateLimit-Remaining`, que los metodos normales descartan porque devuelven el
-   * cuerpo directo.
+   * This is the escape hatch for anything the typed tree does not cover yet — and for
+   * reading headers like `RateLimit-Remaining`, which the regular methods discard because
+   * they return the body directly.
    */
   request<R = unknown>(operationId: OperationId | (string & {}), args: CallArgs = {}): Promise<RawResponse<R>> {
     return this.transport.request<R>(operationId, args);
   }
 
-  /** Metadatos de una operacion del contrato (scope, peligro, si es asincrona). */
+  /** Metadata for one operation of the contract (scope, danger, whether it is async). */
   static operation(id: string): OperationMeta | undefined {
     return getOperation(id);
   }
 
-  /** Todas las operaciones del contrato. Lo consumen el CLI y el servidor MCP. */
+  /** All operations of the contract. Consumed by the CLI and the MCP server. */
   static get operations(): OperationMeta[] {
     return OPERATION_LIST;
   }
 
   /**
-   * Espera a que una operacion asincrona termine.
+   * Waits for an asynchronous operation to finish.
    *
-   * El intervalo arranca en 1 s y crece hasta 5 s: las operaciones cortas (un `stop`)
-   * responden rapido y las largas (un `reinstall`) no justifican una consulta por segundo
-   * durante diez minutos. Un `stale: true` **no corta la espera**: significa que el
-   * backend no contesto y esto es el ultimo estado conocido, no que la operacion se haya
-   * perdido.
+   * The interval starts at 1 s and grows up to 5 s: short operations (a `stop`) come back
+   * fast, and long ones (a `reinstall`) do not justify one poll per second for ten
+   * minutes. A `stale: true` **does not stop the wait**: it means the backend did not
+   * answer and this is the last known state, not that the operation was lost.
    */
   private async waitForOperation(id: string, options: WaitOptions = {}): Promise<Operation> {
     const timeoutMs = options.timeoutMs ?? 15 * 60_000;
@@ -131,7 +130,7 @@ export class TruoClient {
       if (op.status === "succeeded") return op;
       if (op.status === "failed") {
         throw new OperationFailedError(
-          `La operacion ${id} (${op.type}) fallo${describeError(op.error)}.`,
+          `Operation ${id} (${op.type}) failed${describeError(op.error)}.`,
           id,
           { code: "operation_failed", raw: op.error },
         );
@@ -139,8 +138,8 @@ export class TruoClient {
 
       if (Date.now() + interval > deadline) {
         throw new OperationTimeoutError(
-          `La operacion ${id} sigue en "${op.status}" despues de ${Math.round(timeoutMs / 1000)} s. ` +
-            `No se cancelo: retomala con operations.wait("${id}").`,
+          `Operation ${id} is still "${op.status}" after ${Math.round(timeoutMs / 1000)} s. ` +
+            `It was not cancelled: resume it with operations.wait("${id}").`,
           id,
         );
       }

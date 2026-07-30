@@ -1,9 +1,10 @@
 /**
- * Ejecuta un comando generado: mapea argumentos a un request, lo manda y renderiza.
+ * Executes a generated command: maps arguments to a request, sends it and renders.
  *
- * Un solo archivo cubre las 100 operaciones de la API porque todo lo especifico de cada
- * una —donde va cada argumento, si es peligrosa, si hay que esperarla— viaja en el
- * `CommandSpec` que salio del spec. Agregar un endpoint no toca este codigo.
+ * A single file covers the API's 100 operations because everything specific to each one
+ * — where each argument goes, whether it is dangerous, whether it must be awaited —
+ * travels in the `CommandSpec` that came out of the spec. Adding an endpoint does not
+ * touch this code.
  */
 import { TruoClient, TruoError, OperationTimeoutError, OperationFailedError } from "../../sdk/src/index.ts";
 import type { Operation } from "../../sdk/src/generated/types.ts";
@@ -16,7 +17,7 @@ import { confirm } from "./prompt.ts";
 export interface ExecContext {
   client: TruoClient;
   args: ParsedArgs;
-  /** Palabras que quedaron despues del nombre del comando. */
+  /** Words left over after the command name. */
   positionals: string[];
 }
 
@@ -24,7 +25,7 @@ function coerce(value: string, type: Flag["type"] | Positional["type"], label: s
   switch (type) {
     case "number": {
       const n = Number(value);
-      if (!Number.isFinite(n)) throw new CliError(`${label}: se esperaba un numero, llego "${value}".`);
+      if (!Number.isFinite(n)) throw new CliError(`${label}: expected a number, got "${value}".`);
       return n;
     }
     case "boolean":
@@ -33,10 +34,10 @@ function coerce(value: string, type: Flag["type"] | Positional["type"], label: s
       try {
         return JSON.parse(value);
       } catch {
-        throw new CliError(`${label}: se esperaba JSON valido, llego "${value.slice(0, 40)}".`);
+        throw new CliError(`${label}: expected valid JSON, got "${value.slice(0, 40)}".`);
       }
     case "string[]":
-      // Se acepta repetir la flag o separar por comas; las dos formas aparecen en la vida real.
+      // Repeating the flag and comma-separating are both accepted; both show up in the wild.
       return value.includes(",") ? value.split(",").map((s) => s.trim()) : [value];
     default:
       return value;
@@ -46,14 +47,14 @@ function coerce(value: string, type: Flag["type"] | Positional["type"], label: s
 function checkEnum(value: unknown, values: string[] | undefined, label: string): void {
   if (!values || typeof value !== "string") return;
   if (!values.includes(value)) {
-    throw new CliError(`${label}: "${value}" no es un valor valido.`, EXIT.USAGE, `Opciones: ${values.join(", ")}.`);
+    throw new CliError(`${label}: "${value}" is not a valid value.`, EXIT.USAGE, `Options: ${values.join(", ")}.`);
   }
 }
 
 export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promise<number> {
   const { args, positionals } = ctx;
 
-  // ── Posicionales ─────────────────────────────────────────────────────────
+  // ── Positionals ──────────────────────────────────────────────────────────
   const path: Record<string, string | number> = {};
   const body: Record<string, unknown> = {};
   const query: Record<string, unknown> = {};
@@ -62,16 +63,16 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
   if (positionals.length < required.length) {
     const missing = required.slice(positionals.length).map((p) => `<${p.label}>`);
     throw new CliError(
-      `Falta ${missing.length === 1 ? "el argumento" : "los argumentos"} ${missing.join(" ")}.`,
+      `Missing ${missing.length === 1 ? "argument" : "arguments"} ${missing.join(" ")}.`,
       EXIT.USAGE,
-      `Uso: truo ${spec.path.join(" ")} ${spec.positionals.map((p) => (p.required ? `<${p.label}>` : `[${p.label}]`)).join(" ")}`,
+      `Usage: truo ${spec.path.join(" ")} ${spec.positionals.map((p) => (p.required ? `<${p.label}>` : `[${p.label}]`)).join(" ")}`,
     );
   }
   if (positionals.length > spec.positionals.length) {
     throw new CliError(
-      `Sobran argumentos: ${positionals.slice(spec.positionals.length).join(" ")}.`,
+      `Too many arguments: ${positionals.slice(spec.positionals.length).join(" ")}.`,
       EXIT.USAGE,
-      `Uso: truo ${spec.path.join(" ")} ${spec.positionals.map((p) => `<${p.label}>`).join(" ")}`,
+      `Usage: truo ${spec.path.join(" ")} ${spec.positionals.map((p) => `<${p.label}>`).join(" ")}`,
     );
   }
 
@@ -90,7 +91,7 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
     const raw = args.flags.get(f.flag);
     if (raw === undefined) {
       if (f.required && f.in === "body") {
-        throw new CliError(`Falta --${f.flag}.`, EXIT.USAGE, f.description);
+        throw new CliError(`Missing --${f.flag}.`, EXIT.USAGE, f.description);
       }
       continue;
     }
@@ -99,7 +100,7 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
         ? f.type === "boolean"
           ? raw
           : (() => {
-              throw new CliError(`--${f.flag} necesita un valor.`, EXIT.USAGE, f.description);
+              throw new CliError(`--${f.flag} needs a value.`, EXIT.USAGE, f.description);
             })()
         : Array.isArray(raw)
           ? f.type === "string[]"
@@ -112,8 +113,8 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
     else path[f.key] = value as string;
   }
 
-  // `--body-json` siempre esta disponible: es la valvula de escape para un body que las
-  // flags no cubren (o que el spec declara libre) sin tener que esperar una version nueva.
+  // `--body-json` is always available: it is the escape valve for a body the flags do not
+  // cover (or that the spec declares free-form) without waiting for a new release.
   const bodyJson = flagString(args.flags, "body-json");
   let finalBody: unknown = Object.keys(body).length ? body : undefined;
   if (bodyJson !== undefined) {
@@ -121,7 +122,7 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
     try {
       parsed = JSON.parse(bodyJson);
     } catch {
-      throw new CliError("--body-json no es JSON valido.");
+      throw new CliError("--body-json is not valid JSON.");
     }
     finalBody =
       parsed && typeof parsed === "object" && !Array.isArray(parsed) && finalBody
@@ -130,31 +131,31 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
   }
   if (spec.bodyRequired && finalBody === undefined) {
     throw new CliError(
-      `Este comando necesita un cuerpo.`,
+      `This command needs a body.`,
       EXIT.USAGE,
       spec.freeformBody
-        ? "Pasalo con --body-json '{…}'."
-        : `Usa las flags: ${spec.flags.filter((f) => f.in === "body").map((f) => `--${f.flag}`).join(" ")}`,
+        ? "Pass it with --body-json '{…}'."
+        : `Use the flags: ${spec.flags.filter((f) => f.in === "body").map((f) => `--${f.flag}`).join(" ")}`,
     );
   }
 
-  // ── Confirmacion de lo destructivo ───────────────────────────────────────
-  // El gate mira `x-truo-danger`, la misma clasificacion que usara el servidor MCP. Una
-  // sola taxonomia para las dos superficies: lo que aca pide confirmacion, alla la pide.
+  // ── Confirmation for destructive operations ──────────────────────────────
+  // The gate looks at `x-truo-danger`, the same classification the MCP server will use.
+  // One taxonomy for both surfaces: what asks for confirmation here asks for it there.
   if (spec.danger === "destructive" && !flagBool(args.flags, "yes")) {
     const target = Object.values(path)[0] ?? spec.path.join(" ");
     const ok = await confirm(
-      `${color.red("Operacion destructiva")}: ${spec.summary || spec.operationId} sobre ${color.bold(String(target))}. ` +
-        `No tiene vuelta atras.`,
+      `${color.red("Destructive operation")}: ${spec.summary || spec.operationId} on ${color.bold(String(target))}. ` +
+        `There is no undo.`,
     );
     if (!ok) {
-      info("Cancelado.");
+      info("Cancelled.");
       return EXIT.ABORTED;
     }
   }
 
   if (spec.deprecated) {
-    warn(`[truo] "${spec.path.join(" ")}" esta deprecado y va a dejar de existir. Corre 'truo api-changelog'.`);
+    warn(`[truo] "${spec.path.join(" ")}" is deprecated and going away. Run 'truo api-changelog'.`);
   }
 
   // ── Request ──────────────────────────────────────────────────────────────
@@ -176,20 +177,20 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
     throw toCliError(err);
   }
 
-  // ── Espera de operaciones asincronas ─────────────────────────────────────
-  // Se espera por defecto. Un CLI que devuelve antes de que la cosa pase obliga a todo
-  // script a escribir su propio bucle de polling — y la mitad no lo escribe.
+  // ── Waiting on asynchronous operations ───────────────────────────────────
+  // Waiting is the default. A CLI that returns before the thing happens forces every
+  // script to write its own polling loop — and half of them never do.
   const wantsWait = flagBool(args.flags, "wait") !== false;
   const op = data as Partial<Operation> | null;
   if (spec.longRunning && wantsWait && op && op.object === "operation" && op.id) {
     if (op.status === "succeeded" || op.status === "failed") {
-      // Una operacion `inline` ya termino: esperarla seria una consulta al pedo.
+      // An `inline` operation already finished: waiting would be a pointless poll.
     } else {
       try {
         data = await waitWithProgress(ctx.client, op.id, quiet);
       } catch (err) {
         if (err instanceof OperationTimeoutError) {
-          throw new CliError(err.message, EXIT.OPERATION_TIMEOUT, `Retomala con: truo operation wait ${err.operationId}`);
+          throw new CliError(err.message, EXIT.OPERATION_TIMEOUT, `Resume it with: truo operation wait ${err.operationId}`);
         }
         if (err instanceof OperationFailedError) {
           throw new CliError(err.message, EXIT.API_ERROR);
@@ -200,7 +201,7 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
   }
 
   if (data !== null && data !== undefined) out(render(data, { format, field }));
-  else if (!quiet) info(color.green("Listo."));
+  else if (!quiet) info(color.green("Done."));
   return EXIT.OK;
 }
 
@@ -224,9 +225,9 @@ export function toCliError(err: unknown): CliError {
   if (err instanceof TruoError) {
     const code = err.status ? exitCodeForStatus(err.status) : EXIT.API_ERROR;
     const hints: string[] = [];
-    if (err.code === "insufficient_scope") hints.push("La API key no tiene el scope necesario. Crea una nueva desde el panel.");
-    if (err.code === "insufficient_permission") hints.push("Tu usuario no tiene ese permiso; pediselo al dueño de la cuenta.");
-    if (err.status === 404) hints.push("O no existe, o esta credencial no puede verlo — la API no distingue los dos casos a proposito.");
+    if (err.code === "insufficient_scope") hints.push("The API key does not have the required scope. Create a new one from the panel.");
+    if (err.code === "insufficient_permission") hints.push("Your user does not have that permission; ask the account owner for it.");
+    if (err.status === 404) hints.push("Either it does not exist, or this credential cannot see it — the API does not distinguish the two on purpose.");
     if (err.requestId) hints.push(`request_id: ${err.requestId}`);
     return new CliError(err.message, code, hints.join("\n") || undefined);
   }

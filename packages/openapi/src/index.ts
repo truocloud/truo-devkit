@@ -1,40 +1,40 @@
 /**
- * El documento OpenAPI de `api.truo.cloud/v1`, tal cual lo sirve la API.
+ * The OpenAPI document for `api.truo.cloud/v1`, exactly as the API serves it.
  *
- * Este paquete no genera nada ni valida nada: es el **artefacto de contrato**, y existe
- * como paquete propio para que el SDK, el CLI y el servidor MCP consuman exactamente el
- * mismo bytes-por-bytes que `GET /v1/openapi.json`. Cualquier divergencia entre lo que
- * publica la API y lo que asume una herramienta es un bug, y tenerlo en un solo lugar es
- * lo que permite detectarlo con un diff (`bun run sync:spec --check`).
+ * This package generates nothing and validates nothing: it is the **contract artifact**,
+ * and it exists as its own package so the SDK, the CLI and the MCP server consume exactly
+ * the same bytes as `GET /v1/openapi.json`. Any divergence between what the API publishes
+ * and what a tool assumes is a bug, and keeping it in one place is what makes it
+ * detectable with a diff (`bun run sync:spec --check`).
  *
- * La copia se sincroniza contra `GET /v1/openapi.json`, que la API genera de los schemas
- * de validacion de sus propios handlers. La cadena entera es: handler → schema → spec →
- * SDK/CLI/MCP. No hay ningun eslabon escrito a mano.
+ * The copy is synced against `GET /v1/openapi.json`, which the API generates from the
+ * validation schemas of its own handlers. The full chain is: handler → schema → spec →
+ * SDK/CLI/MCP. No link is written by hand.
  */
 import spec from "../openapi/v1.json" with { type: "json" };
 
-/** Version del contrato publicada en `info.version`. */
+/** Contract version published in `info.version`. */
 export const API_VERSION: string = (spec as { info: { version: string } }).info.version;
 
-/** Base URL de produccion declarada en el spec (`servers[0].url`). */
+/** Production base URL declared in the spec (`servers[0].url`). */
 export const API_BASE_URL: string =
   (spec as { servers?: { url: string }[] }).servers?.[0]?.url ?? "https://api.truo.cloud";
 
-/** El documento OpenAPI completo. */
+/** The full OpenAPI document. */
 export const openapi = spec as unknown as OpenApiDocument;
 export default openapi;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tipos minimos de OpenAPI 3.1
+// Minimal OpenAPI 3.1 types
 //
-// A proposito NO se usa un paquete de tipos de OpenAPI: solo se necesita describir el
-// subconjunto que el codegen recorre, y una dependencia mas en un paquete que se publica
-// a npm cuesta mas que las cuarenta lineas de abajo.
+// Deliberately NOT an OpenAPI types package: only the subset the codegen walks needs
+// describing, and one more dependency in a package published to npm costs more than the
+// forty lines below.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
-/** Clasificacion de riesgo de una operacion. La comparten el gate del MCP y el prompt de confirmacion del CLI. */
+/** Risk classification of an operation. Shared by the MCP gate and the CLI's confirmation prompt. */
 export type Danger = "none" | "reversible" | "destructive";
 
 export interface JsonSchema {
@@ -83,13 +83,13 @@ export interface Operation {
     { description?: string; content?: Record<string, { schema?: JsonSchema }> }
   >;
   security?: Record<string, string[]>[];
-  /** Scope requerido, gramatica `<recurso>:<accion>`. */
+  /** Required scope, `<resource>:<action>` grammar. */
   "x-truo-scope"?: string;
   "x-truo-rate-bucket"?: "read" | "write" | "expensive";
   "x-truo-danger"?: Danger;
-  /** `true` si devuelve 202 + una operacion asincrona. */
+  /** `true` if it returns 202 + an asynchronous operation. */
   "x-truo-long-running"?: boolean;
-  /** `true` si acepta `Idempotency-Key`. */
+  /** `true` if it accepts `Idempotency-Key`. */
   "x-truo-idempotent"?: boolean;
   "x-truo-cli"?: { command: string; positional?: string[] };
   "x-truo-mcp"?: { toolset: string; action: string; readonly: boolean };
@@ -110,7 +110,7 @@ export interface OpenApiDocument {
 
 export const HTTP_METHODS: readonly HttpMethod[] = ["get", "post", "put", "patch", "delete"];
 
-/** Recorre el documento y entrega cada operacion con su metodo y path. Orden estable. */
+/** Walks the document and yields every operation with its method and path. Stable order. */
 export function* eachOperation(
   doc: OpenApiDocument = openapi,
 ): Generator<{ path: string; method: HttpMethod; op: Operation }> {

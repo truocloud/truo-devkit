@@ -5,9 +5,9 @@ import starlight from "@astrojs/starlight";
 /**
  * docs.truo.cloud
  *
- * Estatico y sin backend: se construye a HTML y se sirve desde GitHub Pages. Una
- * documentacion que necesita un servidor propio es una documentacion que puede
- * caerse en el mismo incidente que estas documentando.
+ * Static, no backend: it builds to HTML and is served from GitHub Pages. Docs
+ * that need their own server are docs that can go down in the very incident
+ * they document.
  */
 export default defineConfig({
   site: "https://docs.truo.cloud",
@@ -15,10 +15,10 @@ export default defineConfig({
     starlight({
       title: "TruoCloud",
       description:
-        "Documentacion de la API publica de TruoCloud: referencia, SDK de TypeScript, CLI y guias para agentes.",
+        "Documentation for the TruoCloud public API: reference, TypeScript SDK, CLI, and guides for AI agents.",
       defaultLocale: "root",
       locales: {
-        root: { label: "Español", lang: "es" },
+        root: { label: "English", lang: "en" },
       },
       social: [
         {
@@ -33,43 +33,43 @@ export default defineConfig({
       customCss: ["./src/styles/truo.css"],
       sidebar: [
         {
-          label: "Empezar",
+          label: "Getting started",
           items: [
-            // `link` y no `slug`: la portada es una `splash`, no una pagina de
-            // documentacion con sidebar propio.
-            { label: "Introduccion", link: "/" },
-            { label: "Autenticacion", slug: "empezar/autenticacion" },
-            { label: "El contrato", slug: "empezar/contrato" },
+            // `link`, not `slug`: the landing page is a `splash`, not a docs
+            // page with its own sidebar.
+            { label: "Introduction", link: "/" },
+            { label: "Authentication", slug: "getting-started/authentication" },
+            { label: "The API contract", slug: "getting-started/api-contract" },
           ],
         },
         {
-          label: "Referencia",
+          label: "Reference",
           items: [
-            // La referencia interactiva no es una pagina de Starlight: es Scalar
-            // sobre el mismo openapi.json que sirve la API.
-            { label: "API (interactiva)", link: "/reference/" },
-            // Desde Starlight 0.39 un `autogenerate` no lleva `label` propio:
-            // va dentro de un grupo con su `items`.
-            { label: "Operaciones", items: [{ autogenerate: { directory: "referencia" } }] },
+            // The interactive reference is not a Starlight page: it's Scalar
+            // running on the same openapi.json the API serves.
+            { label: "API playground", link: "/api/" },
+            // Since Starlight 0.39 an `autogenerate` entry takes no `label` of
+            // its own: it goes inside a group with its `items`.
+            { label: "Operations", items: [{ autogenerate: { directory: "reference" } }] },
           ],
         },
         {
-          label: "Herramientas",
+          label: "Tools",
           items: [
-            { label: "CLI `truo`", slug: "herramientas/cli" },
-            { label: "SDK de TypeScript", slug: "herramientas/sdk" },
+            { label: "`truo` CLI", slug: "tools/cli" },
+            { label: "TypeScript SDK", slug: "tools/sdk" },
           ],
         },
         {
-          label: "Agentes de IA",
-          items: [{ label: "Como darle acceso a un agente", slug: "agentes" }],
+          label: "AI agents",
+          items: [{ label: "Giving an agent access", slug: "ai-agents" }],
         },
         {
-          label: "Politicas",
+          label: "Policies",
           items: [
-            { label: "Deprecacion", slug: "deprecation" },
-            { label: "Errores", slug: "errores" },
-            { label: "Limites de uso", slug: "limites" },
+            { label: "Deprecation", slug: "deprecation" },
+            { label: "Errors", slug: "errors" },
+            { label: "Rate limits", slug: "rate-limits" },
           ],
         },
       ],

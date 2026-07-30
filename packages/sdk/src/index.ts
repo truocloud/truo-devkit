@@ -1,14 +1,14 @@
 /**
- * `@truocloud/sdk` — cliente TypeScript de la API publica de TruoCloud.
+ * `@truocloud/sdk` — TypeScript client for the TruoCloud public API.
  *
- * **Cero dependencias en runtime.** Todo lo que usa (fetch, AbortSignal, crypto) es
- * estandar en Node 20+, Bun, Deno y el navegador. Un SDK que arrastra dependencias las
- * arrastra a la aplicacion del cliente, y aca no hacia falta ninguna.
+ * **Zero runtime dependencies.** Everything it uses (fetch, AbortSignal, crypto) is
+ * standard in Node 20+, Bun, Deno and the browser. An SDK that drags dependencies along
+ * drags them into the client's application, and none were needed here.
  *
  * ```ts
  * import { TruoClient } from "@truocloud/sdk";
  *
- * const truo = new TruoClient();                       // lee TRUO_TOKEN del entorno
+ * const truo = new TruoClient();                       // reads TRUO_TOKEN from the environment
  * const vps = await truo.vps.get("svc_10432");
  * ```
  */
@@ -44,5 +44,5 @@ export type {
   Paginate,
 } from "./types.ts";
 
-/** Todos los tipos del contrato: `T.Vps`, `T.Operation`, `T.ServiceList`… */
+/** All contract types: `T.Vps`, `T.Operation`, `T.ServiceList`… */
 export type * as T from "./generated/types.ts";

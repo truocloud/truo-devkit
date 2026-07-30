@@ -1,10 +1,10 @@
 /**
- * Los comandos que NO salen del OpenAPI.
+ * The commands that do NOT come from the OpenAPI spec.
  *
- * Son los que no corresponden a un endpoint: manejo de credenciales locales, perfiles, la
- * llamada cruda y el autocompletado. Todo lo demas se genera, y esta lista se mantiene
- * corta a proposito — cada comando escrito a mano es uno que puede quedar desalineado con
- * la API.
+ * These are the ones with no matching endpoint: local credential management, profiles,
+ * the raw call and shell completion. Everything else is generated, and this list is kept
+ * short on purpose — every hand-written command is one that can drift out of sync with
+ * the API.
  */
 import { hostname } from "node:os";
 import { TruoClient } from "../../sdk/src/index.ts";
@@ -30,13 +30,13 @@ import { toCliError } from "./execute.ts";
 export interface BuiltinContext {
   args: ParsedArgs;
   positionals: string[];
-  /** Cliente ya autenticado. Lanza si no hay credencial: los builtins que no la necesitan no lo piden. */
+  /** Already-authenticated client. Throws if there is no credential: builtins that do not need one never ask for it. */
   client: () => TruoClient;
   resolved: ReturnType<typeof resolve>;
 }
 
 export interface BuiltinCommand extends Builtin {
-  /** `true` si el comando funciona sin credencial (login, config, completion). */
+  /** `true` if the command works without a credential (login, config, completion). */
   anonymous?: boolean;
   run: (ctx: BuiltinContext) => Promise<number>;
 }
@@ -46,9 +46,9 @@ export interface BuiltinCommand extends Builtin {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Guarda una key ya validada y deja el perfil listo. Compartido por los dos
- * caminos del login (device flow y `--token`) para que no haya forma de que uno
- * escriba algo distinto del otro.
+ * Stores an already-validated key and leaves the profile ready. Shared by both
+ * login paths (device flow and `--token`) so there is no way for one to write
+ * something different from the other.
  */
 async function persistToken(
   profile: string,
@@ -66,60 +66,60 @@ async function persistToken(
   saveConfig(cfg);
 
   info(
-    `${color.green("Listo.")} Perfil ${color.bold(profile)} autenticado como ` +
+    `${color.green("Done.")} Profile ${color.bold(profile)} authenticated as ` +
       `${color.bold(account.email ?? account.id ?? "?")} — token ${maskToken(token)}.`,
   );
-  info(color.dim(`Guardado en ${path}`));
+  info(color.dim(`Saved to ${path}`));
   if (warning) info(color.yellow(warning));
 }
 
 const authLogin: BuiltinCommand = {
   path: ["auth", "login"],
-  summary: "Entrar con el navegador y crear la API key de este equipo",
+  summary: "Sign in with the browser and create this machine's API key",
   usage: "truo auth login [--scopes a,b] [--no-browser] | truo auth login --token <key>",
   anonymous: true,
   details:
-    "Por defecto abre un login en el navegador (device flow, RFC 8628) y crea una API key " +
-    "propia de este equipo. La key es la credencial que queda guardada: se puede revocar " +
-    "desde el panel sin tocar el resto, y la sesion del navegador se cierra apenas termina.\n\n" +
-    "--token <key>   Usa una key ya creada en el panel, sin navegador (para CI y bastiones).\n" +
-    "--scopes a,b    Acota la key. Por defecto pide todo lo que el CLI puede usar.\n" +
-    "--no-browser    No intenta abrir el navegador; solo imprime la URL.\n" +
-    "--name <n>      Nombre de la key en el panel (por defecto truo-cli@<equipo>).",
+    "By default it opens a browser login (device flow, RFC 8628) and creates an API key " +
+    "of this machine's own. The key is the credential that gets stored: it can be revoked " +
+    "from the panel without touching anything else, and the browser session is closed as soon as it finishes.\n\n" +
+    "--token <key>   Use a key already created in the panel, no browser (for CI and bastion hosts).\n" +
+    "--scopes a,b    Narrow the key. By default it requests everything the CLI can use.\n" +
+    "--no-browser    Do not try to open the browser; just print the URL.\n" +
+    "--name <n>      Name of the key in the panel (defaults to truo-cli@<machine>).",
   async run(ctx) {
     const profile = ctx.resolved.profile;
     const baseUrl = ctx.resolved.baseUrl;
     const explicitToken = flagString(ctx.args.flags, "token");
 
-    // ── Camino corto: una key que ya existe ─────────────────────────────────
-    // `--token` a secas (sin valor) tambien entra aca: quien lo escribio quiere
-    // pegar una key, no abrir un navegador.
+    // ── Short path: a key that already exists ───────────────────────────────
+    // A bare `--token` (no value) also lands here: whoever typed it wants to
+    // paste a key, not open a browser.
     if (ctx.args.flags.has("token") || flagBool(ctx.args.flags, "paste") === true) {
       let token = explicitToken;
       if (!token) {
         if (!isInteractive()) {
           throw new CliError(
-            "Sin terminal interactiva no se puede pedir el token.",
+            "Cannot prompt for the token without an interactive terminal.",
             EXIT.UNAUTHENTICATED,
-            "Pasalo con --token, o exporta TRUO_TOKEN en tu CI.",
+            "Pass it with --token, or set TRUO_TOKEN in your CI.",
           );
         }
-        info(`Crea una API key en ${color.cyan("https://consola.truocloud.com/settings/api-keys")} y pegala aca.`);
-        info(color.dim("No se muestra mientras la escribis."));
+        info(`Create an API key at ${color.cyan("https://consola.truocloud.com/settings/api-keys")} and paste it here.`);
+        info(color.dim("It is not shown while you type."));
         token = await askSecret("Token: ");
       }
-      if (!token) throw new CliError("No se ingreso ningun token.", EXIT.UNAUTHENTICATED);
+      if (!token) throw new CliError("No token was entered.", EXIT.UNAUTHENTICATED);
       if (!/^tc_(live|test)_/.test(token)) {
         throw new CliError(
-          "Eso no parece una API key de TruoCloud (deberia empezar con tc_live_ o tc_test_).",
+          "That does not look like a TruoCloud API key (it should start with tc_live_ or tc_test_).",
           EXIT.USAGE,
         );
       }
 
-      // Se valida ANTES de guardar. Guardar una credencial que no funciona convierte el
-      // primer comando real del usuario en un 401 sin explicacion.
-      // El tipo sale del contrato (`T.Account`), no de una forma inventada acá: si la API
-      // renombrara `email`, esto deja de compilar en vez de imprimir "?" en produccion.
+      // Validated BEFORE saving. Storing a credential that does not work turns the
+      // user's first real command into an unexplained 401.
+      // The type comes from the contract (`T.Account`), not from a shape invented here:
+      // if the API renamed `email`, this stops compiling instead of printing "?" in production.
       let account: T.Account;
       try {
         account = await new TruoClient({ token, ...(baseUrl ? { baseUrl } : {}) }).account.get();
@@ -130,38 +130,38 @@ const authLogin: BuiltinCommand = {
       return EXIT.OK;
     }
 
-    // ── Camino normal: device flow ──────────────────────────────────────────
+    // ── Normal path: device flow ────────────────────────────────────────────
     const idpUrl = flagString(ctx.args.flags, "idp") ?? ctx.resolved.idpUrl ?? DEFAULT_IDP_URL;
     const requested = flagString(ctx.args.flags, "scopes");
     const scopes = requested
       ? requested.split(",").map((s) => s.trim()).filter(Boolean)
       : grantableScopes();
     if (scopes.length === 0) {
-      throw new CliError("--scopes quedo vacio.", EXIT.USAGE, `Disponibles: ${grantableScopes().join(", ")}`);
+      throw new CliError("--scopes ended up empty.", EXIT.USAGE, `Available: ${grantableScopes().join(", ")}`);
     }
 
     const device = await requestDeviceCode(idpUrl, scopes);
 
-    // El código va a stderr como todo lo interactivo: `truo auth login` puede
-    // correr con stdout redirigido y esto no es dato de salida, es instrucción.
+    // The code goes to stderr like everything interactive: `truo auth login` may
+    // run with stdout redirected, and this is not output data, it is an instruction.
     info("");
-    info(`  Abri  ${color.cyan(device.verificationUri)}`);
-    info(`  Codigo  ${color.bold(device.userCode)}`);
+    info(`  Open  ${color.cyan(device.verificationUri)}`);
+    info(`  Code  ${color.bold(device.userCode)}`);
     info("");
 
-    // `--no-browser` llega normalizado como `browser=false` desde el parser.
+    // `--no-browser` arrives normalized as `browser=false` from the parser.
     const noBrowser = flagBool(ctx.args.flags, "browser") === false;
     if (!noBrowser && device.verificationUriComplete && openBrowser(device.verificationUriComplete)) {
-      info(color.dim("Se abrio el navegador. Verifica que el codigo coincida antes de aprobar."));
+      info(color.dim("Browser opened. Check that the code matches before approving."));
     } else {
-      info(color.dim("Abri esa URL en cualquier navegador (puede ser el de tu telefono)."));
+      info(color.dim("Open that URL in any browser (your phone's works too)."));
     }
-    info(color.dim("Esperando la aprobacion…"));
+    info(color.dim("Waiting for approval…"));
 
     const idpToken = await pollForToken(idpUrl, device);
 
-    // El token del IdP alcanza para crear la key y nada más: la API lo acota a
-    // `account:read` + `apikeys:*`. Lo que queda guardado es la key.
+    // The IdP token is enough to create the key and nothing more: the API scopes
+    // it down to `account:read` + `apikeys:*`. What gets stored is the key.
     const bootstrap = new TruoClient({ token: idpToken, ...(baseUrl ? { baseUrl } : {}) });
     const name = flagString(ctx.args.flags, "name") ?? `truo-cli@${safeHostname()}`;
 
@@ -185,39 +185,39 @@ const authLogin: BuiltinCommand = {
     }
 
     await persistToken(profile, created.token, baseUrl, account);
-    // La sesión del navegador ya no hace falta. Dejarla viva sería dejar tirada
-    // una credencial que nadie va a acordarse de revocar.
+    // The browser session is no longer needed. Leaving it alive would be leaving
+    // behind a credential nobody will remember to revoke.
     await signOut(idpUrl, idpToken);
 
-    info(color.dim(`Key "${name}" (${created.id}) con ${scopes.length} scopes. Revocala con: truo auth token revoke ${created.id}`));
+    info(color.dim(`Key "${name}" (${created.id}) with ${scopes.length} scopes. Revoke it with: truo auth token revoke ${created.id}`));
     return EXIT.OK;
   },
 };
 
-/** Nombre del equipo, saneado para que entre en el nombre de una key. */
+/** Machine name, sanitized so it fits inside a key name. */
 function safeHostname(): string {
-  const raw = hostname() || "desconocido";
+  const raw = hostname() || "unknown";
   return raw.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 40);
 }
 
 const authLogout: BuiltinCommand = {
   path: ["auth", "logout"],
-  summary: "Borrar la credencial guardada del perfil",
+  summary: "Delete the profile's stored credential",
   anonymous: true,
   async run(ctx) {
     const profile = ctx.resolved.profile;
     const removed = deleteToken(profile);
-    // Borrar local no revoca: la key sigue siendo valida para quien la tenga. Decirlo
-    // evita la falsa sensacion de haber cortado el acceso.
+    // Deleting locally does not revoke: the key remains valid for whoever has it.
+    // Saying so avoids the false sense of having cut off access.
     info(
       removed
-        ? `${color.green("Listo.")} Credencial del perfil ${color.bold(profile)} borrada de este equipo.`
-        : `El perfil ${color.bold(profile)} no tenia credencial guardada.`,
+        ? `${color.green("Done.")} Credential for profile ${color.bold(profile)} deleted from this machine.`
+        : `Profile ${color.bold(profile)} had no stored credential.`,
     );
     info(
       color.yellow(
-        "Esto NO revoca la key: si la copiaste a otro lado, sigue funcionando. " +
-          "Para revocarla de verdad: truo auth token revoke <key_id>.",
+        "This does NOT revoke the key: if you copied it elsewhere, it still works. " +
+          "To truly revoke it: truo auth token revoke <key_id>.",
       ),
     );
     return EXIT.OK;
@@ -226,29 +226,29 @@ const authLogout: BuiltinCommand = {
 
 const authStatus: BuiltinCommand = {
   path: ["auth", "status"],
-  summary: "Quien soy, con que token y contra que API",
+  summary: "Who am I, with which token, against which API",
   anonymous: true,
   details:
-    "Sustituye al comando generado del mismo nombre (GET /v1/account) para poder mostrar " +
-    "tambien de donde sale la credencial, que es la mitad de la pregunta cuando algo falla.",
+    "Replaces the generated command of the same name (GET /v1/account) so it can also show " +
+    "where the credential comes from, which is half the question when something fails.",
   async run(ctx) {
     const { profile, token, tokenSource, baseUrl } = ctx.resolved;
     const lines = [
-      `perfil       ${color.bold(profile)}`,
+      `profile      ${color.bold(profile)}`,
       `api          ${baseUrl ?? API_BASE_URL}`,
-      `credencial   ${token ? `${maskToken(token)} ${color.dim(`(${sourceLabel(tokenSource)})`)}` : color.red("ninguna")}`,
+      `credential   ${token ? `${maskToken(token)} ${color.dim(`(${sourceLabel(tokenSource)})`)}` : color.red("none")}`,
       `config       ${configDir()}`,
     ];
     if (!token) {
       out(lines.join("\n"));
-      info("\nNo hay credencial. Corre 'truo auth login'.");
+      info("\nNo credential found. Run 'truo auth login'.");
       return EXIT.UNAUTHENTICATED;
     }
     try {
       const account: T.Account = await ctx.client().account.get();
       lines.push(
-        `cuenta       ${account.email ?? account.id}`,
-        `estado       ${color.green("token valido")}`,
+        `account      ${account.email ?? account.id}`,
+        `status       ${color.green("token valid")}`,
       );
       out(lines.join("\n"));
       return EXIT.OK;
@@ -260,7 +260,7 @@ const authStatus: BuiltinCommand = {
 };
 
 function sourceLabel(source: string | null): string {
-  return source === "flag" ? "--token" : source === "env" ? "TRUO_TOKEN" : source === "profile" ? "perfil" : "?";
+  return source === "flag" ? "--token" : source === "env" ? "TRUO_TOKEN" : source === "profile" ? "profile" : "?";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ function sourceLabel(source: string | null): string {
 
 const configList: BuiltinCommand = {
   path: ["config", "list"],
-  summary: "Ver los perfiles y sus ajustes",
+  summary: "Show profiles and their settings",
   anonymous: true,
   async run(ctx) {
     const cfg = loadConfig();
@@ -279,7 +279,7 @@ const configList: BuiltinCommand = {
       return EXIT.OK;
     }
     const rows = Object.entries(cfg.profiles).map(([name, p]) => ({
-      profile: name === cfg.current_profile ? `${name} ${color.green("(activo)")}` : name,
+      profile: name === cfg.current_profile ? `${name} ${color.green("(active)")}` : name,
       base_url: p.base_url ?? color.dim(API_BASE_URL),
       output: p.output ?? color.dim("table"),
       account: p.account ?? color.dim("—"),
@@ -291,60 +291,60 @@ const configList: BuiltinCommand = {
 
 const configUse: BuiltinCommand = {
   path: ["config", "use"],
-  summary: "Cambiar el perfil activo",
-  usage: "truo config use <perfil>",
+  summary: "Switch the active profile",
+  usage: "truo config use <profile>",
   anonymous: true,
   async run(ctx) {
     const name = ctx.positionals[0];
-    if (!name) throw new CliError("Falta el nombre del perfil.", EXIT.USAGE, "Uso: truo config use <perfil>");
+    if (!name) throw new CliError("Missing profile name.", EXIT.USAGE, "Usage: truo config use <profile>");
     const cfg = loadConfig();
     if (!cfg.profiles[name]) cfg.profiles[name] = {};
     cfg.current_profile = name;
     saveConfig(cfg);
-    info(`${color.green("Listo.")} Perfil activo: ${color.bold(name)}.`);
+    info(`${color.green("Done.")} Active profile: ${color.bold(name)}.`);
     return EXIT.OK;
   },
 };
 
 const configSet: BuiltinCommand = {
   path: ["config", "set"],
-  summary: "Ajustar una clave del perfil activo (base_url, idp_url, output)",
-  usage: "truo config set <clave> <valor>",
+  summary: "Set a key on the active profile (base_url, idp_url, output)",
+  usage: "truo config set <key> <value>",
   anonymous: true,
   async run(ctx) {
     const [key, value] = ctx.positionals;
     const allowed = ["base_url", "idp_url", "output"];
     if (!key || value === undefined) {
-      throw new CliError("Faltan argumentos.", EXIT.USAGE, `Uso: truo config set <${allowed.join("|")}> <valor>`);
+      throw new CliError("Missing arguments.", EXIT.USAGE, `Usage: truo config set <${allowed.join("|")}> <value>`);
     }
     if (!allowed.includes(key)) {
-      throw new CliError(`Clave desconocida: ${key}.`, EXIT.USAGE, `Solo se pueden ajustar: ${allowed.join(", ")}.`);
+      throw new CliError(`Unknown key: ${key}.`, EXIT.USAGE, `Only these can be set: ${allowed.join(", ")}.`);
     }
-    if (key === "output") parseFormat(value); // valida antes de escribir
+    if (key === "output") parseFormat(value); // validate before writing
     const cfg = loadConfig();
     const profile = cfg.current_profile;
     cfg.profiles[profile] = { ...(cfg.profiles[profile] ?? {}), [key]: value };
     saveConfig(cfg);
-    info(`${color.green("Listo.")} ${profile}.${key} = ${value}`);
+    info(`${color.green("Done.")} ${profile}.${key} = ${value}`);
     return EXIT.OK;
   },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// api — el escape hatch
+// api — the escape hatch
 // ─────────────────────────────────────────────────────────────────────────────
 
 const apiRaw: BuiltinCommand = {
   path: ["api"],
-  summary: "Llamar cualquier endpoint a mano (estilo `gh api`)",
-  usage: "truo api <METODO> <ruta> [--body-json '{…}']",
+  summary: "Call any endpoint by hand (`gh api` style)",
+  usage: "truo api <METHOD> <path> [--body-json '{…}']",
   details:
-    "Existe para que nunca haya que esperar una version del CLI para usar algo que la API " +
-    "ya expone. No pasa por el arbol generado: no valida argumentos ni pide confirmacion.",
+    "Exists so nobody ever has to wait for a CLI release to use something the API " +
+    "already exposes. It does not go through the generated tree: no argument validation, no confirmation prompt.",
   async run(ctx) {
     const [methodRaw, pathRaw] = ctx.positionals;
     if (!methodRaw || !pathRaw) {
-      throw new CliError("Faltan argumentos.", EXIT.USAGE, "Uso: truo api GET /v1/vps");
+      throw new CliError("Missing arguments.", EXIT.USAGE, "Usage: truo api GET /v1/vps");
     }
     const method = methodRaw.toUpperCase();
     const path = pathRaw.startsWith("/") ? pathRaw : `/${pathRaw}`;
@@ -352,7 +352,7 @@ const apiRaw: BuiltinCommand = {
     const bodyJson = flagString(ctx.args.flags, "body-json");
 
     if (["DELETE", "POST", "PUT", "PATCH"].includes(method) && !flagBool(ctx.args.flags, "yes")) {
-      const ok = await confirm(`${color.yellow(method)} ${base}${path} — llamada cruda, sin validar.`);
+      const ok = await confirm(`${color.yellow(method)} ${base}${path} — raw call, no validation.`);
       if (!ok) return EXIT.ABORTED;
     }
 
@@ -371,7 +371,7 @@ const apiRaw: BuiltinCommand = {
     try {
       data = JSON.parse(text);
     } catch {
-      /* No todo lo que responde un endpoint es JSON; se imprime crudo. */
+      /* Not everything an endpoint returns is JSON; print it raw. */
     }
 
     const requestId = res.headers.get("x-request-id");
@@ -387,13 +387,13 @@ const apiRaw: BuiltinCommand = {
 
 const completion: BuiltinCommand = {
   path: ["completion"],
-  summary: "Imprimir el script de autocompletado (bash | zsh | fish)",
+  summary: "Print the shell completion script (bash | zsh | fish)",
   usage: "truo completion <bash|zsh|fish>",
   anonymous: true,
   async run(ctx) {
     const shell = ctx.positionals[0];
-    // Los grupos y comandos salen del arbol generado, asi que el autocompletado tampoco
-    // puede quedar viejo respecto de la API.
+    // Groups and commands come from the generated tree, so completion cannot go
+    // stale relative to the API either.
     const groups = [...new Set(COMMANDS.map((c) => c.path[0]!))].sort();
     const byGroup = groups.map((g) => ({
       g,
@@ -402,7 +402,7 @@ const completion: BuiltinCommand = {
 
     switch (shell) {
       case "bash":
-        out(`# truo bash completion — agregalo a ~/.bashrc:  eval "$(truo completion bash)"
+        out(`# truo bash completion — add it to ~/.bashrc:  eval "$(truo completion bash)"
 _truo() {
   local cur prev
   cur="\${COMP_WORDS[COMP_CWORD]}"
@@ -420,7 +420,7 @@ ${byGroup.map((b) => `    ${b.g}) COMPREPLY=( $(compgen -W "${b.subs.map((s) => 
 complete -F _truo truo`);
         return EXIT.OK;
       case "zsh":
-        out(`# truo zsh completion — agregalo a ~/.zshrc:  eval "$(truo completion zsh)"
+        out(`# truo zsh completion — add it to ~/.zshrc:  eval "$(truo completion zsh)"
 _truo() {
   local -a groups
   groups=(${groups.map((g) => `'${g}'`).join(" ")} 'auth' 'config' 'api' 'completion' 'mcp')
@@ -436,7 +436,7 @@ compdef _truo truo`);
       case "fish":
         out(
           [
-            "# truo fish completion — guardalo en ~/.config/fish/completions/truo.fish",
+            "# truo fish completion — save it to ~/.config/fish/completions/truo.fish",
             ...groups.map((g) => `complete -c truo -n "__fish_use_subcommand" -a "${g}"`),
             ...byGroup.flatMap((b) =>
               [...new Set(b.subs.map((s) => s.split(" ")[0]))].map(
@@ -447,24 +447,24 @@ compdef _truo truo`);
         );
         return EXIT.OK;
       default:
-        throw new CliError("Shell no soportado.", EXIT.USAGE, "Uso: truo completion <bash|zsh|fish>");
+        throw new CliError("Unsupported shell.", EXIT.USAGE, "Usage: truo completion <bash|zsh|fish>");
     }
   },
 };
 
 const mcp: BuiltinCommand = {
   path: ["mcp"],
-  summary: "Servidor MCP para agentes de IA (todavia no disponible)",
+  summary: "MCP server for AI agents (not available yet)",
   anonymous: true,
   async run() {
-    // Se declara y falla en vez de no existir: que el comando este ausente hace pensar que
-    // la version del CLI esta vieja. Que exista y diga "todavia no" es informacion.
+    // Declared and failing rather than absent: a missing command makes people think
+    // their CLI version is old. A command that exists and says "not yet" is information.
     throw new CliError(
-      "El servidor MCP todavia no esta implementado.",
+      "The MCP server is not implemented yet.",
       EXIT.USAGE,
-      "Es la fase 4 del devkit. Mientras tanto, un agente puede usar la API directo: el " +
-        "OpenAPI esta en https://api.truo.cloud/v1/openapi.json y describe cada operacion " +
-        "con su toolset, su accion y si es de solo lectura.",
+      "It is phase 4 of the devkit. In the meantime, an agent can use the API directly: " +
+        "the OpenAPI spec is at https://api.truo.cloud/v1/openapi.json and describes every " +
+        "operation with its toolset, its action, and whether it is read-only.",
     );
   },
 };

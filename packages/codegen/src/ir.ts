@@ -1,10 +1,10 @@
 /**
- * Representacion intermedia: el spec OpenAPI aplanado a lo que los generadores necesitan.
+ * Intermediate representation: the OpenAPI spec flattened to what the generators need.
  *
- * Existe para que `gen-sdk` y `gen-cli` no vuelvan a recorrer el documento cada uno con su
- * propia interpretacion de "cual es la respuesta exitosa" o "que parametro va en el path".
- * Una sola lectura, una sola interpretacion, y las validaciones de forma (ids unicos, sin
- * colisiones de arbol) ocurren una vez y fallan temprano.
+ * It exists so `gen-sdk` and `gen-cli` do not each walk the document with their own
+ * interpretation of "which is the success response" or "which parameter goes in the
+ * path". One read, one interpretation, and the shape validations (unique ids, no tree
+ * collisions) happen once and fail early.
  */
 import {
   eachOperation,
@@ -18,7 +18,7 @@ import {
 
 export interface ParamIR {
   name: string;
-  /** Nombre seguro en JS (`service_id` → `serviceId`). */
+  /** JS-safe name (`service_id` → `serviceId`). */
   jsName: string;
   required: boolean;
   description?: string;
@@ -27,7 +27,7 @@ export interface ParamIR {
 
 export interface OpIR {
   id: string;
-  /** `vps.power` → `["vps","power"]`. El ultimo es el metodo; los previos, el arbol. */
+  /** `vps.power` → `["vps","power"]`. The last one is the method; the rest, the tree. */
   segments: string[];
   method: HttpMethod;
   path: string;
@@ -77,9 +77,10 @@ function toParam(p: {
 }
 
 /**
- * La respuesta "exitosa" es la 2xx documentada de menor codigo. Elegir el menor y no la
- * primera del objeto evita depender del orden de las claves, y en la practica el menor es
- * el que el cliente recibe en el camino feliz (200 antes que 201, 202 cuando es lo unico).
+ * The "success" response is the lowest-numbered documented 2xx. Picking the lowest
+ * rather than the first key avoids depending on key order, and in practice the lowest is
+ * the one the client receives on the happy path (200 before 201, 202 when it is the only
+ * one).
  */
 function pickSuccess(op: Operation): { status: number; schema: JsonSchema | null } {
   const codes = Object.keys(op.responses ?? {})
@@ -98,8 +99,8 @@ export function buildIR(doc: OpenApiDocument = openapi): OpIR[] {
 
   for (const { path, method, op } of eachOperation(doc)) {
     const id = op.operationId;
-    if (!id) throw new Error(`${method.toUpperCase()} ${path} no tiene operationId.`);
-    if (seen.has(id)) throw new Error(`operationId duplicado: ${id}`);
+    if (!id) throw new Error(`${method.toUpperCase()} ${path} has no operationId.`);
+    if (seen.has(id)) throw new Error(`Duplicate operationId: ${id}`);
     seen.add(id);
 
     const params = op.parameters ?? [];
@@ -139,12 +140,13 @@ export function buildIR(doc: OpenApiDocument = openapi): OpIR[] {
 }
 
 /**
- * Un `operationId` no puede ser prefijo de otro.
+ * An `operationId` cannot be a prefix of another.
  *
- * Si existieran `dns.zones` y `dns.zones.records`, `client.dns.zones` tendria que ser a la
- * vez funcion y objeto. JS lo permite, TypeScript lo tipa mal y el CLI no sabria si
- * `truo dns zones` es un comando o un grupo. Es mas barato prohibirlo aca y renombrar la
- * operacion en la API que arrastrar un arbol ambiguo hasta el usuario.
+ * If `dns.zones` and `dns.zones.records` both existed, `client.dns.zones` would have to
+ * be a function and an object at the same time. JS allows it, TypeScript types it badly,
+ * and the CLI would not know whether `truo dns zones` is a command or a group. It is
+ * cheaper to forbid it here and rename the operation in the API than to drag an
+ * ambiguous tree all the way to the user.
  */
 function assertNoTreeCollision(ops: OpIR[]): void {
   const leaves = new Set(ops.map((o) => o.id));
@@ -153,15 +155,15 @@ function assertNoTreeCollision(ops: OpIR[]): void {
       const prefix = op.segments.slice(0, i).join(".");
       if (leaves.has(prefix)) {
         throw new Error(
-          `Colision de arbol: "${prefix}" es una operacion y a la vez el prefijo de "${op.id}".\n` +
-            `Renombra una de las dos en la API (los operationId son contrato publico: hacelo antes de publicar).`,
+          `Tree collision: "${prefix}" is an operation and at the same time the prefix of "${op.id}".\n` +
+            `Rename one of the two in the API (operationIds are public contract: do it before publishing).`,
         );
       }
     }
   }
 }
 
-/** Cada `{placeholder}` del path tiene que existir como parametro `in: path`, y al reves. */
+/** Every `{placeholder}` in the path must exist as an `in: path` parameter, and vice versa. */
 function assertPathParamsDeclared(ops: OpIR[]): void {
   for (const op of ops) {
     const inPath = [...op.path.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]!);
@@ -170,9 +172,9 @@ function assertPathParamsDeclared(ops: OpIR[]): void {
     const extra = declared.filter((n) => !inPath.includes(n));
     if (missing.length || extra.length) {
       throw new Error(
-        `${op.id} (${op.method.toUpperCase()} ${op.path}): parametros de path descuadrados.` +
-          (missing.length ? ` Sin declarar: ${missing.join(", ")}.` : "") +
-          (extra.length ? ` Declarados de mas: ${extra.join(", ")}.` : ""),
+        `${op.id} (${op.method.toUpperCase()} ${op.path}): path parameters out of sync.` +
+          (missing.length ? ` Undeclared: ${missing.join(", ")}.` : "") +
+          (extra.length ? ` Declared but unused: ${extra.join(", ")}.` : ""),
       );
     }
   }

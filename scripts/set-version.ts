@@ -1,21 +1,21 @@
 /**
- * Fija la misma version en los tres paquetes publicables.
+ * Pins the same version across the three publishable packages.
  *
  *   bun scripts/set-version.ts 0.2.0
- *   bun scripts/set-version.ts --check 0.2.0   # no escribe, solo verifica
+ *   bun scripts/set-version.ts --check 0.2.0   # writes nothing, only verifies
  *
- * **Una sola version para los tres.** `@truocloud/sdk` 0.3.1 y `@truocloud/cli`
- * 0.2.7 obligarian a mantener una tabla de compatibilidad entre ellos, cuando en
- * realidad los tres salen del mismo commit del mismo spec. Un `truo --version`
- * que coincide con el `@truocloud/sdk` instalado hace que un reporte de bug diga
- * algo.
+ * **One version for all three.** A `@truocloud/sdk` 0.3.1 and a `@truocloud/cli`
+ * 0.2.7 would force maintaining a compatibility table between them, when in
+ * reality all three come out of the same commit of the same spec. A
+ * `truo --version` that matches the installed `@truocloud/sdk` makes a bug
+ * report mean something.
  *
- * La version del **contrato** es otra cosa y no se toca acá: vive en el
- * `info.version` del OpenAPI y la manda la API. Tampoco se puede reusar como
- * version de npm: dentro de `v1` el spec gana endpoints todo el tiempo sin que
- * `info.version` se mueva, y npm rechaza republicar la misma version. Por eso
- * `@truocloud/openapi` lleva la version del devkit y **exporta** la del
- * contrato (`API_VERSION`), que es la que le importa a quien lo consume.
+ * The **contract** version is a different thing and is not touched here: it
+ * lives in the OpenAPI `info.version` and the API owns it. It cannot be reused
+ * as the npm version either: within `v1` the spec gains endpoints all the time
+ * without `info.version` moving, and npm rejects republishing the same version.
+ * That is why `@truocloud/openapi` carries the devkit version and **exports**
+ * the contract's (`API_VERSION`), which is the one its consumers care about.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -33,15 +33,15 @@ const check = args.includes("--check");
 const raw = args.find((a) => !a.startsWith("--"));
 
 if (!raw) {
-  console.error("Uso: bun scripts/set-version.ts [--check] <version>");
+  console.error("Usage: bun scripts/set-version.ts [--check] <version>");
   process.exit(2);
 }
 
-// Se acepta `v0.2.0` porque es la forma del tag de git, que es de donde sale en
-// CI; guardar la `v` en el package.json haria que npm rechace la publicacion.
+// `v0.2.0` is accepted because it is the shape of the git tag, which is where it
+// comes from in CI; keeping the `v` in package.json would make npm reject the publish.
 const version = raw.replace(/^v/, "");
 if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version)) {
-  console.error(`"${version}" no es semver.`);
+  console.error(`"${version}" is not semver.`);
   process.exit(2);
 }
 
@@ -59,12 +59,12 @@ for (const dir of PUBLISHABLE) {
     continue;
   }
 
-  // Reemplazo dirigido en vez de reescribir el JSON: `JSON.stringify` reordena
-  // nada pero sí normaliza el formato, y un diff de release que toca cuarenta
-  // lineas por un cambio de version esconde lo que de verdad cambio.
+  // Targeted replacement instead of rewriting the JSON: `JSON.stringify` reorders
+  // nothing but does normalize the formatting, and a release diff touching forty
+  // lines for a version bump hides what actually changed.
   const next = text.replace(/("version":\s*)"[^"]*"/, `$1"${version}"`);
   if (next === text && pkg.version !== version) {
-    console.error(`${pkg.name}: no se encontro el campo "version".`);
+    console.error(`${pkg.name}: could not find the "version" field.`);
     process.exit(1);
   }
   writeFileSync(path, next, "utf8");
@@ -73,8 +73,8 @@ for (const dir of PUBLISHABLE) {
 
 if (check) {
   if (mismatched > 0) {
-    console.error(`\n${mismatched} paquete(s) fuera de sincronia. Corre: bun scripts/set-version.ts ${version}`);
+    console.error(`\n${mismatched} package(s) out of sync. Run: bun scripts/set-version.ts ${version}`);
     process.exit(1);
   }
-  console.log(`Los ${PUBLISHABLE.length} paquetes estan en ${version}.`);
+  console.log(`All ${PUBLISHABLE.length} packages are at ${version}.`);
 }

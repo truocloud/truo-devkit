@@ -2,7 +2,7 @@
   "name": "@truocloud/codegen",
   "version": "0.0.0",
   "private": true,
-  "description": "Generadores del devkit: del OpenAPI salen los tipos, el SDK y el arbol de comandos del CLI",
+  "description": "Devkit generators: the types, the SDK and the CLI command tree come from the OpenAPI spec",
   "type": "module",
   "scripts": {
     "gen": "bun src/run.ts",

@@ -1,23 +1,24 @@
 /**
- * Genera del OpenAPI todo lo que la documentacion no debe escribir a mano.
+ * Generates everything the docs must never write by hand, straight from the
+ * OpenAPI document.
  *
  *   bun scripts/generate.ts
  *
- * Sale:
- *   public/openapi.json                 el spec, para Scalar y para quien lo quiera
- *   public/llms.txt / llms-full.txt     el catalogo para agentes
- *   src/content/docs/referencia/*.md    una pagina por familia, con las CUATRO formas
- *                                       de llamar cada operacion
+ * Output:
+ *   public/openapi.json                 the spec, for Scalar and anyone who wants it
+ *   public/llms.txt / llms-full.txt     the catalog for agents
+ *   src/content/docs/reference/*.mdx    one page per family, with the FOUR ways
+ *                                       to call each operation
  *
- * **Por que se genera la paridad de las cuatro formas.** El posicionamiento dice
- * "API-first y listo para agentes". La prueba de eso no es un parrafo: es que la
- * misma operacion aparezca como curl, como comando del CLI, como metodo del SDK y
- * como accion de MCP, y que las cuatro salgan del mismo `operationId`. Escritas a
- * mano, tres de las cuatro quedarian viejas en el primer endpoint nuevo.
+ * **Why the four-way parity is generated.** The positioning says "API-first
+ * and agent-ready". The proof of that isn't a paragraph: it's the same
+ * operation appearing as curl, as a CLI command, as an SDK method, and as an
+ * MCP action, all four derived from the same `operationId`. Written by hand,
+ * three of the four would go stale on the first new endpoint.
  *
- * Reusa `packages/codegen/src/ir.ts` —el mismo IR del que salen el SDK y el CLI—
- * en vez de reinterpretar el spec. Si el CLI llama a algo de una forma, la
- * documentacion no puede decir otra.
+ * It reuses `packages/codegen/src/ir.ts` — the same IR the SDK and the CLI
+ * are generated from — instead of reinterpreting the spec. If the CLI calls
+ * something one way, the docs can't say another.
  */
 import { mkdirSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -27,17 +28,17 @@ import openapi from "../../packages/openapi/src/index.ts";
 const DOCS = resolve(import.meta.dirname, "..");
 const ROOT = resolve(DOCS, "..");
 const PUBLIC = resolve(DOCS, "public");
-const REFERENCE = resolve(DOCS, "src/content/docs/referencia");
+const REFERENCE = resolve(DOCS, "src/content/docs/reference");
 
 const BASE_URL = openapi.servers?.[0]?.url ?? "https://api.truo.cloud";
 
 mkdirSync(PUBLIC, { recursive: true });
-// Se borra entero: una familia que desaparezca del spec tiene que desaparecer de
-// la documentacion, no quedar como una pagina huerfana que documenta un 404.
+// Wiped whole: a family that disappears from the spec has to disappear from
+// the docs, not linger as an orphan page documenting a 404.
 rmSync(REFERENCE, { recursive: true, force: true });
 mkdirSync(REFERENCE, { recursive: true });
 
-// ── El spec ─────────────────────────────────────────────────────────────────
+// ── The spec ────────────────────────────────────────────────────────────────
 copyFileSync(
   resolve(ROOT, "packages/openapi/openapi/v1.json"),
   resolve(PUBLIC, "openapi.json"),
@@ -45,7 +46,7 @@ copyFileSync(
 
 const ops = buildIR();
 
-// ── Utilidades ──────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function slug(tag: string): string {
   return tag
@@ -56,13 +57,14 @@ function slug(tag: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** Un valor de ejemplo para un path param, sacado del propio spec cuando lo trae. */
+/** An example value for a path param, taken from the spec itself when it has one. */
 function sample(op: OpIR, name: string): string {
   const param = op.pathParams.find((p) => p.name === name);
   const example = param?.schema.example;
   if (typeof example === "string" || typeof example === "number") return String(example);
-  // Los ids de servicio son la mayoria y tienen prefijo tipado; el resto cae en
-  // un placeholder obvio para que nadie lo copie y pegue creyendo que es real.
+  // Service ids are the majority and carry a typed prefix; everything else
+  // falls back to an obvious placeholder so nobody copy-pastes it believing
+  // it's real.
   return name === "id" ? "svc_10432" : `<${name}>`;
 }
 
@@ -74,8 +76,8 @@ function curlFor(op: OpIR): string {
   if (op.method !== "get") lines.push(`  -X ${op.method.toUpperCase()} \\`);
   lines.push(`  -H "Authorization: Bearer $TRUO_TOKEN"`);
 
-  // Un `-d '{}'` en un endpoint cuyo body es opcional le enseña a la gente a
-  // mandar un objeto vacio como si hiciera falta.
+  // A `-d '{}'` on an endpoint whose body is optional teaches people to send
+  // an empty object as if it were required.
   const body = bodyExample(op);
   if (op.body && (op.body.required || body !== "{}")) {
     lines[lines.length - 1] += ` \\`;
@@ -85,7 +87,7 @@ function curlFor(op: OpIR): string {
   return lines.join("\n");
 }
 
-/** Un body de ejemplo con las propiedades requeridas. */
+/** An example body containing the required properties. */
 function bodyExample(op: OpIR): string {
   const schema = op.body?.schema;
   const props = schema?.properties;
@@ -110,11 +112,10 @@ function bodyExample(op: OpIR): string {
 
 function cliFor(op: OpIR): string | null {
   if (!op.cli) return null;
-  // Los posicionales de `x-truo-cli` llevan etiqueta de cara al usuario
-  // (`service_id`) y los path params se llaman como en la URL (`id`). Se
-  // resuelven **por orden**, igual que en `gen-cli.ts`: emparejarlos por nombre
-  // dejaria `<service_id>` literal en la documentacion de la mitad de los
-  // comandos.
+  // Positionals in `x-truo-cli` carry a user-facing label (`service_id`)
+  // while path params are named as in the URL (`id`). They resolve **by
+  // order**, same as in `gen-cli.ts`: matching them by name would leave a
+  // literal `<service_id>` in the docs for half of the commands.
   const remaining = [...op.pathParams];
   const args = (op.cli.positional ?? []).map((label) => {
     const param = remaining.shift();
@@ -139,12 +140,12 @@ function mcpFor(op: OpIR): string | null {
 }
 
 const DANGER_LABEL: Record<string, string> = {
-  none: "sin riesgo",
+  none: "no risk",
   reversible: "reversible",
-  destructive: "**destructiva** — no tiene vuelta atras",
+  destructive: "**destructive** — cannot be undone",
 };
 
-// ── Una pagina por familia ──────────────────────────────────────────────────
+// ── One page per family ─────────────────────────────────────────────────────
 
 const byTag = new Map<string, OpIR[]>();
 for (const op of ops) {
@@ -154,11 +155,12 @@ for (const op of ops) {
 }
 
 /**
- * Orden del sidebar: por como se usa, no alfabetico.
+ * Sidebar order: by how the API is used, not alphabetical.
  *
- * Lo primero que alguien necesita es saber que tiene (`Services`) y con que
- * credencial (`Account`). Alfabetico dejaria `API Keys` y `Audit` arriba de todo
- * y `VPS` al final, que es exactamente al reves de para que entra la gente.
+ * The first thing anyone needs is to know what they have (`Services`) and
+ * with which credential (`Account`). Alphabetical would put `API Keys` and
+ * `Audit` at the very top and `VPS` at the bottom — exactly backwards from
+ * why people come here.
  */
 const TAG_ORDER = [
   "Meta",
@@ -179,7 +181,7 @@ const TAG_ORDER = [
 const tags = [...byTag.keys()].sort((a, b) => {
   const ia = TAG_ORDER.indexOf(a);
   const ib = TAG_ORDER.indexOf(b);
-  // Un tag nuevo que nadie agrego a la lista va al final, no al principio.
+  // A new tag nobody added to the list goes last, not first.
   return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.localeCompare(b);
 });
 for (const [index, tag] of tags.entries()) {
@@ -190,9 +192,9 @@ for (const [index, tag] of tags.entries()) {
       `\`${op.method.toUpperCase()} ${op.path}\``,
       op.scope ? `scope \`${op.scope}\`` : null,
       op.danger !== "none" ? DANGER_LABEL[op.danger] : null,
-      op.longRunning ? "asincrona" : null,
-      op.idempotent ? "idempotente" : null,
-      op.deprecated ? "**deprecada**" : null,
+      op.longRunning ? "asynchronous" : null,
+      op.idempotent ? "idempotent" : null,
+      op.deprecated ? "**deprecated**" : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -200,8 +202,8 @@ for (const [index, tag] of tags.entries()) {
     const cli = cliFor(op);
     const mcp = mcpFor(op);
 
-    // Las pestañas son la prueba del "API-first": la misma operacion, las cuatro
-    // superficies, todas derivadas del mismo `operationId`.
+    // The tabs are the proof of "API-first": the same operation, all four
+    // surfaces, every one derived from the same `operationId`.
     const tabs = [
       `<TabItem label="curl">\n\n\`\`\`bash\n${curlFor(op)}\n\`\`\`\n\n</TabItem>`,
       cli ? `<TabItem label="CLI">\n\n\`\`\`bash\n${cli}\n\`\`\`\n\n</TabItem>` : null,
@@ -215,7 +217,7 @@ for (const [index, tag] of tags.entries()) {
       badges,
       "",
       op.description ? `${op.description}\n` : "",
-      `<Tabs syncKey="superficie">`,
+      `<Tabs syncKey="surface">`,
       "",
       tabs.join("\n\n"),
       "",
@@ -228,65 +230,66 @@ for (const [index, tag] of tags.entries()) {
 
   const page = `---
 title: ${tag}
-description: Operaciones de ${tag} en la API publica de TruoCloud.
+description: ${tag} operations in the TruoCloud public API.
 sidebar:
   order: ${index + 1}
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-:::note[Generado del contrato]
-Esta pagina sale de \`GET ${BASE_URL}/v1/openapi.json\`. Los ejemplos de curl, CLI,
-SDK y MCP se derivan del mismo \`operationId\`, asi que no pueden contradecirse.
-Para probar contra tu cuenta, usa la [referencia interactiva](/reference/).
+:::note[Generated from the contract]
+This page is generated from \`GET ${BASE_URL}/v1/openapi.json\`. The curl, CLI,
+SDK, and MCP examples are derived from the same \`operationId\`, so they can't
+contradict each other. To try calls against your own account, use the
+[API playground](/api/).
 :::
 
 ${sections.join("\n")}`;
 
-  // `.mdx` y no `.md`: en Markdown plano el `import` sale como texto literal y
-  // los `<Tabs>` quedan como HTML inerte. Es exactamente lo que pasó la primera
-  // vez — la página se veía bien en el diff y las cuatro formas no se
-  // renderizaban en el sitio publicado.
+  // `.mdx`, not `.md`: in plain Markdown the `import` renders as literal text
+  // and the `<Tabs>` end up as inert HTML. That's exactly what happened the
+  // first time — the page looked fine in the diff, and the four surfaces
+  // never rendered on the published site.
   writeFileSync(resolve(REFERENCE, `${slug(tag)}.mdx`), page.replace(/\r\n/g, "\n"), "utf8");
 }
 
 // ── llms.txt ────────────────────────────────────────────────────────────────
-// Un agente que se topa con esto sin haber leido nuestra documentacion tiene que
-// poder armar una llamada correcta con lo que hay aca.
+// An agent that lands on this without ever having read our docs must be able
+// to assemble a correct call from what's in here.
 
 const llms = `# TruoCloud
 
-> API publica para operar infraestructura cloud: VPS, DNS, bases de datos administradas,
-> contenedores, balanceadores, Object Storage y Mail Gateway.
+> Public API for operating cloud infrastructure: VPS, DNS, managed databases,
+> containers, load balancers, Object Storage, and Mail Gateway.
 
 Base: ${BASE_URL}/v1 · OpenAPI: ${BASE_URL}/v1/openapi.json
-Autenticacion: \`Authorization: Bearer tc_live_...\` (API key con scopes).
+Authentication: \`Authorization: Bearer tc_live_...\` (API key with scopes).
 
-## Como leer las respuestas
-- Recurso: \`{ "object": "vps", "id": "svc_10432", ... }\` — sin envoltorio.
-- Coleccion: \`{ "object": "list", "data": [...], "has_more": true, "next_cursor": "..." }\`.
-  El cursor es **opaco**: no lo construyas ni lo parsees.
-- Error (cualquier >=400): \`{ "error": { "type", "code", "message", "param", "request_id" } }\`.
-  Ramifica por \`code\`, nunca por el texto de \`message\`.
-- Lo que tarda devuelve \`202\` + un objeto \`operation\`: hay que consultar \`/v1/operations/{id}\`
-  hasta \`succeeded\` o \`failed\`.
+## How to read responses
+- Resource: \`{ "object": "vps", "id": "svc_10432", ... }\` — no envelope.
+- Collection: \`{ "object": "list", "data": [...], "has_more": true, "next_cursor": "..." }\`.
+  The cursor is **opaque**: do not construct or parse it.
+- Error (any >=400): \`{ "error": { "type", "code", "message", "param", "request_id" } }\`.
+  Branch on \`code\`, never on the text of \`message\`.
+- Anything slow returns \`202\` + an \`operation\` object: poll \`/v1/operations/{id}\`
+  until \`succeeded\` or \`failed\`.
 
-## Reglas
-- Toda mutacion acepta \`Idempotency-Key\`. Usala: un reintento sin ella crea dos veces.
-- Un servicio que no existe **o que tu credencial no puede ver** devuelve 404, nunca 403.
-  Un 403 confirmaria que existe.
-- Los ids llevan prefijo tipado (\`svc_10432\`). Se acepta el numero pelado, se devuelve el prefijado.
+## Rules
+- Every mutation accepts \`Idempotency-Key\`. Use it: a retry without one creates twice.
+- A service that doesn't exist **or that your credential can't see** returns 404, never 403.
+  A 403 would confirm it exists.
+- Ids carry a typed prefix (\`svc_10432\`). The bare number is accepted; the prefixed form is returned.
 
-## Documentacion
-- [Introduccion](https://docs.truo.cloud/)
-- [Autenticacion](https://docs.truo.cloud/empezar/autenticacion/)
-- [El contrato](https://docs.truo.cloud/empezar/contrato/)
-- [Errores](https://docs.truo.cloud/errores/)
-- [Limites de uso](https://docs.truo.cloud/limites/)
-- [Politica de deprecacion](https://docs.truo.cloud/deprecation/)
-- [Para agentes de IA](https://docs.truo.cloud/agentes/)
+## Documentation
+- [Introduction](https://docs.truo.cloud/)
+- [Authentication](https://docs.truo.cloud/getting-started/authentication/)
+- [The API contract](https://docs.truo.cloud/getting-started/api-contract/)
+- [Errors](https://docs.truo.cloud/errors/)
+- [Rate limits](https://docs.truo.cloud/rate-limits/)
+- [Deprecation policy](https://docs.truo.cloud/deprecation/)
+- [For AI agents](https://docs.truo.cloud/ai-agents/)
 
-## Operaciones (${ops.length})
+## Operations (${ops.length})
 ${tags
   .map(
     (tag) =>
@@ -297,8 +300,8 @@ ${tags
         .map(
           (op) =>
             `- \`${op.id}\` — ${op.method.toUpperCase()} ${op.path}${op.scope ? ` (scope \`${op.scope}\`)` : ""}${
-              op.danger === "destructive" ? " ⚠️ destructiva" : ""
-            }${op.longRunning ? " · asincrona" : ""}: ${op.summary}`,
+              op.danger === "destructive" ? " ⚠️ destructive" : ""
+            }${op.longRunning ? " · asynchronous" : ""}: ${op.summary}`,
         )
         .join("\n"),
   )
@@ -307,11 +310,11 @@ ${tags
 
 writeFileSync(resolve(PUBLIC, "llms.txt"), llms, "utf8");
 
-// La version larga agrega parametros y body de cada operacion: es lo que evita
-// que un agente invente nombres de campo.
+// The long version adds each operation's parameters and body: it's what keeps
+// an agent from inventing field names.
 const full =
   llms +
-  `\n---\n\n# Detalle de cada operacion\n` +
+  `\n---\n\n# Details for every operation\n` +
   ops
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((op) => {
@@ -323,11 +326,11 @@ const full =
         op.description || "",
         op.scope ? `Scope: \`${op.scope}\`` : "",
         params.length
-          ? `Parametros:\n${params
+          ? `Parameters:\n${params
               .map(
                 (p) =>
-                  `- \`${p.name}\`${p.required ? " (requerido)" : ""}: ${p.schema.type ?? "string"}${
-                    p.schema.enum ? ` — uno de ${p.schema.enum.map((v) => `\`${String(v)}\``).join(", ")}` : ""
+                  `- \`${p.name}\`${p.required ? " (required)" : ""}: ${p.schema.type ?? "string"}${
+                    p.schema.enum ? ` — one of ${p.schema.enum.map((v) => `\`${String(v)}\``).join(", ")}` : ""
                   }${p.description ? ` — ${p.description}` : ""}`,
               )
               .join("\n")}`
@@ -344,4 +347,4 @@ const full =
 writeFileSync(resolve(PUBLIC, "llms-full.txt"), full, "utf8");
 
 console.log(`openapi.json + llms.txt + llms-full.txt`);
-console.log(`${tags.length} paginas de referencia (${ops.length} operaciones)`);
+console.log(`${tags.length} reference pages (${ops.length} operations)`);

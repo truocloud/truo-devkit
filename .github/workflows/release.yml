@@ -1,16 +1,16 @@
 name: Release
 
-# Dispara con un tag `vX.Y.Z`. El tag es la unica fuente de la version: el
-# workflow la escribe en los tres package.json antes de publicar, asi que no hay
-# forma de taggear `v0.3.0` y publicar `0.2.9` por haberse olvidado un commit.
+# Triggered by a `vX.Y.Z` tag. The tag is the single source of the version: the
+# workflow writes it into the three package.json files before publishing, so there
+# is no way to tag `v0.3.0` and publish `0.2.9` because of a forgotten commit.
 on:
   push:
     tags: ["v*"]
-  # Ensayo sin publicar: corre todo menos el `npm publish` y el `gh release`.
+  # Dry run without publishing: runs everything except `npm publish` and `gh release`.
   workflow_dispatch:
     inputs:
       version:
-        description: "Version a ensayar (sin publicar), ej. 0.2.0"
+        description: "Version to rehearse (without publishing), e.g. 0.2.0"
         required: true
 
 permissions:
@@ -35,40 +35,40 @@ jobs:
           RAW="${{ github.event.inputs.version || github.ref_name }}"
           echo "version=${RAW#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Fijar la version en los tres paquetes
+      - name: Pin the version across the three packages
         run: bun run version:set "${{ steps.version.outputs.version }}"
 
-      # Las mismas puertas que en cada push. Un release NO es el lugar para
-      # relajarlas: es exactamente el momento en que un spec desincronizado se
-      # convierte en un paquete publicado que miente sobre la API.
+      # The same gates as on every push. A release is NOT the place to relax
+      # them: it is exactly the moment an out-of-sync spec becomes a published
+      # package that lies about the API.
       - run: bun run sync:spec --check
       - run: bun run gen:check
       - run: bun run typecheck
       - run: bun test
 
-      - name: Construir los paquetes npm
+      - name: Build the npm packages
         run: bun run build:npm
 
-      - name: Construir los binarios
+      - name: Build the binaries
         run: bun run build --binaries
 
-      # Humo real: el paquete que se va a publicar tiene que arrancar en Node,
-      # no solo en Bun. Ya nos paso con el shebang.
-      - name: El CLI construido corre en Node
+      # Real smoke test: the package about to be published has to start on Node,
+      # not only on Bun. The shebang already bit us once.
+      - name: Built CLI runs on Node
         run: |
           node packages/cli/dist/truo.js --version
           node packages/cli/dist/truo.js vps power --help
           node packages/cli/dist/truo.js auth login --help
 
-      - name: El SDK construido se importa desde Node
+      - name: Built SDK imports from Node
         run: |
           cd "$(mktemp -d)"
           echo '{"type":"module"}' > package.json
           cat > check.mjs <<'EOF'
           import { TruoClient, OPERATIONS } from "$GITHUB_WORKSPACE/packages/sdk/dist/index.js";
-          if (typeof TruoClient !== "function") throw new Error("TruoClient no se exporto");
-          if (Object.keys(OPERATIONS).length === 0) throw new Error("OPERATIONS vacio");
-          console.log(`SDK ok: ${Object.keys(OPERATIONS).length} operaciones`);
+          if (typeof TruoClient !== "function") throw new Error("TruoClient was not exported");
+          if (Object.keys(OPERATIONS).length === 0) throw new Error("OPERATIONS is empty");
+          console.log(`SDK ok: ${Object.keys(OPERATIONS).length} operations`);
           EOF
           sed -i "s|\$GITHUB_WORKSPACE|file://$GITHUB_WORKSPACE|" check.mjs
           node check.mjs
@@ -76,8 +76,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist
-          # Los package.json van porque llevan la version ya escrita: el job de
-          # publish no vuelve a correr `version:set`.
+          # The package.json files go in because they carry the version already
+          # written: the publish job does not run `version:set` again.
           path: |
             packages/*/dist/**
             packages/cli/bin/**
@@ -90,17 +90,17 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      # Provenance: GitHub firma un attestation que ata el tarball publicado a
-      # este commit y este workflow. Es lo que permite a alguien verificar que
-      # `@truocloud/cli` salio de este repo publico y no del portatil de nadie.
+      # Provenance: GitHub signs an attestation tying the published tarball to
+      # this commit and this workflow. It is what lets anyone verify that
+      # `@truocloud/cli` came from this public repo and not from someone's laptop.
       id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
-      # `path: packages` y no `.`: upload-artifact@v4 recorta el ancestro comun
-      # de todos los paths (aca, `packages/`), asi que el artefacto trae
-      # `cli/dist/...` sin el prefijo. Descargar a `.` deja los dist FUERA de
-      # packages/ y npm publica paquetes vacios sin quejarse.
+      # `path: packages` and not `.`: upload-artifact@v4 trims the common
+      # ancestor of all paths (here, `packages/`), so the artifact carries
+      # `cli/dist/...` without the prefix. Downloading to `.` leaves the dist
+      # OUTSIDE packages/ and npm publishes empty packages without complaining.
       - uses: actions/download-artifact@v4
         with:
           name: dist
@@ -111,17 +111,17 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
 
-      # En orden de dependencia. Hoy los tres son autocontenidos (todo viaja
-      # bundleado), pero el orden es gratis y deja de serlo el dia que uno
-      # declare al otro como dependencia de verdad.
-      - name: Publicar
+      # In dependency order. Today all three are self-contained (everything
+      # travels bundled), but the ordering is free and stops being free the day
+      # one declares another as a real dependency.
+      - name: Publish
         run: |
           set -e
           for pkg in packages/openapi packages/sdk packages/cli; do
             echo "── $pkg"
-            # El guard existe porque ya casi pasa: sin dist, npm publica un
-            # paquete con solo package.json y sale 0.
-            ls "$pkg"/dist/*.js >/dev/null || { echo "::error::$pkg sin dist/ — el artefacto no se descargo donde el publish lo espera"; exit 1; }
+            # The guard exists because it almost happened: without dist, npm
+            # publishes a package with only package.json and exits 0.
+            ls "$pkg"/dist/*.js >/dev/null || { echo "::error::$pkg has no dist/ — the artifact was not downloaded where the publish expects it"; exit 1; }
             ( cd "$pkg" && npm publish --provenance --access public )
           done
         env:
@@ -135,13 +135,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      # `path: packages`: ver el comentario en publish-npm.
+      # `path: packages`: see the comment in publish-npm.
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: packages
 
-      - name: Crear el release con los binarios
+      - name: Create the release with the binaries
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -152,12 +152,12 @@ jobs:
             packages/openapi/openapi/v1.json
 
   packagers:
-    # Brew y scoop apuntan a los assets del release: tiene que existir primero.
+    # Brew and scoop point at the release assets: it has to exist first.
     needs: [build, release]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    # A nivel de job para poder consultarlo en el `if` de los pasos: un `secrets.`
-    # no se puede evaluar directamente ahi.
+    # At job level so it can be checked in the steps' `if`: a `secrets.` cannot
+    # be evaluated directly there.
     env:
       TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
     steps:
@@ -165,20 +165,20 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.9
-      # `path: packages`: ver el comentario en publish-npm — packagers.ts lee
-      # el SHA256SUMS en packages/cli/bin/.
+      # `path: packages`: see the comment in publish-npm — packagers.ts reads
+      # the SHA256SUMS in packages/cli/bin/.
       - uses: actions/download-artifact@v4
         with:
           name: dist
           path: packages
 
-      - name: Generar la formula y el manifiesto
+      - name: Generate the formula and the manifest
         run: bun scripts/packagers.ts "${{ needs.build.outputs.version }}"
 
-      # Sin el PAT no se puede escribir en los otros dos repos. Se avisa y se
-      # sigue: el release ya esta publicado, y no tener el tap actualizado no es
-      # razon para marcar el workflow en rojo.
-      - name: Publicar el tap de brew y el bucket de scoop
+      # Without the PAT the other two repos cannot be written to. Warn and move
+      # on: the release is already published, and a stale tap is no reason to
+      # mark the workflow red.
+      - name: Publish the brew tap and the scoop bucket
         if: ${{ env.TAP_TOKEN != '' }}
         env:
           VERSION: ${{ needs.build.outputs.version }}
@@ -193,7 +193,7 @@ jobs:
             mkdir -p "$(dirname "$tmp/$dest")"
             cp "$src" "$tmp/$dest"
             git -C "$tmp" add -A
-            git -C "$tmp" diff --cached --quiet && { echo "$repo sin cambios"; return 0; }
+            git -C "$tmp" diff --cached --quiet && { echo "$repo unchanged"; return 0; }
             git -C "$tmp" commit -m "truo ${VERSION}"
             git -C "$tmp" push
           }
@@ -201,9 +201,9 @@ jobs:
           push_file homebrew-tap Formula/truo.rb dist-packagers/truo.rb
           push_file scoop-bucket bucket/truo.json dist-packagers/truo.json
 
-      - name: Aviso si falta el PAT
+      - name: Warn if the PAT is missing
         if: ${{ env.TAP_TOKEN == '' }}
         run: |
-          echo "::warning::TAP_TOKEN no configurado: el release quedo publicado pero brew y scoop no se actualizaron."
-          echo "Archivos generados en dist-packagers/ (subilos a mano si hace falta):"
+          echo "::warning::TAP_TOKEN is not configured: the release was published but brew and scoop were not updated."
+          echo "Files generated in dist-packagers/ (upload them by hand if needed):"
           ls -la dist-packagers/

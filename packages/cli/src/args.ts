@@ -1,24 +1,24 @@
 /**
- * Parser de argumentos.
+ * Argument parser.
  *
- * Se escribe a mano en vez de usar `commander` porque el arbol de comandos ya viene
- * generado del OpenAPI: no hay cadenas `.command().option().action()` que escribir, solo
- * un dispatcher sobre datos. Una libreria imperativa aportaria API para construir a mano
- * justo lo que no construimos a mano, a cambio de una dependencia en un binario que
- * queremos compilar single-file.
+ * Written by hand instead of using `commander` because the command tree already comes
+ * generated from the OpenAPI spec: there are no `.command().option().action()` chains to
+ * write, just a dispatcher over data. An imperative library would provide API for
+ * hand-building exactly what we do not hand-build, in exchange for a dependency in a
+ * binary we want to compile single-file.
  */
 import { CliError, EXIT } from "./exit.ts";
 
 export interface ParsedArgs {
-  /** Segmentos antes del primer `--flag`: `["vps","power","svc_1","stop"]`. */
+  /** Segments before the first `--flag`: `["vps","power","svc_1","stop"]`. */
   words: string[];
-  /** Valores por nombre de flag, sin `--`. Repetir una flag acumula un array. */
+  /** Values by flag name, without `--`. Repeating a flag accumulates an array. */
   flags: Map<string, string | boolean | string[]>;
-  /** Lo que va despues de `--`, intacto (lo usa `truo vps ssh -- -p 2222`). */
+  /** Whatever comes after `--`, untouched (used by `truo vps ssh -- -p 2222`). */
   passthrough: string[];
 }
 
-/** Alias de una letra. Deliberadamente pocos: los que se tipean cien veces por dia. */
+/** Single-letter aliases. Deliberately few: the ones typed a hundred times a day. */
 const SHORT: Record<string, string> = {
   o: "output",
   h: "help",
@@ -49,15 +49,15 @@ export function parseArgs(argv: string[]): ParsedArgs {
       if (eq >= 0) {
         value = token.slice(eq + 1);
       } else if (name.startsWith("no-")) {
-        // `--no-wait` apaga `wait`. Es la unica forma de negar un booleano que ya viene
-        // en true por defecto sin inventar `--wait=false`.
+        // `--no-wait` turns `wait` off. It is the only way to negate a boolean that
+        // defaults to true without inventing `--wait=false`.
         name = name.slice(3);
         value = false;
       } else {
         const next = argv[i + 1];
-        // Un valor que empieza con `-` es ambiguo: puede ser el valor (`--query -1`) o la
-        // siguiente flag. Se resuelve a favor de "booleano", que es lo que casi siempre
-        // es; para el otro caso esta `--flag=-1`.
+        // A value starting with `-` is ambiguous: it could be the value (`--query -1`) or
+        // the next flag. Resolved in favor of "boolean", which is what it almost always
+        // is; the other case has `--flag=-1`.
         if (next !== undefined && !next.startsWith("-")) {
           value = next;
           i++;
@@ -70,12 +70,12 @@ export function parseArgs(argv: string[]): ParsedArgs {
     }
 
     if (token.startsWith("-") && token.length > 1 && token !== "-") {
-      // `-abc` no se expande a tres flags: en este CLI ninguna combinacion tiene sentido
-      // y aceptarlo solo generaria errores dificiles de leer.
+      // `-abc` is not expanded into three flags: in this CLI no combination makes sense
+      // and accepting it would only produce hard-to-read errors.
       const letter = token.slice(1);
       const name = SHORT[letter];
       if (!name) {
-        throw new CliError(`Flag desconocida: -${letter}`, EXIT.USAGE, "Corre 'truo --help'.");
+        throw new CliError(`Unknown flag: -${letter}`, EXIT.USAGE, "Run 'truo --help'.");
       }
       const next = argv[i + 1];
       if (name === "help" || name === "version" || name === "yes" || name === "quiet") {

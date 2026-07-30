@@ -1,15 +1,15 @@
 /**
- * Device Authorization Grant (RFC 8628) contra `login.truo.cloud`.
+ * Device Authorization Grant (RFC 8628) against `login.truo.cloud`.
  *
- * **Por qué este flujo y no un callback a localhost.** La mitad de los logins de
- * un CLI de infraestructura pasan dentro de un bastion por SSH: no hay navegador
- * que abrir ni puerto local al que volver. El device flow solo necesita que la
- * persona pueda leer un código en una pantalla y tipearlo en otra.
+ * **Why this flow and not a localhost callback.** Half the logins for an
+ * infrastructure CLI happen inside a bastion over SSH: there is no browser to
+ * open and no local port to come back to. The device flow only needs the person
+ * to read a code on one screen and type it into another.
  *
- * **Qué produce.** Un token del IdP, de vida corta, que sirve para exactamente
- * una cosa: crear la API key que el CLI va a guardar. La credencial duradera es
- * la key —revocable desde el panel, con scopes acotados y con su propia fila en
- * la auditoría—, no la sesión. Ver `auth login` en `builtins.ts`.
+ * **What it produces.** A short-lived IdP token good for exactly one thing:
+ * creating the API key the CLI will store. The durable credential is the key —
+ * revocable from the panel, with narrowed scopes and its own row in the audit
+ * log — not the session. See `auth login` in `builtins.ts`.
  */
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
@@ -24,25 +24,25 @@ const GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 export interface DeviceAuthorization {
   deviceCode: string;
   userCode: string;
-  /** URL a la que ir. Absoluta: puede tipearse en el navegador de otra máquina. */
+  /** URL to go to. Absolute: it can be typed into another machine's browser. */
   verificationUri: string;
-  /** Igual pero con el código ya puesto. Es la que se intenta abrir. */
+  /** Same, with the code already filled in. This is the one we try to open. */
   verificationUriComplete: string | null;
   expiresIn: number;
-  /** Segundos mínimos entre polls, según el servidor. */
+  /** Minimum seconds between polls, per the server. */
   interval: number;
 }
 
 /**
- * Los scopes que una API key puede tener, sacados del propio contrato.
+ * The scopes an API key can have, taken from the contract itself.
  *
- * Se derivan de `OPERATIONS` en vez de una lista escrita a mano porque una lista
- * escrita a mano se queda vieja en el primer endpoint nuevo, y el síntoma sería
- * el peor posible: un comando del CLI que existe pero devuelve 403 con la key
- * que el propio CLI acaba de crear.
+ * Derived from `OPERATIONS` instead of a hand-written list because a
+ * hand-written list goes stale at the first new endpoint, and the symptom would
+ * be the worst possible one: a CLI command that exists but returns 403 with the
+ * key the CLI itself just created.
  *
- * `apikeys:*` y `users:*` quedan afuera porque la API no los otorga a una key —
- * pedirlos haría fallar el alta entera.
+ * `apikeys:*` and `users:*` are excluded because the API does not grant them to
+ * a key — requesting them would fail the whole creation.
  */
 export function grantableScopes(): string[] {
   const scopes = new Set<string>();
@@ -67,7 +67,7 @@ interface DeviceCodeResponse {
   interval?: number;
 }
 
-/** Normaliza una URL que el servidor puede haber devuelto relativa. */
+/** Normalizes a URL the server may have returned as relative. */
 function absolutize(idpUrl: string, uri: string | undefined): string | null {
   if (!uri) return null;
   if (/^https?:\/\//i.test(uri)) return uri;
@@ -80,11 +80,11 @@ async function readError(res: Response): Promise<{ code: string; description: st
   try {
     body = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    /* Un HTML de error de proxy no es JSON; se usa el texto crudo. */
+    /* A proxy's HTML error page is not JSON; use the raw text. */
   }
-  // Better Auth anida el error del plugin bajo `error` unas veces y lo deja
-  // plano otras según la versión; se aceptan las dos formas antes que atarse a
-  // una y romper en un `bun update` del IdP.
+  // Better Auth nests the plugin's error under `error` sometimes and leaves it
+  // flat other times depending on the version; accepting both forms beats
+  // pinning to one and breaking on an IdP `bun update`.
   const nested = (body.error ?? {}) as Record<string, unknown>;
   const code = String(
     (typeof body.error === "string" ? body.error : nested.code ?? nested.message) ??
@@ -97,7 +97,7 @@ async function readError(res: Response): Promise<{ code: string; description: st
   return { code, description };
 }
 
-/** Paso 1: pedir el par (device_code, user_code). */
+/** Step 1: request the (device_code, user_code) pair. */
 export async function requestDeviceCode(
   idpUrl: string,
   scopes: string[],
@@ -112,24 +112,24 @@ export async function requestDeviceCode(
     });
   } catch (err) {
     throw new CliError(
-      `No se pudo contactar a ${idpUrl}: ${(err as Error).message}`,
+      `Could not reach ${idpUrl}: ${(err as Error).message}`,
       EXIT.UNAUTHENTICATED,
-      "Si estás detrás de un proxy o sin salida a internet, usa 'truo auth login --token <key>' con una key del panel.",
+      "If you are behind a proxy or without internet access, use 'truo auth login --token <key>' with a key from the panel.",
     );
   }
 
   if (!res.ok) {
     const { code, description } = await readError(res);
-    // Un 404 no es "te rechazó": es "ahí no hay device flow". Pasa contra una
-    // instancia vieja del IdP o contra una URL equivocada, y el mensaje generico
-    // manda a buscar el problema en las credenciales, que estan bien.
+    // A 404 is not "you were rejected": it is "there is no device flow there". It
+    // happens against an old IdP instance or a wrong URL, and the generic message
+    // sends people hunting through their credentials, which are fine.
     const hint =
       code === "http_404"
-        ? `${idpUrl} no expone el device flow. Verifica la URL (truo config set idp_url <url>) ` +
-          `o usa 'truo auth login --token <key>' con una key del panel.`
-        : description || "Probá de nuevo, o usa 'truo auth login --token <key>'.";
+        ? `${idpUrl} does not expose the device flow. Check the URL (truo config set idp_url <url>) ` +
+          `or use 'truo auth login --token <key>' with a key from the panel.`
+        : description || "Try again, or use 'truo auth login --token <key>'.";
     throw new CliError(
-      `El servidor de identidad rechazó el pedido (${code}).`,
+      `The identity server rejected the request (${code}).`,
       EXIT.UNAUTHENTICATED,
       hint,
     );
@@ -138,9 +138,9 @@ export async function requestDeviceCode(
   const body = (await res.json()) as DeviceCodeResponse;
   if (!body.device_code || !body.user_code) {
     throw new CliError(
-      "El servidor de identidad devolvió una respuesta que no se entiende.",
+      "The identity server returned a response that makes no sense.",
       EXIT.INTERNAL,
-      "Probá 'truo auth login --token <key>' mientras tanto.",
+      "Try 'truo auth login --token <key>' in the meantime.",
     );
   }
 
@@ -156,7 +156,7 @@ export async function requestDeviceCode(
       absolutize(idpUrl, body.verification_uri_complete ?? body.verificationUriComplete) ??
       `${verificationUri}?user_code=${encodeURIComponent(body.user_code)}`,
     expiresIn: body.expires_in ?? 600,
-    // El piso de 5 s es del RFC. Un servidor que devuelva 0 nos haría martillarlo.
+    // The 5 s floor comes from the RFC. A server that returned 0 would have us hammering it.
     interval: Math.max(1, body.interval ?? 5),
   };
 }
@@ -165,19 +165,19 @@ export interface PollOptions {
   onTick?: (secondsLeft: number) => void;
   signal?: AbortSignal;
   /**
-   * Espera entre polls. Solo los tests la reemplazan: el incremento de 5 s que
-   * exige el RFC ante `slow_down` es justo lo que hay que verificar, y no se
-   * puede verificar esperando 5 s de verdad en cada corrida.
+   * Wait between polls. Only tests replace it: the 5 s increment the RFC
+   * requires on `slow_down` is exactly what needs verifying, and it cannot be
+   * verified by actually waiting 5 s on every run.
    */
   wait?: (ms: number) => Promise<void>;
 }
 
 /**
- * Paso 2: esperar a que la persona apruebe.
+ * Step 2: wait for the person to approve.
  *
- * El intervalo lo manda el servidor y `slow_down` lo sube: un cliente que
- * ignora eso se gana un rate limit y convierte "aprobá en el navegador" en "el
- * login falló".
+ * The server dictates the interval and `slow_down` raises it: a client that
+ * ignores that earns itself a rate limit and turns "approve in the browser"
+ * into "the login failed".
  */
 export async function pollForToken(
   idpUrl: string,
@@ -185,13 +185,13 @@ export async function pollForToken(
   opts: PollOptions = {},
 ): Promise<string> {
   const deadline = Date.now() + auth.expiresIn * 1000;
-  // Piso del RFC, aplicado tambien aca y no solo al leer la respuesta: un
-  // intervalo de 0 convertiria esto en un bucle cerrado contra el IdP.
+  // The RFC floor, applied here too and not only when reading the response: an
+  // interval of 0 would turn this into a tight loop against the IdP.
   let interval = Math.max(1, auth.interval);
   const wait = opts.wait ?? ((ms: number) => sleep(ms, opts.signal));
 
   while (Date.now() < deadline) {
-    if (opts.signal?.aborted) throw new CliError("Cancelado.", EXIT.ABORTED);
+    if (opts.signal?.aborted) throw new CliError("Cancelled.", EXIT.ABORTED);
     await wait(interval * 1000);
     opts.onTick?.(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
 
@@ -208,17 +208,17 @@ export async function pollForToken(
         signal: AbortSignal.timeout(15_000),
       });
     } catch {
-      // Un corte de red no invalida el código: sigue vivo del lado del servidor
-      // hasta que vence. Reintentar es correcto; abortar perdería una
-      // aprobación que la persona quizá ya hizo.
+      // A network blip does not invalidate the code: it stays alive on the
+      // server side until it expires. Retrying is correct; aborting would lose
+      // an approval the person may already have given.
       continue;
     }
 
     if (res.ok) {
       const body = (await res.json()) as { access_token?: string };
       if (body.access_token) return body.access_token;
-      // 200 sin token: no debería pasar, pero tratarlo como pendiente es más
-      // seguro que devolver undefined y romper aguas abajo.
+      // A 200 without a token: should not happen, but treating it as pending is
+      // safer than returning undefined and breaking downstream.
       continue;
     }
 
@@ -230,32 +230,32 @@ export async function pollForToken(
         interval += 5;
         continue;
       case "access_denied":
-        throw new CliError("Rechazaste la autorización en el navegador.", EXIT.ABORTED);
+        throw new CliError("You declined the authorization in the browser.", EXIT.ABORTED);
       case "expired_token":
         throw new CliError(
-          "El código venció antes de que lo aprobaras.",
+          "The code expired before you approved it.",
           EXIT.UNAUTHENTICATED,
-          "Corré 'truo auth login' de nuevo.",
+          "Run 'truo auth login' again.",
         );
       default:
-        throw new CliError(`El login falló (${code}).`, EXIT.UNAUTHENTICATED, description);
+        throw new CliError(`Login failed (${code}).`, EXIT.UNAUTHENTICATED, description);
     }
   }
 
   throw new CliError(
-    "El código venció antes de que lo aprobaras.",
+    "The code expired before you approved it.",
     EXIT.UNAUTHENTICATED,
-    "Corré 'truo auth login' de nuevo.",
+    "Run 'truo auth login' again.",
   );
 }
 
 /**
- * Cierra la sesión del IdP.
+ * Signs the IdP session out.
  *
- * Se llama apenas la API key está guardada. El token del device flow ya no hace
- * falta, y dejarlo vivo sería dejar tirada una credencial que nadie va a
- * acordarse de revocar. Best-effort a propósito: fallar acá no debe arruinar un
- * login que ya salió bien.
+ * Called as soon as the API key is stored. The device-flow token is no longer
+ * needed, and leaving it alive would be leaving behind a credential nobody will
+ * remember to revoke. Best-effort on purpose: failing here must not ruin a
+ * login that already succeeded.
  */
 export async function signOut(idpUrl: string, token: string): Promise<void> {
   try {
@@ -269,27 +269,27 @@ export async function signOut(idpUrl: string, token: string): Promise<void> {
       signal: AbortSignal.timeout(8000),
     });
   } catch {
-    /* Best-effort: la sesión vence sola. */
+    /* Best-effort: the session expires on its own. */
   }
 }
 
 /**
- * Intenta abrir el navegador. Devuelve `false` si no hay ninguno.
+ * Tries to open the browser. Returns `false` if there is none.
  *
- * `false` es un resultado normal, no un error: por SSH nunca hay navegador, y
- * ese es justamente el caso para el que existe el device flow. La URL se
- * imprime siempre, se abra o no.
+ * `false` is a normal outcome, not an error: over SSH there is never a browser,
+ * and that is exactly the case the device flow exists for. The URL is always
+ * printed, whether it opens or not.
  */
 export function openBrowser(url: string): boolean {
-  // Un entorno sin display (SSH, contenedor, CI) no tiene navegador que abrir, y
-  // en Linux `xdg-open` puede colgarse en vez de fallar.
+  // An environment without a display (SSH, container, CI) has no browser to open,
+  // and on Linux `xdg-open` can hang instead of failing.
   if (platform() === "linux" && !process.env["DISPLAY"] && !process.env["WAYLAND_DISPLAY"]) {
     return false;
   }
   const [cmd, args] =
     platform() === "win32"
-      ? // `start` es interno de cmd, y el "" es el título de ventana: sin él, cmd
-        // toma la URL como título y no abre nada.
+      ? // `start` is a cmd built-in, and the "" is the window title: without it, cmd
+        // takes the URL as the title and opens nothing.
         (["cmd", ["/c", "start", "", url]] as const)
       : platform() === "darwin"
         ? (["open", [url]] as const)
@@ -297,7 +297,7 @@ export function openBrowser(url: string): boolean {
   try {
     const child = spawn(cmd, [...args], { stdio: "ignore", detached: true });
     child.on("error", () => {
-      /* Sin el handler, un ENOENT de xdg-open tumba el proceso entero. */
+      /* Without the handler, an ENOENT from xdg-open takes down the whole process. */
     });
     child.unref();
     return true;
@@ -314,7 +314,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
     }, ms);
     function onAbort(): void {
       clearTimeout(timer);
-      reject(new CliError("Cancelado.", EXIT.ABORTED));
+      reject(new CliError("Cancelled.", EXIT.ABORTED));
     }
     signal?.addEventListener("abort", onAbort, { once: true });
   });

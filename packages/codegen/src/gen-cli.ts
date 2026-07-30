@@ -1,10 +1,10 @@
 /**
- * Genera el arbol de comandos del CLI a partir de `x-truo-cli` del spec.
+ * Generates the CLI command tree from the spec's `x-truo-cli` extension.
  *
- * El CLI no tiene ni un comando escrito a mano para las operaciones de la API: si una
- * operacion nueva declara `x-truo-cli`, el comando existe en el siguiente `bun run gen`.
- * Eso es lo que hace que la paridad "todo lo que puede la API lo puede el CLI" sea una
- * propiedad del build y no una promesa de la documentacion.
+ * The CLI has not a single hand-written command for API operations: if a new operation
+ * declares `x-truo-cli`, the command exists on the next `bun run gen`. That is what makes
+ * the parity "everything the API can do, the CLI can do" a property of the build rather
+ * than a promise in the documentation.
  */
 import { resolve } from "node:path";
 import type { JsonSchema, OpenApiDocument } from "../../openapi/src/index.ts";
@@ -67,11 +67,11 @@ export function genCli(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
     const bodyRequired = new Set(bodySchema?.required ?? []);
     const consumedBody = new Set<string>();
 
-    // ── Posicionales ────────────────────────────────────────────────────────
-    // Los nombres de `x-truo-cli.positional` son de cara al usuario (`service_id`), no
-    // los del spec (`id`). Se resuelven en orden contra los parametros de path y, cuando
-    // esos se agotan, contra las propiedades del body — que es como `truo vps power
-    // svc_1 stop` acomoda un argumento que en HTTP viaja en el cuerpo.
+    // ── Positionals ─────────────────────────────────────────────────────────
+    // The names in `x-truo-cli.positional` are user-facing (`service_id`), not the
+    // spec's (`id`). They are resolved in order against the path parameters and, once
+    // those run out, against the body properties — which is how `truo vps power
+    // svc_1 stop` places an argument that travels in the body over HTTP.
     const pathQueue = [...op.pathParams];
     const positionals: unknown[] = [];
 
@@ -116,17 +116,17 @@ export function genCli(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
         continue;
       }
       throw new Error(
-        `${op.id}: el posicional "${label}" de x-truo-cli no corresponde a ningun parametro de path ` +
-          `ni a una propiedad del body. Corregi la extension en la API.`,
+        `${op.id}: the x-truo-cli positional "${label}" does not match any path parameter ` +
+          `or body property. Fix the extension in the API.`,
       );
     }
 
-    // Un path param que no quedo cubierto por un posicional seria imposible de pasar.
+    // A path param not covered by a positional would be impossible to pass.
     if (pathQueue.length) {
       throw new Error(
-        `${op.id}: x-truo-cli no cubre el/los parametro(s) de path ${pathQueue
+        `${op.id}: x-truo-cli does not cover the path parameter(s) ${pathQueue
           .map((p) => p.name)
-          .join(", ")}. Agregalos a "positional" en la API.`,
+          .join(", ")}. Add them to "positional" in the API.`,
       );
     }
 
@@ -158,8 +158,8 @@ export function genCli(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
       });
     }
 
-    // Un body sin propiedades declaradas (o con `additionalProperties` libre) no se puede
-    // cubrir con flags; para esos queda `--body-json`, que el runtime siempre acepta.
+    // A body with no declared properties (or with free `additionalProperties`) cannot be
+    // covered with flags; those get `--body-json`, which the runtime always accepts.
     const freeformBody = Boolean(op.body) && Object.keys(bodyProps).length === 0;
 
     commands.push({
@@ -178,13 +178,13 @@ export function genCli(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
     });
   }
 
-  // Dos operaciones no pueden reclamar el mismo comando.
+  // Two operations cannot claim the same command.
   const byCommand = new Map<string, string>();
   for (const c of commands as { path: string[]; operationId: string }[]) {
     const key = c.path.join(" ");
     const prev = byCommand.get(key);
     if (prev) {
-      throw new Error(`El comando "truo ${key}" lo reclaman dos operaciones: ${prev} y ${c.operationId}.`);
+      throw new Error(`The command "truo ${key}" is claimed by two operations: ${prev} and ${c.operationId}.`);
     }
     byCommand.set(key, c.operationId);
   }
@@ -192,24 +192,24 @@ export function genCli(ops: OpIR[], doc: OpenApiDocument, check: boolean): Write
   const file =
     BANNER +
     `
-/** De donde sale el valor de un argumento cuando se arma el request. */
+/** Where an argument's value goes when the request is built. */
 export type ArgIn = "path" | "query" | "body";
 
 export interface Positional {
-  /** Como se llama en la ayuda: \`<service_id>\`. */
+  /** How it is named in the help: \`<service_id>\`. */
   label: string;
   in: ArgIn;
-  /** Clave real en el spec (el path usa \`id\`, aunque la ayuda diga \`service_id\`). */
+  /** Actual key in the spec (the path uses \`id\`, even if the help says \`service_id\`). */
   key: string;
   required: boolean;
   type?: "string" | "number" | "boolean" | "json" | "string[]";
-  /** Valores admitidos, si el schema los enumera. */
+  /** Allowed values, if the schema enumerates them. */
   values?: string[];
   description?: string;
 }
 
 export interface Flag {
-  /** Nombre en la linea de comandos, sin \`--\`. */
+  /** Name on the command line, without \`--\`. */
   flag: string;
   key: string;
   in: ArgIn;
@@ -230,16 +230,16 @@ export interface CommandSpec {
   deprecated: boolean;
   scope: string | null;
   bodyRequired: boolean;
-  /** El body no declara propiedades: solo se puede mandar con \`--body-json\`. */
+  /** The body declares no properties: it can only be sent with \`--body-json\`. */
   freeformBody: boolean;
   positionals: Positional[];
   flags: Flag[];
 }
 
-/** Los ${commands.length} comandos derivados del spec. */
+/** The ${commands.length} commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = ${JSON.stringify(commands, null, 2)};
 
-/** Indexados por \`truo <a> <b>\`, que es como los busca el dispatcher. */
+/** Indexed by \`truo <a> <b>\`, which is how the dispatcher looks them up. */
 export const COMMANDS_BY_PATH: Record<string, CommandSpec> = Object.fromEntries(
   COMMANDS.map((c) => [c.path.join(" "), c]),
 );
@@ -248,13 +248,13 @@ export const COMMANDS_BY_PATH: Record<string, CommandSpec> = Object.fromEntries(
   const bare = ops.filter((o) => !o.cli).map((o) => o.id);
   if (bare.length) {
     console.warn(
-      `  aviso: ${bare.length} operacion(es) sin x-truo-cli, invisibles para el CLI ` +
-        `(alcanzables con 'truo api'): ${bare.join(", ")}`,
+      `  warning: ${bare.length} operation(s) without x-truo-cli, invisible to the CLI ` +
+        `(reachable via 'truo api'): ${bare.join(", ")}`,
     );
   }
 
   return [writeGenerated(CLI("commands.ts"), file, check)];
 }
 
-// Se re-exporta para que el runner pueda nombrar la clave sin duplicar el helper.
+// Re-exported so the runner can name the key without duplicating the helper.
 export { quoteKey };

@@ -1,26 +1,27 @@
 /**
- * Perfiles y credenciales.
+ * Profiles and credentials.
  *
- * Se separan en dos archivos a proposito: la configuracion (`config.json`) se puede
- * mostrar, pegar en un issue y hasta commitear; las credenciales (`credentials.json`) no.
- * Tenerlas mezcladas garantiza que tarde o temprano alguien pegue un token en un ticket.
+ * They are split into two files on purpose: the configuration (`config.json`) can be
+ * shown, pasted into an issue, even committed; the credentials (`credentials.json`)
+ * cannot. Keeping them mixed guarantees that sooner or later someone pastes a token into
+ * a ticket.
  *
- * Importa mas de lo habitual porque el servidor MCP va a correr con estas mismas
- * credenciales: un token que un agente puede leer de un archivo legible por todo el mundo
- * es la forma mas facil de perder una cuenta entera.
+ * This matters more than usual because the MCP server will run with these same
+ * credentials: a token an agent can read from a world-readable file is the easiest way to
+ * lose an entire account.
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 
 export interface Profile {
-  /** Base URL de la API. Se cambia para apuntar a un entorno propio. */
+  /** API base URL. Changed to point at your own environment. */
   base_url?: string;
-  /** Servidor de identidad para `truo auth login` (device flow). */
+  /** Identity server for `truo auth login` (device flow). */
   idp_url?: string;
-  /** Formato de salida por defecto de este perfil. */
+  /** Default output format for this profile. */
   output?: string;
-  /** Cuenta a la que pertenece el token, solo informativo (se llena en el login). */
+  /** Account the token belongs to, informational only (filled in at login). */
   account?: string;
 }
 
@@ -45,9 +46,9 @@ function readJson<T>(path: string, fallback: T): T {
   try {
     return JSON.parse(readFileSync(path, "utf8")) as T;
   } catch {
-    // Un archivo corrupto no debe dejar el CLI inutilizable: se avisa y se sigue con los
-    // valores por defecto, que es peor que leerlo bien y muchisimo mejor que no arrancar.
-    process.stderr.write(`[truo] ${path} esta corrupto; se ignora.\n`);
+    // A corrupt file must not leave the CLI unusable: warn and continue with the
+    // defaults — worse than reading it properly, much better than not starting at all.
+    process.stderr.write(`[truo] ${path} is corrupt; ignoring it.\n`);
     return fallback;
   }
 }
@@ -56,12 +57,12 @@ function writeJson(path: string, data: unknown, secret: boolean): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(data, null, 2) + "\n", { encoding: "utf8", mode: secret ? 0o600 : 0o644 });
   if (secret) {
-    // `mode` en `writeFileSync` no se aplica si el archivo ya existia; el chmod explicito
-    // arregla un archivo que se creo con permisos laxos antes.
+    // `mode` in `writeFileSync` is not applied if the file already existed; the explicit
+    // chmod fixes a file that was created earlier with lax permissions.
     try {
       chmodSync(path, 0o600);
     } catch {
-      /* En Windows los permisos POSIX no aplican; se avisa aparte. */
+      /* On Windows POSIX permissions do not apply; a separate warning covers it. */
     }
   }
 }
@@ -92,19 +93,19 @@ export function saveToken(profile: string, token: string): { path: string; warni
   const path = credentialsPath();
   writeJson(path, store, true);
 
-  // En Windows no hay modo 0600 real. Decirlo es mejor que fingir que el archivo esta
-  // protegido: el usuario puede decidir usar TRUO_TOKEN desde su gestor de secretos.
+  // On Windows there is no real 0600 mode. Saying so beats pretending the file is
+  // protected: the user can decide to use TRUO_TOKEN from their secrets manager instead.
   let warning: string | null = null;
   if (platform() === "win32") {
     warning =
-      `El token quedo en ${path}. En Windows este archivo no tiene permisos POSIX: ` +
-      `protegelo con las ACL de tu perfil o usa la variable de entorno TRUO_TOKEN.`;
+      `The token was written to ${path}. On Windows this file has no POSIX permissions: ` +
+      `protect it with your profile's ACLs or use the TRUO_TOKEN environment variable.`;
   } else {
     try {
       const mode = statSync(path).mode & 0o777;
-      if (mode !== 0o600) warning = `No se pudo dejar ${path} en 0600 (quedo en ${mode.toString(8)}).`;
+      if (mode !== 0o600) warning = `Could not set ${path} to 0600 (it ended up as ${mode.toString(8)}).`;
     } catch {
-      /* Si no se puede leer el modo, no hay nada util que informar. */
+      /* If the mode cannot be read, there is nothing useful to report. */
     }
   }
   return { path, warning };
@@ -124,16 +125,16 @@ export interface Resolved {
   baseUrl: string | undefined;
   idpUrl: string | undefined;
   output: string | undefined;
-  /** De donde salio el token; se muestra en `truo auth status`. */
+  /** Where the token came from; shown in `truo auth status`. */
   tokenSource: "flag" | "env" | "profile" | null;
 }
 
 /**
- * Resuelve la configuracion efectiva.
+ * Resolves the effective configuration.
  *
- * La precedencia (`--token` → `TRUO_TOKEN` → perfil) es la de siempre por una razon
- * practica: en CI se exporta la variable y nadie quiere que un `~/.truo` heredado de la
- * imagen base gane silenciosamente.
+ * The precedence (`--token` → `TRUO_TOKEN` → profile) is the conventional one for a
+ * practical reason: in CI the variable is exported, and nobody wants a `~/.truo`
+ * inherited from the base image to win silently.
  */
 export function resolve(opts: { token?: string | undefined; profile?: string | undefined; baseUrl?: string | undefined }): Resolved {
   const cfg = loadConfig();
@@ -167,8 +168,8 @@ export function resolve(opts: { token?: string | undefined; profile?: string | u
 }
 
 /**
- * `tc_live_aaaa…zzzz`. **Nunca imprimir un token entero**: la terminal guarda historial, y
- * ese historial termina en capturas de pantalla y en tickets de soporte.
+ * `tc_live_aaaa…zzzz`. **Never print a full token**: the terminal keeps history, and
+ * that history ends up in screenshots and support tickets.
  */
 export function maskToken(token: string): string {
   if (token.length <= 16) return `${token.slice(0, 4)}…`;

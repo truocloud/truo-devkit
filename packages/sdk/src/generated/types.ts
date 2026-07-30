@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ARCHIVO GENERADO — no editar a mano.
+// GENERATED FILE — do not edit by hand.
 //
-// Sale de packages/openapi/openapi/v1.json a traves de packages/codegen.
-// Para cambiarlo: cambia el handler en la API (los schemas Zod son la fuente de
-// verdad), regenera el spec alla, 'bun run sync:spec' aca, y 'bun run gen'.
+// It comes from packages/openapi/openapi/v1.json via packages/codegen.
+// To change it: change the handler in the API (the Zod schemas are the source
+// of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Tipos del contrato de `api.truo.cloud/v1` (OpenAPI 1.0.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.0.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -14,7 +14,7 @@ export type Capabilities = {
   brand: string;
   resources: string[];
   scopes: string[];
-  /** Estos scopes existen solo para sesiones. Ninguna API key puede tenerlos, ni bajo `*`. */
+  /** These scopes exist only for sessions. No API key can hold them, not even under `*`. */
   scopes_never_grantable_to_keys: string[];
   limits: {
     max_page_size: number;
@@ -29,18 +29,18 @@ export type Capabilities = {
 
 export type Error = {
   error: {
-    /** Clase gruesa del error. */
+    /** The broad class of the error. */
     type: "authentication_error" | "authorization_error" | "invalid_request_error" | "rate_limit_error" | "api_error";
-    /** Identidad específica y estable del error. Nunca se renombra. */
+    /** The error's specific, stable identity. Never renamed. */
     code: string;
-    /** Explicación en prosa, apta para mostrar. */
+    /** A prose explanation, safe to display. */
     message: string;
-    /** Campo que falló, en notación de punto. */
+    /** The field that failed, in dot notation. */
     param: string | null;
     request_id: string;
     required_scope?: string;
     retry_after?: number;
-    /** Detalle por campo cuando `code` es `validation_failed`. */
+    /** Per-field detail when `code` is `validation_failed`. */
     errors?: ({
       param: string;
       message: string;
@@ -56,16 +56,16 @@ export type Account = {
   email: string | null;
   country: string | null;
   status: string | null;
-  /** Saldo a favor, en la moneda de la cuenta. */
+  /** Credit balance, in the account's currency. */
   credit: number | null;
   credential: {
     object: "credential";
     id: string | null;
     type: "api_key" | "session";
     scopes: string[];
-    /** Vacío = la credencial alcanza todos los servicios de la cuenta. */
+    /** Empty = the credential reaches every service in the account. */
     service_allowlist: string[];
-    /** true si el usuario dueño de la credencial es el owner de la cuenta. */
+    /** true when the user who owns the credential is the account owner. */
     is_owner: boolean;
     rate_limit_tier: string | null;
   };
@@ -78,7 +78,7 @@ export type ApiKey = {
   token_prefix: string | null;
   token_last4: string | null;
   scopes: string[];
-  /** Vacío = la key alcanza todos los servicios de la cuenta. */
+  /** Empty = the key reaches every service in the account. */
   service_allowlist: string[];
   rate_limit_tier: string | null;
   last_used_at: string | null;
@@ -92,14 +92,14 @@ export type ApiKeyList = {
   data: ApiKey[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
 
 export type ApiKeyCreated = ApiKey & {
   /**
-   * El token en claro. **Se muestra una sola vez**: no se almacena, solo su hash SHA-256. Si se pierde, hay que crear otra key.
+   * The plaintext token. **Shown only once**: it is never stored, only its SHA-256 hash. If it is lost, create a new key.
    */
   token: string;
 };
@@ -107,20 +107,20 @@ export type ApiKeyCreated = ApiKey & {
 export type ApiKeyCreate = {
   name: string;
   /**
-   * Scopes concretos. `*` no se acepta: enumerá lo que la key necesita. `apikeys:*` y `users:*` no son otorgables.
+   * Concrete scopes. `*` is not accepted: enumerate what the key needs. `apikeys:*` and `users:*` are not grantable.
    */
   scopes: string[];
-  /** Restringe la key a estos servicios. Omitido o vacío = toda la cuenta. */
+  /** Restricts the key to these services. Omitted or empty = the whole account. */
   service_allowlist?: string[];
-  /** Vencimiento en ISO 8601. Sin esto la key no vence. */
+  /** Expiration in ISO 8601. Without it, the key never expires. */
   expires_at?: string;
 };
 
 export type ApiKeyUpdate = {
   name?: string;
-  /** Solo se puede **estrechar**. Ampliar devuelve 403. */
+  /** Can only be **narrowed**. Widening returns 403. */
   scopes?: string[];
-  /** Solo se puede estrechar: una key sin restricción puede ganarla, nunca perderla. */
+  /** Can only be narrowed: an unrestricted key can gain a restriction, never lose one. */
   service_allowlist?: string[];
 };
 
@@ -128,20 +128,20 @@ export type Service = {
   object: "service";
   id: string;
   /**
-   * Familia del servicio. Determina bajo qué recurso se gestiona. `other` es un producto real de la cuenta que todavía no tiene recurso dedicado en v1.
+   * The service's family. It determines which resource manages it. `other` is a real product in the account that has no dedicated resource in v1 yet.
    */
   family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "other";
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
-  /** Nombre del producto en el catálogo. */
+  /** The product's name in the catalog. */
   name: string | null;
-  /** Etiqueta del servicio: dominio, hostname o identificador que puso el cliente. */
+  /** The service's label: domain, hostname, or an identifier the customer set. */
   label: string | null;
   primary_ip: string | null;
   billing_cycle: string | null;
   next_due_date: string | null;
   created_at: string | null;
   /**
-   * Capacidades reales de este servicio. Pedir una operación con capacidad `false` devuelve 400 `unsupported_for_product`.
+   * This service's actual capabilities. Requesting an operation whose capability is `false` returns 400 `unsupported_for_product`.
    */
   capabilities: Record<string, boolean>;
 };
@@ -151,7 +151,7 @@ export type ServiceList = {
   data: Service[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -162,17 +162,17 @@ export type Operation = {
   type: string;
   status: "pending" | "running" | "succeeded" | "failed";
   progress: number | null;
-  /** Recurso sobre el que corre la operación. */
+  /** The resource the operation runs against. */
   resource: {
     object: string;
     id: string;
   } | null;
-  /** Payload del resultado. La forma depende de `type`. */
+  /** The result payload. Its shape depends on `type`. */
   result?: unknown;
-  /** Detalle del fallo cuando `status` es `failed`. */
+  /** Failure detail when `status` is `failed`. */
   error?: unknown;
   /**
-   * true cuando no se pudo consultar el backend y esto es el último estado conocido. Reintentá: la operación no se perdió.
+   * true when the backend could not be reached and this is the last known state. Retry: the operation was not lost.
    */
   stale?: boolean;
   created_at: string | null;
@@ -184,7 +184,7 @@ export type OperationList = {
   data: Operation[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -194,14 +194,14 @@ export type AuditLog = {
   id: string;
   request_id: string;
   method: string;
-  /** Template de la ruta, no el path concreto. Agregable por definición. */
+  /** The route template, not the concrete path. Aggregatable by definition. */
   route: string;
   path: string;
   status: number;
   error_code: string | null;
   scope_required: string | null;
   credential_id: string | null;
-  /** `api`, `cli` o `mcp`. */
+  /** `api`, `cli`, or `mcp`. */
   via: string | null;
   ip: string | null;
   duration_ms: number | null;
@@ -213,7 +213,7 @@ export type AuditLogList = {
   data: AuditLog[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -223,14 +223,14 @@ export type Vps = {
   id: string;
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   hostname: string | null;
-  /** `qemu` = virtualización completa (KVM). `lxc` = contenedor. */
+  /** `qemu` = full virtualization (KVM). `lxc` = container. */
   type: "qemu" | "lxc";
-  /** Nodo físico. Informativo: cambia si migramos la VM y no es direccionable. */
+  /** The physical node. Informational: it changes if we migrate the VM and is not addressable. */
   node: string | null;
   vmid: number | null;
   primary_ip: string | null;
   /**
-   * Estado real de la máquina. Distinto de `status`, que es el estado del **contrato** en facturación: un VPS `active` puede estar `stopped` porque el cliente lo apagó.
+   * The machine's actual state. Distinct from `status`, which is the **contract** state in billing: an `active` VPS can be `stopped` because the customer powered it off.
    */
   state: "running" | "stopped" | "paused" | "unknown";
   uptime_seconds: number | null;
@@ -246,10 +246,10 @@ export type Vps = {
     used_bytes: number | null;
     total_bytes: number | null;
   }) | null;
-  /** Hay una reinstalación en curso. Las operaciones de power fallan mientras dure. */
+  /** A reinstall is in progress. Power operations fail while it lasts. */
   reinstalling: boolean;
   /**
-   * Qué endpoints de `/v1` responden para ESTE VPS. Una capacidad en `false` devuelve `400 unsupported_for_product`; no es un error transitorio y reintentar no ayuda.
+   * Which `/v1` endpoints respond for THIS VPS. A capability set to `false` returns `400 unsupported_for_product`; it is not a transient error and retrying does not help.
    */
   capabilities: Record<string, boolean>;
 };
@@ -259,7 +259,7 @@ export type VpsList = {
   data: Vps[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -268,11 +268,11 @@ export type VpsConfig = {
   object: "vps_config";
   vmid: number | null;
   node: string | null;
-  /** `qemu` = virtualización completa (KVM). `lxc` = contenedor. */
+  /** `qemu` = full virtualization (KVM). `lxc` = container. */
   type: "qemu" | "lxc";
   cores: number | null;
   memory_mb: number | null;
-  /** Descriptor de almacenamiento tal como lo reporta el hipervisor. */
+  /** The storage descriptor exactly as the hypervisor reports it. */
   boot_disk: string | null;
   os_type: string | null;
   hostname: string | null;
@@ -308,17 +308,17 @@ export type VpsIpList = {
   data: VpsIp[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
 
 export type VpsTemplate = {
   object: "vps_template";
-  /** Pasalo como `template` en la reinstalación. */
+  /** Pass it as `template` in the reinstall. */
   id: string;
   name: string;
-  /** `qemu` = virtualización completa (KVM). `lxc` = contenedor. */
+  /** `qemu` = full virtualization (KVM). `lxc` = container. */
   type: "qemu" | "lxc";
   storage: string | null;
 };
@@ -328,7 +328,7 @@ export type VpsTemplateList = {
   data: VpsTemplate[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -336,10 +336,10 @@ export type VpsTemplateList = {
 export type ConsoleTicket = {
   object: "console_ticket";
   type: "vnc" | "spice";
-  /** noVNC: abrir en el navegador. */
+  /** noVNC: open it in the browser. */
   url: string | null;
   /**
-   * SPICE: contenido del `.vv` para `remote-viewer`. **Es una credencial**: da acceso total al sistema operativo. No lo loguees ni lo guardes.
+   * SPICE: the `.vv` contents for `remote-viewer`. **It is a credential**: it grants full access to the operating system. Do not log it or store it.
    */
   file: string | null;
   filename: string | null;
@@ -359,7 +359,7 @@ export type VpsBackupList = {
   data: VpsBackup[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -367,7 +367,7 @@ export type VpsBackupList = {
 export type DnsZone = {
   object: "dns_zone";
   id: string;
-  /** Servicio que respalda la zona. Solo para facturación y soporte. */
+  /** The service backing the zone. For billing and support only. */
   service: string;
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   record_count: number | null;
@@ -379,7 +379,7 @@ export type DnsZoneList = {
   data: DnsZone[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -394,13 +394,13 @@ export type DnsZoneExport = {
 export type DnsRecord = {
   object: "dns_record";
   id: string;
-  /** FQDN sin punto final. */
+  /** FQDN without the trailing dot. */
   name: string;
-  /** El `SOA` y el `NS` de la delegación los administra la plataforma y no se editan. */
+  /** The `SOA` and the delegation `NS` are managed by the platform and cannot be edited. */
   type: "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "NS" | "SRV" | "CAA" | "PTR";
   ttl: number;
   /**
-   * Todos los valores del RRset. Para `MX` incluyen la prioridad (`10 mail.ejemplo.com`); para `SRV`, prioridad, peso y puerto.
+   * All the RRset's values. For `MX` they include the priority (`10 mail.example.com`); for `SRV`, priority, weight, and port.
    */
   values: string[];
 };
@@ -410,7 +410,7 @@ export type DnsRecordList = {
   data: DnsRecord[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -420,15 +420,15 @@ export type Dbaas = {
   id: string;
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   /**
-   * Estado real del motor. Distinto de `status`, que es el estado del **contrato** en facturación: un servicio `active` puede estar `provisioning` los primeros minutos.
+   * The engine's actual state. Distinct from `status`, which is the **contract** state in billing: an `active` service can be `provisioning` for its first few minutes.
    */
   state: "running" | "stopped" | "provisioning" | "error" | "unknown";
-  /** Motor: `mysql`, `postgresql`, `mongodb`, `valkey` (o `redis`, histórico). */
+  /** The engine: `mysql`, `postgresql`, `mongodb`, `valkey` (or the historical `redis`). */
   engine: string | null;
   engine_version: string | null;
   host: string | null;
   port: number | null;
-  /** Nodo físico. Informativo y no direccionable; `null` en el tier compartido. */
+  /** The physical node. Informational and not addressable; `null` on the shared tier. */
   node: string | null;
   region: string | null;
   plan: ({
@@ -438,7 +438,7 @@ export type Dbaas = {
   }) | null;
   created_at: string | null;
   /**
-   * Qué endpoints de `/v1` responden para ESTE servicio. Una capacidad en `false` devuelve `400 unsupported_for_product`: no es transitorio y reintentar no ayuda. Una clave **ausente** es distinta de `false` — significa que no se consultó (ver el listado).
+   * Which `/v1` endpoints respond for THIS service. A capability set to `false` returns `400 unsupported_for_product`: it is not transient and retrying does not help. An **absent** key is different from `false` — it means it was not queried (see the listing).
    */
   capabilities: Record<string, boolean>;
 };
@@ -448,25 +448,25 @@ export type DbaasList = {
   data: Dbaas[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
 
 export type DbaasConnection = {
   object: "dbaas_connection";
-  /** Motor: `mysql`, `postgresql`, `mongodb`, `valkey` (o `redis`, histórico). */
+  /** The engine: `mysql`, `postgresql`, `mongodb`, `valkey` (or the historical `redis`). */
   engine: string | null;
   host: string | null;
   port: number | null;
-  /** Base por defecto. `null` en los servicios donde el administrador elige al entrar. */
+  /** The default database. `null` on services where the admin picks one on connect. */
   database: string | null;
-  /** Usuario administrador del motor. */
+  /** The engine's admin user. */
   username: string | null;
-  /** Modo TLS en el vocabulario del motor (`verify-ca`, `VERIFY_CA`, `rediss`). */
+  /** The TLS mode in the engine's vocabulary (`verify-ca`, `VERIFY_CA`, `rediss`). */
   sslmode: string | null;
   /**
-   * PEM de la CA del servicio, para `sslrootcert`/`--ssl-ca`. Es **público**: sirve para verificar al servidor, no para entrar.
+   * The service CA's PEM, for `sslrootcert`/`--ssl-ca`. It is **public**: it verifies the server, it does not grant access.
    */
   ca_cert: string | null;
 };
@@ -475,7 +475,7 @@ export type DbaasCredential = {
   object: "dbaas_credential";
   username: string | null;
   /**
-   * Password del administrador, en claro. **Es acceso total a los datos**: no la loguees, no la guardes en un archivo de configuración compartido y no la pases por la línea de comandos. No se devuelve ninguna URI: una URI con la credencial adentro termina en el historial del shell y en los logs del proceso que la recibe.
+   * The admin password, in plaintext. **It is full access to the data**: do not log it, do not store it in a shared configuration file, and do not pass it on the command line. No URI is returned: a URI with the credential inside ends up in shell history and in the logs of whatever process receives it.
    */
   password: string | null;
   host: string | null;
@@ -484,7 +484,7 @@ export type DbaasCredential = {
 };
 
 /**
- * Qué campos vienen llenos depende del backend del servicio: unos miden el **contenedor** (CPU, memoria, disco) y otros el **motor** (conexiones, tamaño, uptime). Un `null` es "no se mide acá", no cero.
+ * Which fields are populated depends on the service's backend: some measure the **container** (CPU, memory, disk) and others the **engine** (connections, size, uptime). A `null` means "not measured here", not zero.
  */
 export type DbaasStats = {
   object: "dbaas_stats";
@@ -502,7 +502,7 @@ export type DbaasStats = {
 
 export type DbaasLogs = {
   object: "dbaas_logs";
-  /** De la más vieja a la más nueva, como las devuelve el motor. */
+  /** Oldest to newest, as the engine returns them. */
   lines: string[];
 };
 
@@ -512,7 +512,7 @@ export type DbaasDatabase = {
   name: string;
   owner: string | null;
   size_bytes: number | null;
-  /** Tablas (o colecciones en MongoDB). `null` cuando el motor no lo reporta. */
+  /** Tables (or collections in MongoDB). `null` when the engine does not report it. */
   table_count: number | null;
 };
 
@@ -521,7 +521,7 @@ export type DbaasDatabaseList = {
   data: DbaasDatabase[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -530,7 +530,7 @@ export type DbaasUser = {
   object: "dbaas_user";
   id: string;
   username: string;
-  /** Solo MySQL: desde dónde puede conectarse. `%` es cualquier origen. */
+  /** MySQL only: where the user can connect from. `%` means any origin. */
   host: string | null;
   can_login: boolean | null;
   can_create_db: boolean | null;
@@ -541,7 +541,7 @@ export type DbaasUserList = {
   data: DbaasUser[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -552,7 +552,7 @@ export type DbaasBackup = {
   /** `full`, `diff`, `incr`, `manual`… */
   type: string | null;
   size_bytes: number | null;
-  /** `local`, `s3` o `both`. */
+  /** `local`, `s3`, or `both`. */
   location: string | null;
   created_at: string | null;
 };
@@ -562,7 +562,7 @@ export type DbaasBackupList = {
   data: DbaasBackup[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -571,22 +571,22 @@ export type Caas = {
   object: "caas";
   id: string;
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
-  /** Identificador del servicio. */
+  /** The service's identifier. */
   label: string | null;
   primary_ip: string | null;
   /**
-   * Avance del aprovisionamiento. Distinto de `status`, que es el estado del **contrato** en facturación: un servicio `active` en facturación puede seguir en `provisioning` acá. Mientras no esté `active`, los endpoints de apps devuelven `400 unsupported_for_product`.
+   * Provisioning progress. Distinct from `status`, which is the **contract** state in billing: a service that is `active` in billing can still be `provisioning` here. Until it is `active`, the app endpoints return `400 unsupported_for_product`.
    */
   provisioning_state: "draft" | "provisioning" | "active" | "suspended" | "terminated" | "error" | "unknown";
   /**
-   * Máquina que corre el servicio. `null` en el listado y también cuando todavía no existe — un servicio recién comprado no tiene máquina hasta que el alta termina.
+   * The machine running the service. `null` in the listing and also when it does not exist yet — a freshly purchased service has no machine until provisioning finishes.
    */
   machine: ({
     state: "running" | "stopped" | "unknown";
     uptime_seconds: number | null;
   }) | null;
   /**
-   * Qué endpoints de `/v1` responden para ESTE servicio. Una capacidad en `false` devuelve `400 unsupported_for_product`; no es un error transitorio y reintentar no ayuda.
+   * Which `/v1` endpoints respond for THIS service. A capability set to `false` returns `400 unsupported_for_product`; it is not a transient error and retrying does not help.
    */
   capabilities: Record<string, boolean>;
 };
@@ -596,18 +596,18 @@ export type CaasList = {
   data: Caas[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
 
 /**
- * Origen del código. Viene en `null` en el listado —el backend no lo trae ahí— y también cuando la app se creó sin origen configurado. Usá `GET /v1/caas/{id}/apps/{app_id}`.
+ * The code source. It comes back `null` in the listing —the backend does not include it there— and also when the app was created without a configured source. Use `GET /v1/caas/{id}/apps/{app_id}`.
  */
 export type CaasAppSource = ({
-  /** `other` = el origen se configuró por fuera de esta API y no es representable acá. */
+  /** `other` = the source was configured outside this API and cannot be represented here. */
   type: "git" | "docker_image" | "other";
-  /** URL del repositorio, o referencia de la imagen (`nginx:1.27`). */
+  /** The repository URL, or the image reference (`nginx:1.27`). */
   ref: string | null;
   branch: string | null;
 }) | null;
@@ -617,7 +617,7 @@ export type CaasApp = {
   id: string;
   name: string;
   /**
-   * En qué quedó el **último despliegue**. No es un healthcheck: un `deployed` no garantiza que el proceso siga vivo ahora. `idle` = nunca se desplegó desde que se creó.
+   * The outcome of the **latest deployment**. It is not a health check: a `deployed` does not guarantee the process is still alive right now. `idle` = never deployed since creation.
    */
   status: "idle" | "deploying" | "deployed" | "error" | "unknown";
   source: CaasAppSource;
@@ -628,7 +628,7 @@ export type CaasAppList = {
   data: CaasApp[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -645,7 +645,7 @@ export type CaasDeploymentList = {
   data: CaasDeployment[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -653,7 +653,7 @@ export type CaasDeploymentList = {
 export type CaasLogs = {
   object: "caas_logs";
   app: string;
-  /** Salida tal como la emite la app, con saltos de línea. Puede venir vacía. */
+  /** Output exactly as the app emits it, with line breaks. It can come back empty. */
   content: string;
 };
 
@@ -667,7 +667,7 @@ export type CaasEnvVarList = {
   data: CaasEnvVar[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -677,7 +677,7 @@ export type CaasDomain = {
   host: string;
   https: boolean;
   /**
-   * Qué emisor está configurado, **no** si el certificado ya se emitió: la emisión es asíncrona y no hay ningún estado ni id que consultar. Viene en `null` en la respuesta del alta, porque en ese momento todavía no hay certificado. La única verificación real de que el dominio quedó sirviendo es una petición HTTPS al host.
+   * Which issuer is configured, **not** whether the certificate was already issued: issuance is asynchronous, with no state or id to query. It comes back `null` in the creation response, because at that point there is no certificate yet. The only real check that the domain is serving is an HTTPS request to the host.
    */
   certificate_type: "none" | "letsencrypt" | "custom" | "unknown";
 };
@@ -687,7 +687,7 @@ export type CaasDomainList = {
   data: CaasDomain[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -698,7 +698,7 @@ export type CaasDatabase = {
   engine: string;
   name: string;
   /**
-   * En qué quedó el **último despliegue**. No es un healthcheck: un `deployed` no garantiza que el proceso siga vivo ahora. `idle` = nunca se desplegó desde que se creó.
+   * The outcome of the **latest deployment**. It is not a health check: a `deployed` does not guarantee the process is still alive right now. `idle` = never deployed since creation.
    */
   status: "idle" | "deploying" | "deployed" | "error" | "unknown";
 };
@@ -708,7 +708,7 @@ export type CaasDatabaseList = {
   data: CaasDatabase[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -718,22 +718,22 @@ export type LoadBalancer = {
   id: string;
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   /**
-   * Avance del aprovisionamiento. Distinto de `status`, que es el estado del **contrato** en facturación. Mientras no esté `active`, escribir listeners devuelve `400 unsupported_for_product`.
+   * Provisioning progress. Distinct from `status`, which is the **contract** state in billing. Until it is `active`, writing listeners returns `400 unsupported_for_product`.
    */
   provisioning_state: "draft" | "provisioning" | "active" | "suspended" | "terminated" | "error" | "unknown";
-  /** Nombre estable del balanceador. Apuntá tus registros DNS acá, no a la IP. */
+  /** The balancer's stable name. Point your DNS records here, not at the IP. */
   hostname: string | null;
   /**
-   * IP por la que entra el tráfico. Puede moverse a otra máquina ante una falla: es parte de cómo el servicio se recupera, y por eso no es lo que conviene poner en un DNS.
+   * The IP traffic enters through. It can move to another machine on failure: that is part of how the service recovers, which is why it is not what belongs in DNS.
    */
   public_ip: string | null;
   /**
-   * ¿Responde el balanceador? `null` = no se pudo verificar, que es distinto de `false`: pasa mientras se aprovisiona. No dice nada sobre la salud de tus destinos — eso está en `GET /v1/load-balancers/{id}/stats`.
+   * Is the balancer responding? `null` = could not be verified, which is different from `false`: it happens while provisioning. It says nothing about the health of your backends — that is in `GET /v1/load-balancers/{id}/stats`.
    */
   healthy: boolean | null;
   listener_count: number | null;
   /**
-   * Qué endpoints de `/v1` responden para ESTE servicio. Una capacidad en `false` devuelve `400 unsupported_for_product`.
+   * Which `/v1` endpoints respond for THIS service. A capability set to `false` returns `400 unsupported_for_product`.
    */
   capabilities: Record<string, boolean>;
 };
@@ -743,7 +743,7 @@ export type LoadBalancerList = {
   data: LoadBalancer[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -753,17 +753,17 @@ export type LbListener = {
   id: string;
   name: string;
   /**
-   * `tcp` balancea a nivel de conexión y sirve para cualquier protocolo. `http` entiende el pedido y es lo que habilita enrutar por dominio.
+   * `tcp` balances at the connection level and works for any protocol. `http` understands the request and is what enables routing by domain.
    */
   protocol: "http" | "tcp";
   port: number;
   /**
-   * `passthrough` entrega el TLS intacto a tus destinos. `terminate` lo descifra en el balanceador —requiere `protocol: http` y `domain`— y el tráfico hacia tus destinos viaja en claro por la red interna.
+   * `passthrough` hands TLS to your backends intact. `terminate` decrypts it at the balancer —requires `protocol: http` and `domain`— and traffic to your backends travels in plaintext over the internal network.
    */
   tls: "none" | "passthrough" | "terminate";
   domain: string | null;
   /**
-   * `source` manda cada IP de origen siempre al mismo destino: es lo que se usa cuando la aplicación guarda sesión en memoria.
+   * `source` always sends each origin IP to the same backend: it is what you use when the application keeps sessions in memory.
    */
   algorithm: "roundrobin" | "leastconn" | "source";
   health_check: {
@@ -783,7 +783,7 @@ export type LbListenerList = {
   data: LbListener[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -792,10 +792,10 @@ export type LbBackend = {
   object: "lb_backend";
   id: string;
   listener: string;
-  /** IP o nombre de host del destino. */
+  /** The backend's IP or hostname. */
   ip: string;
   port: number;
-  /** Proporción de tráfico frente a los demás destinos del listener. Default 1. */
+  /** Traffic share relative to the listener's other backends. Defaults to 1. */
   weight: number | null;
 };
 
@@ -804,7 +804,7 @@ export type LbBackendList = {
   data: LbBackend[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -816,12 +816,12 @@ export type LbStats = {
     protocol: "http" | "tcp" | "unknown";
     port: number | null;
     state: "up" | "down" | "unknown";
-    /** Conexiones en curso. */
+    /** Connections in flight. */
     sessions: number;
     bytes_in: number;
     bytes_out: number;
     backends: ({
-      /** El destino tal como está declarado, en la forma `host:puerto`. */
+      /** The backend as declared, in `host:port` form. */
       target: string;
       health: "healthy" | "unhealthy" | "unknown";
     })[];
@@ -832,14 +832,14 @@ export type ObjectStorage = {
   object: "object_storage";
   service: string | null;
   status: "active" | "suspended" | "error";
-  /** Endpoint S3. Configurá el cliente con `addressing_style=path`. */
+  /** The S3 endpoint. Configure your client with `addressing_style=path`. */
   endpoint: string;
   storage_bytes: number;
   objects: number;
   buckets: number;
-  /** Descargado en los últimos 30 días. */
+  /** Downloaded in the last 30 days. */
   egress_used_bytes: number;
-  /** Egress incluido del período, derivado del almacenamiento en uso. */
+  /** The period's included egress, derived from the storage in use. */
   egress_included_bytes: number;
   requests_30d: number;
 };
@@ -849,14 +849,14 @@ export type StorageBucket = {
   id: string;
   name: string;
   /**
-   * `public` publica el bucket en una URL de solo lectura (`public_url`). `private` la retira: los objetos siguen accesibles con llave o con una URL prefirmada.
+   * `public` publishes the bucket at a read-only URL (`public_url`). `private` withdraws it: objects remain accessible with a key or a presigned URL.
    */
   access: "private" | "public";
   objects: number;
   size_bytes: number;
-  /** Base de lectura anónima. `null` mientras el bucket sea privado. */
+  /** The anonymous read base URL. `null` while the bucket is private. */
   public_url: string | null;
-  /** Null en un bucket creado por un cliente S3 directo, que no tiene fila de registro. */
+  /** Null for a bucket created by a direct S3 client, which has no registry row. */
   created_at: string | null;
 };
 
@@ -865,7 +865,7 @@ export type StorageBucketList = {
   data: StorageBucket[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -873,7 +873,7 @@ export type StorageBucketList = {
 export type StorageDeletion = {
   object: "storage_deletion";
   bucket: string;
-  /** Objetos efectivamente borrados. */
+  /** Objects actually deleted. */
   deleted: number;
 };
 
@@ -882,28 +882,28 @@ export type StorageBucketMetrics = {
   bucket: string;
   range: "7d" | "30d" | "90d";
   storage_bytes: number;
-  /** Diferencia contra el primer snapshot del rango. Negativo si el bucket bajó. */
+  /** Difference against the first snapshot in the range. Negative if the bucket shrank. */
   storage_delta_bytes: number;
   objects: number;
   objects_delta: number;
   egress_used_bytes: number;
   egress_included_bytes: number;
-  /** Siempre 30 días, independiente de `range`. */
+  /** Always 30 days, regardless of `range`. */
   requests_30d: number;
-  /** Porcentaje de lecturas sobre el total de requests del rango. */
+  /** Reads as a percentage of the range's total requests. */
   get_pct: number;
-  /** Un punto por día UTC. Vacío mientras no haya snapshots. */
+  /** One point per UTC day. Empty until there are snapshots. */
   storage_series: ({
     date: string;
     bytes: number;
   })[];
-  /** Un punto por día UTC. Vacío si no hubo tráfico en el rango. */
+  /** One point per UTC day. Empty if there was no traffic in the range. */
   requests_series: ({
     date: string;
     get: number;
     put: number;
   })[];
-  /** Cuánto salió por el cache del edge y cuánto por el origen. */
+  /** How much left through the edge cache versus the origin. */
   egress_by_origin: ({
     label: string;
     bytes: number;
@@ -913,15 +913,15 @@ export type StorageBucketMetrics = {
 export type StorageObject = {
   object: "storage_object";
   id: string;
-  /** Relativa al bucket. Las carpetas terminan en `/`. */
+  /** Relative to the bucket. Folders end in `/`. */
   key: string;
-  /** Último segmento de la key. */
+  /** The key's last segment. */
   name: string;
   /**
-   * Una carpeta no es un objeto: es un prefijo común. Se lista para poder navegar, y no tiene tamaño ni fecha.
+   * A folder is not an object: it is a shared prefix. It is listed for navigation, and has no size or date.
    */
   is_folder: boolean;
-  /** Inferido de la extensión, no leído del objeto. */
+  /** Inferred from the extension, not read from the object. */
   content_type: string | null;
   size_bytes: number | null;
   last_modified: string | null;
@@ -932,7 +932,7 @@ export type StorageObjectList = {
   data: StorageObject[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -947,15 +947,15 @@ export type StoragePresignedUrl = {
 
 export type StorageAccessKey = {
   object: "storage_access_key";
-  /** Hoy coincide con `access_key_id`; tratalo igual como identificador del recurso. */
+  /** Currently equal to `access_key_id`; still treat it as the resource's identifier. */
   id: string;
   name: string;
-  /** Lo que va en el cliente S3. */
+  /** What goes in the S3 client. */
   access_key_id: string;
-  /** Bucket al que está acotada la llave, o `*` para todos. */
+  /** The bucket the key is limited to, or `*` for all. */
   scope: string;
   /**
-   * `read` solo descarga, `readwrite` sube y borra, `full` agrega la gestión de buckets desde el protocolo S3.
+   * `read` only downloads, `readwrite` uploads and deletes, `full` adds bucket management through the S3 protocol.
    */
   permission: "read" | "readwrite" | "full";
   created_at: string | null;
@@ -967,26 +967,26 @@ export type StorageAccessKeyList = {
   data: StorageAccessKey[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
 
 export type StorageAccessKeyWithSecret = StorageAccessKey & {
   /**
-   * Aparece **una sola vez**, en esta respuesta. No se guarda en claro de nuestro lado y no hay endpoint que lo recupere: si se pierde, la salida es emitir otra llave y rotar la aplicación.
+   * Appears **exactly once**, in this response. It is not stored in plaintext on our side and no endpoint recovers it: if it is lost, the way out is to issue another key and rotate the application.
    */
   secret_access_key: string;
 };
 
 export type MailGatewayUsage = {
   object: "mail_gateway_usage";
-  /** Mes calendario UTC en curso, `YYYY-MM`. Es el período que factura. */
+  /** The current UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
   period: string;
-  /** Envíos aceptados en el período. */
+  /** Sends accepted during the period. */
   sends: number;
   /**
-   * Envíos rechazados por el gateway antes de llegar a SES (dominio sin verificar, tenant suspendido, payload inválido). No se facturan.
+   * Sends rejected by the gateway before reaching SES (unverified domain, suspended tenant, invalid payload). They are not billed.
    */
   rejected: number;
 };
@@ -997,15 +997,15 @@ export type MailGateway = {
   status: "active" | "suspended" | "deprovisioned" | "unknown";
   plan: string | null;
   /**
-   * Dónde se envía. El envío NO pasa por esta API: se hace contra este endpoint con una API key de `POST /v1/mail-gateway/keys`.
+   * Where sending happens. Sending does NOT go through this API: it goes against this endpoint with an API key from `POST /v1/mail-gateway/keys`.
    */
   api_endpoint: string;
   /**
-   * Config set de SES del tenant. Es el que reporta los eventos de entrega que alimentan `/metrics` y `/messages`; en `null` significa que el tenant todavía no tiene métricas.
+   * The tenant's SES config set. It reports the delivery events that feed `/metrics` and `/messages`; `null` means the tenant has no metrics yet.
    */
   config_set: string | null;
   domain_count: number;
-  /** API keys activas y revocadas. */
+  /** Active and revoked API keys. */
   key_count: number;
   usage_month: MailGatewayUsage;
   created_at: string | null;
@@ -1016,31 +1016,31 @@ export type MailGatewayMetrics = {
   range: "7d" | "30d" | "90d";
   sends: number;
   /**
-   * Variación contra el período anterior, en fracción (`0.12` = +12 %). `null` cuando el período anterior no tuvo envíos: dividir por cero no es un 0 %.
+   * Change versus the previous period, as a fraction (`0.12` = +12%). `null` when the previous period had no sends: dividing by zero is not a 0%.
    */
   sends_delta_pct: number | null;
-  /** Fracción 0–1, no porcentaje. */
+  /** A 0–1 fraction, not a percentage. */
   delivery_rate: number;
   open_rate: number;
   bounce_rate: number;
   complaint_rate: number;
   /**
-   * Umbral de rebote de SES. Pasarlo pone en riesgo la reputación de envío de toda la plataforma, así que el gateway suspende antes de llegar.
+   * The SES bounce threshold. Crossing it puts the whole platform's sending reputation at risk, so the gateway suspends before getting there.
    */
   bounce_rate_limit: number;
   complaint_rate_limit: number;
   complaints: number;
-  /** Serie diaria del rango. */
+  /** The daily series for the range. */
   series: ({
-    /** Inicio del día UTC, ISO 8601. */
+    /** Start of the UTC day, ISO 8601. */
     date: string | null;
     sends: number;
     opens: number;
     bounces: number;
   })[];
-  /** Vacío cuando no hubo entregas en el rango. */
+  /** Empty when there were no deliveries in the range. */
   latency: ({
-    /** Etapa medida. Hoy solo `send_to_delivery`. */
+    /** The measured stage. Currently only `send_to_delivery`. */
     stage: string;
     p50_seconds: number;
     p95_seconds: number;
@@ -1056,16 +1056,14 @@ export type MailGatewayMetrics = {
 };
 
 export type MailGatewayDnsRecord = {
-  /**
-   * Para qué sirve el registro. Valores actuales: `dkim`, `spf`, `mail_from_mx`, `mail_from_spf`, `dmarc`.
-   */
+  /** What the record is for. Current values: `dkim`, `spf`, `mail_from_mx`, `mail_from_spf`, `dmarc`. */
   purpose: string;
   type: string;
-  /** Nombre completo del registro, sin punto final. */
+  /** The record's full name, without the trailing dot. */
   host: string;
   value: string;
   /**
-   * `info` = no lo verifica nadie, pero publicarlo mejora la entrega. `pending` = SES todavía no lo vio.
+   * `info` = nothing verifies it, but publishing it improves deliverability. `pending` = SES has not seen it yet.
    */
   status: "pending" | "verified" | "info" | "unknown";
 };
@@ -1076,7 +1074,7 @@ export type MailGatewayDomain = {
   domain: string;
   status: "pending" | "verified" | "failed" | "unknown";
   verified_at: string | null;
-  /** Los registros que hay que publicar en la zona del dominio. */
+  /** The records that must be published in the domain's zone. */
   records: MailGatewayDnsRecord[];
 };
 
@@ -1085,7 +1083,7 @@ export type MailGatewayDomainList = {
   data: MailGatewayDomain[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -1096,10 +1094,10 @@ export type MailGatewayMessage = {
   recipient: string | null;
   subject: string | null;
   status: "queued" | "delivered" | "opened" | "deferred" | "bounced" | "complained" | "unknown";
-  /** La etiqueta `mg-category` que se le puso al envío, si se le puso alguna. */
+  /** The `mg-category` tag set on the send, if any was set. */
   category: string | null;
   from_domain: string | null;
-  /** Momento del último evento del mensaje, no el del envío. */
+  /** The time of the message's latest event, not of the send. */
   occurred_at: string | null;
 };
 
@@ -1108,7 +1106,7 @@ export type MailGatewayMessageList = {
   data: MailGatewayMessage[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -1116,14 +1114,14 @@ export type MailGatewayMessageList = {
 export type MailGatewayKey = {
   object: "mail_gateway_key";
   id: string;
-  /** Prefijo de display, para reconocer la key sin verla entera. */
+  /** A display prefix, to recognize the key without seeing it whole. */
   hint: string | null;
   status: "active" | "revoked" | "unknown";
   /**
-   * La key completa. **Solo viene en la respuesta del alta y una única vez**: de esta key guardamos su hash, así que no hay forma de recuperarla después —tampoco para nosotros—. En el listado siempre es `null`.
+   * The full key. **Only present in the creation response, exactly once**: we store this key's hash, so there is no way to recover it later — not even for us. In the listing it is always `null`.
    */
   secret: string | null;
-  /** Dónde se usa esta key: `POST {api_endpoint}/emails`. */
+  /** Where this key is used: `POST {api_endpoint}/emails`. */
   api_endpoint: string;
   created_at: string | null;
 };
@@ -1133,7 +1131,7 @@ export type MailGatewayKeyList = {
   data: MailGatewayKey[];
   has_more: boolean;
   /**
-   * Pasalo como `cursor` para la página siguiente. Es **opaco**: no lo construyas, no lo parsees y no lo guardes entre versiones.
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
 };
@@ -1141,10 +1139,10 @@ export type MailGatewayKeyList = {
 export type MailGatewaySmtp = {
   object: "mail_gateway_smtp";
   host: string;
-  /** SMTPS, TLS implícito desde el saludo. No hay STARTTLS en 587. */
+  /** SMTPS, implicit TLS from the greeting. There is no STARTTLS on 587. */
   port: number;
   username: string;
-  /** `suspended` = el envío por SMTP está cortado, normalmente por reputación o mora. */
+  /** `suspended` = SMTP sending is cut off, usually over reputation or unpaid bills. */
   status: "active" | "suspended" | "revoked" | "unknown";
   config_set: string | null;
 };
@@ -1152,23 +1150,23 @@ export type MailGatewaySmtp = {
 export type MailGatewaySmtpCredentials = {
   object: "mail_gateway_smtp";
   host: string;
-  /** SMTPS, TLS implícito desde el saludo. No hay STARTTLS en 587. */
+  /** SMTPS, implicit TLS from the greeting. There is no STARTTLS on 587. */
   port: number;
   username: string;
-  /** `suspended` = el envío por SMTP está cortado, normalmente por reputación o mora. */
+  /** `suspended` = SMTP sending is cut off, usually over reputation or unpaid bills. */
   status: "active" | "suspended" | "revoked" | "unknown";
   config_set: string | null;
-  /** La password SMTP en claro. Tratala como un secreto: envía en tu nombre. */
+  /** The SMTP password in plaintext. Treat it as a secret: it sends on your behalf. */
   password: string;
 };
 
-/** Parametros de consulta de `GET /v1/api-keys`. */
+/** Query parameters of `GET /v1/api-keys`. */
 export type ApiKeysListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/audit-logs`. */
+/** Query parameters of `GET /v1/audit-logs`. */
 export type AuditLogsListQuery = {
   limit?: string;
   cursor?: string;
@@ -1176,217 +1174,217 @@ export type AuditLogsListQuery = {
   deniedOnly?: string;
 };
 
-/** Cuerpo de `POST /v1/caas/{id}/apps`. */
+/** Body of `POST /v1/caas/{id}/apps`. */
 export type CaasAppsCreateBody = {
-  /** Nombre visible de la app. El backend deriva de acá un identificador interno. */
+  /** The app's display name. The backend derives an internal identifier from it. */
   name: string;
-  /** Se puede omitir y configurar después, pero una app sin origen no se puede desplegar. */
+  /** Can be omitted and configured later, but an app without a source cannot be deployed. */
   source?: {
     type: "git" | "docker_image";
-    /** URL del repositorio para `git`, referencia de la imagen para `docker_image`. */
+    /** The repository URL for `git`, the image reference for `docker_image`. */
     ref: string;
-    /** Solo para `git`. Default `main`. */
+    /** `git` only. Defaults to `main`. */
     branch?: string;
   };
 };
 
-/** Parametros de consulta de `GET /v1/caas/{id}/apps`. */
+/** Query parameters of `GET /v1/caas/{id}/apps`. */
 export type CaasAppsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/caas/{id}/databases`. */
+/** Body of `POST /v1/caas/{id}/databases`. */
 export type CaasDatabasesCreateBody = {
   engine: "postgres" | "mysql" | "mariadb" | "mongo" | "redis";
   name: string;
 };
 
-/** Parametros de consulta de `GET /v1/caas/{id}/databases`. */
+/** Query parameters of `GET /v1/caas/{id}/databases`. */
 export type CaasDatabasesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/caas/{id}/apps/{app_id}/deployments`. */
+/** Query parameters of `GET /v1/caas/{id}/apps/{app_id}/deployments`. */
 export type CaasDeploymentsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/caas/{id}/apps/{app_id}/domains`. */
+/** Body of `POST /v1/caas/{id}/apps/{app_id}/domains`. */
 export type CaasDomainsCreateBody = {
   /**
-   * Tiene que resolver a la IP del servicio **antes** de crearlo: el certificado se valida por HTTP y sin el DNS apuntado la emisión falla en silencio.
+   * It must resolve to the service's IP **before** you create it: the certificate is validated over HTTP, and without DNS pointed, issuance fails silently.
    */
   host: string;
 };
 
-/** Cuerpo de `PUT /v1/caas/{id}/apps/{app_id}/env`. */
+/** Body of `PUT /v1/caas/{id}/apps/{app_id}/env`. */
 export type CaasEnvReplaceBody = {
   /**
-   * El conjunto **completo**. Lo que no esté acá se borra: mandar `[]` deja la app sin ninguna variable. Como `GET /env` no devuelve valores, el set entero tiene que salir de tu lado —de tu gestor de secretos o de tu repositorio de configuración—, que es como funciona cualquier infraestructura declarativa.
+   * The **complete** set. Anything not listed here is deleted: sending `[]` leaves the app with no variables. Since `GET /env` returns no values, the whole set has to come from your side —your secrets manager or your configuration repository— which is how any declarative infrastructure works.
    */
   vars: ({
     key: string;
-    /** Se guarda tal cual. No se devuelve nunca. */
+    /** Stored as-is. Never returned. */
     value: string;
   })[];
 };
 
-/** Parametros de consulta de `GET /v1/caas`. */
+/** Query parameters of `GET /v1/caas`. */
 export type CaasInstancesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/dbaas/{id}/backups`. */
+/** Query parameters of `GET /v1/dbaas/{id}/backups`. */
 export type DbaasBackupsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/dbaas/{id}/databases`. */
+/** Body of `POST /v1/dbaas/{id}/databases`. */
 export type DbaasDatabasesCreateBody = {
   name: string;
-  /** Solo MySQL. Default `utf8mb4`. */
+  /** MySQL only. Defaults to `utf8mb4`. */
   charset?: string;
-  /** Solo MySQL. Default `utf8mb4_unicode_ci`. */
+  /** MySQL only. Defaults to `utf8mb4_unicode_ci`. */
   collation?: string;
-  /** Solo PostgreSQL. Usuario dueño de la base; por defecto el administrador. */
+  /** PostgreSQL only. The user that owns the database; defaults to the admin. */
   owner?: string;
 };
 
-/** Parametros de consulta de `GET /v1/dbaas/{id}/databases`. */
+/** Query parameters of `GET /v1/dbaas/{id}/databases`. */
 export type DbaasDatabasesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/dbaas`. */
+/** Query parameters of `GET /v1/dbaas`. */
 export type DbaasInstancesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/dbaas/{id}/logs`. */
+/** Query parameters of `GET /v1/dbaas/{id}/logs`. */
 export type DbaasLogsGetQuery = {
   lines?: string;
 };
 
-/** Cuerpo de `POST /v1/dbaas/{id}/users`. */
+/** Body of `POST /v1/dbaas/{id}/users`. */
 export type DbaasUsersCreateBody = {
   username: string;
   /**
-   * No se guarda ni se devuelve: si se pierde, se cambia con `POST /v1/dbaas/{id}/users/{username}/password`.
+   * Never stored or returned: if it is lost, change it with `POST /v1/dbaas/{id}/users/{username}/password`.
    */
   password: string;
-  /** Solo MySQL. Default `%` (cualquier origen). */
+  /** MySQL only. Defaults to `%` (any origin). */
   host?: string;
-  /** Bases sobre las que se le otorgan permisos. */
+  /** Databases the user is granted permissions on. */
   databases?: string[];
   /**
-   * MySQL: privilegios de SQL (`SELECT`, `INSERT`, …); default `ALL` sobre `databases`. PostgreSQL: se usa el primero como rol (`readwrite`, `readonly`). Una palabra por elemento: los privilegios compuestos (`ALL PRIVILEGES`) no se aceptan porque el valor termina dentro de un `GRANT` que el motor arma por concatenación.
+   * MySQL: SQL privileges (`SELECT`, `INSERT`, …); defaults to `ALL` over `databases`. PostgreSQL: the first one is used as the role (`readwrite`, `readonly`). One word per element: compound privileges (`ALL PRIVILEGES`) are rejected because the value ends up inside a `GRANT` the engine builds by concatenation.
    */
   privileges?: string[];
 };
 
-/** Parametros de consulta de `DELETE /v1/dbaas/{id}/users/{username}`. */
+/** Query parameters of `DELETE /v1/dbaas/{id}/users/{username}`. */
 export type DbaasUsersDeleteQuery = {
   host?: string;
 };
 
-/** Parametros de consulta de `GET /v1/dbaas/{id}/users`. */
+/** Query parameters of `GET /v1/dbaas/{id}/users`. */
 export type DbaasUsersListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/dbaas/{id}/users/{username}/password`. */
+/** Body of `POST /v1/dbaas/{id}/users/{username}/password`. */
 export type DbaasUsersSetPasswordBody = {
   password: string;
 };
 
-/** Parametros de consulta de `GET /v1/dns/zones/{zone}/records`. */
+/** Query parameters of `GET /v1/dns/zones/{zone}/records`. */
 export type DnsRecordsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `PATCH /v1/dns/zones/{zone}/records`. */
+/** Body of `PATCH /v1/dns/zones/{zone}/records`. */
 export type DnsRecordsPatchBody = {
   records: ({
     name: string;
-    /** El `SOA` y el `NS` de la delegación los administra la plataforma y no se editan. */
+    /** The `SOA` and the delegation `NS` are managed by the platform and cannot be edited. */
     type: "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "NS" | "SRV" | "CAA" | "PTR";
-    /** Segundos, 60–604800. Default 3600. */
+    /** Seconds, 60–604800. Defaults to 3600. */
     ttl?: number;
-    /** Lista vacía = borrar el RRset. */
+    /** An empty list = delete the RRset. */
     values: string[];
   })[];
 };
 
-/** Cuerpo de `PUT /v1/dns/zones/{zone}/records/{name}/{type}`. */
+/** Body of `PUT /v1/dns/zones/{zone}/records/{name}/{type}`. */
 export type DnsRecordsPutBody = {
-  /** Segundos, 60–604800. Default 3600. */
+  /** Seconds, 60–604800. Defaults to 3600. */
   ttl?: number;
   /**
-   * Reemplaza el RRset **entero**. Los valores que no estén acá se borran: para agregar uno, leé el RRset, agregalo a la lista y mandá la lista completa.
+   * Replaces the **entire** RRset. Values not listed here are deleted: to add one, read the RRset, append it to the list, and send the full list.
    */
   values: string[];
 };
 
-/** Parametros de consulta de `GET /v1/dns/zones`. */
+/** Query parameters of `GET /v1/dns/zones`. */
 export type DnsZonesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/load-balancers/{id}/backends`. */
+/** Body of `POST /v1/load-balancers/{id}/backends`. */
 export type LbBackendsCreateBody = {
-  /** Nombre de un listener existente. */
+  /** The name of an existing listener. */
   listener: string;
   ip: string;
   port: number;
   weight?: number;
 };
 
-/** Parametros de consulta de `GET /v1/load-balancers`. */
+/** Query parameters of `GET /v1/load-balancers`. */
 export type LbInstancesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `PUT /v1/load-balancers/{id}/listeners`. */
+/** Body of `PUT /v1/load-balancers/{id}/listeners`. */
 export type LbListenersReplaceBody = {
   /**
-   * El conjunto **completo**. Lo que no esté acá se borra, incluidos sus destinos; mandar `[]` deja el balanceador sin nada escuchando. Nombres y puertos son únicos dentro del conjunto.
+   * The **complete** set. Anything not listed here is deleted, including its backends; sending `[]` leaves the balancer with nothing listening. Names and ports are unique within the set.
    */
   listeners: ({
-    /** Identifica al listener dentro del servicio. Único. */
+    /** Identifies the listener within the service. Unique. */
     name: string;
     /**
-     * `tcp` balancea a nivel de conexión y sirve para cualquier protocolo. `http` entiende el pedido y es lo que habilita enrutar por dominio.
+     * `tcp` balances at the connection level and works for any protocol. `http` understands the request and is what enables routing by domain.
      */
     protocol: "http" | "tcp";
-    /** Puerto de entrada. Único dentro del servicio. */
+    /** The entry port. Unique within the service. */
     port: number;
-    /** Default `none`. */
+    /** Defaults to `none`. */
     tls?: "none" | "passthrough" | "terminate";
     domain?: string;
-    /** Default `roundrobin`. */
+    /** Defaults to `roundrobin`. */
     algorithm?: "roundrobin" | "leastconn" | "source";
     health_check?: {
-      /** Default `tcp`. */
+      /** Defaults to `tcp`. */
       type?: "tcp" | "http";
-      /** Obligatorio si `http`. */
+      /** Required when `http`. */
       path?: string;
-      /** Cada cuánto se sondea cada destino. Default 2000. */
+      /** How often each backend is probed. Defaults to 2000. */
       interval_ms?: number;
     };
-    /** Un listener sin destinos no es representable: mínimo uno. */
+    /** A listener without backends is not representable: at least one. */
     backends: ({
-      /** IP o nombre de host. */
+      /** IP or hostname. */
       ip: string;
       port: number;
       weight?: number;
@@ -1394,27 +1392,27 @@ export type LbListenersReplaceBody = {
   })[];
 };
 
-/** Cuerpo de `POST /v1/mail-gateway/domains`. */
+/** Body of `POST /v1/mail-gateway/domains`. */
 export type MailgatewayDomainsCreateBody = {
   /**
-   * Dominio de envío. Se normaliza a minúsculas. Tenés que poder editar su DNS: el alta devuelve los registros a publicar.
+   * The sending domain. Normalized to lowercase. You must be able to edit its DNS: the creation call returns the records to publish.
    */
   domain: string;
 };
 
-/** Parametros de consulta de `GET /v1/mail-gateway/domains`. */
+/** Query parameters of `GET /v1/mail-gateway/domains`. */
 export type MailgatewayDomainsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/mail-gateway/keys`. */
+/** Query parameters of `GET /v1/mail-gateway/keys`. */
 export type MailgatewayKeysListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/mail-gateway/messages`. */
+/** Query parameters of `GET /v1/mail-gateway/messages`. */
 export type MailgatewayMessagesListQuery = {
   limit?: string;
   cursor?: string;
@@ -1422,159 +1420,159 @@ export type MailgatewayMessagesListQuery = {
   days?: string;
 };
 
-/** Parametros de consulta de `GET /v1/mail-gateway/metrics`. */
+/** Query parameters of `GET /v1/mail-gateway/metrics`. */
 export type MailgatewayMetricsGetQuery = {
   range?: "7d" | "30d" | "90d";
 };
 
-/** Cuerpo de `POST /v1/object-storage/buckets`. */
+/** Body of `POST /v1/object-storage/buckets`. */
 export type ObjectstorageBucketsCreateBody = {
   name: string;
-  /** Default `private`. */
+  /** Defaults to `private`. */
   access?: "private" | "public";
 };
 
-/** Parametros de consulta de `DELETE /v1/object-storage/buckets/{bucket}`. */
+/** Query parameters of `DELETE /v1/object-storage/buckets/{bucket}`. */
 export type ObjectstorageBucketsDeleteQuery = {
   purge?: "true" | "false";
 };
 
-/** Parametros de consulta de `GET /v1/object-storage/buckets`. */
+/** Query parameters of `GET /v1/object-storage/buckets`. */
 export type ObjectstorageBucketsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/object-storage/buckets/{bucket}/metrics`. */
+/** Query parameters of `GET /v1/object-storage/buckets/{bucket}/metrics`. */
 export type ObjectstorageBucketsMetricsQuery = {
   range?: "7d" | "30d" | "90d";
 };
 
-/** Cuerpo de `PATCH /v1/object-storage/buckets/{bucket}`. */
+/** Body of `PATCH /v1/object-storage/buckets/{bucket}`. */
 export type ObjectstorageBucketsUpdateBody = {
   /**
-   * `public` publica el bucket en una URL de solo lectura (`public_url`). `private` la retira: los objetos siguen accesibles con llave o con una URL prefirmada.
+   * `public` publishes the bucket at a read-only URL (`public_url`). `private` withdraws it: objects remain accessible with a key or a presigned URL.
    */
   access: "private" | "public";
 };
 
-/** Cuerpo de `POST /v1/object-storage/keys`. */
+/** Body of `POST /v1/object-storage/keys`. */
 export type ObjectstorageKeysCreateBody = {
-  /** Para reconocerla después. No tiene efecto sobre los permisos. */
+  /** To recognize it later. It has no effect on permissions. */
   name: string;
   /**
-   * Nombre de bucket para acotar la llave, o `*` (default) para todos. Una llave por bucket es lo que hace que perder una no comprometa el resto.
+   * A bucket name to limit the key to, or `*` (the default) for all. One key per bucket is what keeps losing one from compromising the rest.
    */
   scope?: string;
-  /** Default `readwrite`. */
+  /** Defaults to `readwrite`. */
   permission?: "read" | "readwrite" | "full";
 };
 
-/** Parametros de consulta de `GET /v1/object-storage/keys`. */
+/** Query parameters of `GET /v1/object-storage/keys`. */
 export type ObjectstorageKeysListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/object-storage/buckets/{bucket}/objects/delete`. */
+/** Body of `POST /v1/object-storage/buckets/{bucket}/objects/delete`. */
 export type ObjectstorageObjectsDeleteBody = {
-  /** Keys relativas al bucket. Una key que no existe no es un error: no se cuenta. */
+  /** Keys relative to the bucket. A key that does not exist is not an error: it is not counted. */
   keys: string[];
 };
 
-/** Parametros de consulta de `GET /v1/object-storage/buckets/{bucket}/objects`. */
+/** Query parameters of `GET /v1/object-storage/buckets/{bucket}/objects`. */
 export type ObjectstorageObjectsListQuery = {
   prefix?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/object-storage/buckets/{bucket}/presign`. */
+/** Body of `POST /v1/object-storage/buckets/{bucket}/presign`. */
 export type ObjectstorageObjectsPresignBody = {
-  /** Key relativa al bucket. */
+  /** The key, relative to the bucket. */
   key: string;
   /**
-   * Qué habilita la URL: `GET` descarga, `PUT` sube. Default `GET`. Firmar un `PUT` requiere `objectstorage:write`.
+   * What the URL enables: `GET` downloads, `PUT` uploads. Defaults to `GET`. Signing a `PUT` requires `objectstorage:write`.
    */
   method?: "GET" | "PUT";
-  /** Segundos de validez, 1–604800 (7 días). Default 900. */
+  /** Validity in seconds, 1–604800 (7 days). Defaults to 900. */
   expires_in?: number;
 };
 
-/** Parametros de consulta de `GET /v1/operations`. */
+/** Query parameters of `GET /v1/operations`. */
 export type OperationsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/services`. */
+/** Query parameters of `GET /v1/services`. */
 export type ServicesListQuery = {
   limit?: string;
   cursor?: string;
   family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "other";
 };
 
-/** Cuerpo de `POST /v1/vps/{id}/backups`. */
+/** Body of `POST /v1/vps/{id}/backups`. */
 export type VpsBackupsCreateBody = {
   compress?: "zstd" | "gzip" | "lzo" | "none";
-  /** `snapshot` no interrumpe el servicio. `stop` apaga la VM durante el backup. */
+  /** `snapshot` does not interrupt the service. `stop` powers off the VM during the backup. */
   mode?: "snapshot" | "suspend" | "stop";
   storage?: string;
 };
 
-/** Parametros de consulta de `GET /v1/vps/{id}/backups`. */
+/** Query parameters of `GET /v1/vps/{id}/backups`. */
 export type VpsBackupsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `POST /v1/vps/{id}/console`. */
+/** Body of `POST /v1/vps/{id}/console`. */
 export type VpsConsoleCreateBody = {
   type?: "vnc" | "spice";
 };
 
-/** Parametros de consulta de `GET /v1/vps/{id}/ips`. */
+/** Query parameters of `GET /v1/vps/{id}/ips`. */
 export type VpsIpsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/vps`. */
+/** Query parameters of `GET /v1/vps`. */
 export type VpsListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Parametros de consulta de `GET /v1/vps/{id}/metrics`. */
+/** Query parameters of `GET /v1/vps/{id}/metrics`. */
 export type VpsMetricsListQuery = {
   timeframe?: "hour" | "day" | "week" | "month" | "year";
 };
 
-/** Cuerpo de `POST /v1/vps/{id}/power`. */
+/** Body of `POST /v1/vps/{id}/power`. */
 export type VpsPowerBody = {
   /**
-   * `shutdown` pide un apagado ordenado al sistema operativo y cae a corte duro si no responde. `stop` corta la energía de una: puede corromper el sistema de archivos.
+   * `shutdown` asks the operating system for an orderly shutdown and falls back to a hard cut if it does not respond. `stop` cuts power immediately: it can corrupt the filesystem.
    */
   action: "start" | "stop" | "shutdown" | "reboot";
 };
 
-/** Cuerpo de `POST /v1/vps/{id}/reinstall`. */
+/** Body of `POST /v1/vps/{id}/reinstall`. */
 export type VpsReinstallBody = {
-  /** Un `id` de `GET /v1/vps/{id}/templates`. */
+  /** An `id` from `GET /v1/vps/{id}/templates`. */
   template: string;
   /**
-   * Password de root del sistema nuevo. No se guarda ni se devuelve nunca: si se pierde, la única salida es otra reinstalación.
+   * The new system's root password. Never stored or returned: if it is lost, the only way out is another reinstall.
    */
   root_password: string;
 };
 
-/** Parametros de consulta de `GET /v1/vps/{id}/templates`. */
+/** Query parameters of `GET /v1/vps/{id}/templates`. */
 export type VpsTemplatesListQuery = {
   limit?: string;
   cursor?: string;
 };
 
-/** Cuerpo de `PATCH /v1/vps/{id}`. */
+/** Body of `PATCH /v1/vps/{id}`. */
 export type VpsUpdateBody = {
-  /** Etiqueta simple o FQDN. El backend valida el formato. */
+  /** A plain label or an FQDN. The backend validates the format. */
   hostname: string;
 };

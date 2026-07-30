@@ -1,51 +1,50 @@
-/** Tipos del transporte. Los consume el arbol de recursos generado. */
+/** Transport types. Consumed by the generated resource tree. */
 
 /**
- * Opciones que acepta cualquier llamada, mezcladas en el mismo objeto que los parametros
- * de consulta.
+ * Options every call accepts, mixed into the same object as the query parameters.
  *
- * Que convivan en una sola bolsa hace que `truo.vps.list({ limit: 5 })` se lea como se
- * piensa, en vez de `truo.vps.list({ query: { limit: 5 } })`. El riesgo obvio —que la API
- * publique algun dia un query param llamado `signal`— no queda librado a la suerte: el
- * generador compara cada query param contra estas claves y **falla el build** si chocan.
+ * Having them live in one bag makes `truo.vps.list({ limit: 5 })` read the way you think
+ * it, instead of `truo.vps.list({ query: { limit: 5 } })`. The obvious risk — that the
+ * API someday publishes a query param named `signal` — is not left to luck: the generator
+ * compares every query param against these keys and **fails the build** if they collide.
  *
- * Es un `type` y no un `interface` por una razon de tipos, no de estilo: TypeScript solo
- * le da indice implicito a los tipos-objeto, asi que una `interface` intersectada con los
- * query params generados no seria asignable a `Record<string, unknown>` — que es
- * justamente lo que el transporte necesita para separar unos de otros.
+ * It is a `type` and not an `interface` for a typing reason, not a style one: TypeScript
+ * only gives an implicit index to object types, so an `interface` intersected with the
+ * generated query params would not be assignable to `Record<string, unknown>` — which is
+ * exactly what the transport needs to tell one from the other.
  */
 export type RequestOptions = {
-  /** Cancela la request. Se combina con el timeout, no lo reemplaza. */
+  /** Cancels the request. Combined with the timeout, it does not replace it. */
   signal?: AbortSignal;
   /**
-   * Clave de idempotencia. En las operaciones que la aceptan el SDK genera una sola si no
-   * se pasa, que es lo que vuelve seguro reintentar un POST. Pasa la tuya cuando quieras
-   * que dos intentos *de tu proceso* (no de la misma llamada) cuenten como uno.
+   * Idempotency key. On operations that accept one the SDK generates one per call if you
+   * do not pass it, which is what makes retrying a POST safe. Pass your own when you want
+   * two attempts *from your process* (not from the same call) to count as one.
    */
   idempotencyKey?: string;
-  /** Headers extra. No pueden pisar `Authorization`. */
+  /** Extra headers. They cannot override `Authorization`. */
   headers?: Record<string, string>;
-  /** Timeout de esta llamada. Default: el del cliente (60 s). */
+  /** Timeout for this call. Default: the client's (60 s). */
   timeoutMs?: number;
-  /** Reintentos ante 429/5xx y errores de red. Default: el del cliente (2). */
+  /** Retries on 429/5xx and network errors. Default: the client's (2). */
   maxRetries?: number;
 }
 
 export interface CallArgs {
-  /** Valores de los `{placeholder}` del template, sin codificar. */
+  /** Values for the template's `{placeholder}`s, unencoded. */
   path?: Record<string, string | number> | undefined;
   body?: unknown;
-  /** Que claves de `params` son parametros de consulta y no opciones de request. */
+  /** Which keys of `params` are query parameters rather than request options. */
   queryKeys?: readonly string[] | undefined;
   params?: (Record<string, unknown> & RequestOptions) | undefined;
 }
 
 export type Call = <R>(operationId: string, args: CallArgs) => Promise<R>;
 
-/** Itera los elementos de una coleccion siguiendo el cursor hasta agotarla. */
+/** Iterates the items of a collection, following the cursor until it is exhausted. */
 export type Paginate = <I>(operationId: string, args: Omit<CallArgs, "body">) => AsyncGenerator<I, void, undefined>;
 
-/** Una respuesta cruda, para el escape hatch `client.request()`. */
+/** A raw response, for the `client.request()` escape hatch. */
 export interface RawResponse<T = unknown> {
   status: number;
   headers: Headers;
@@ -54,32 +53,32 @@ export interface RawResponse<T = unknown> {
 }
 
 export interface ClientOptions {
-  /** Token `tc_live_…`. Sin el, el cliente lee `TRUO_TOKEN` del entorno. */
+  /** `tc_live_…` token. Without it, the client reads `TRUO_TOKEN` from the environment. */
   token?: string;
-  /** Default: el `servers[0].url` del spec (`https://api.truo.cloud`). */
+  /** Default: the spec's `servers[0].url` (`https://api.truo.cloud`). */
   baseUrl?: string;
   timeoutMs?: number;
   maxRetries?: number;
-  /** Headers agregados a toda request. */
+  /** Headers added to every request. */
   headers?: Record<string, string>;
-  /** Reemplazo de `fetch` (tests, proxies, instrumentacion). */
+  /** `fetch` replacement (tests, proxies, instrumentation). */
   fetch?: typeof globalThis.fetch;
-  /** Se sufija al `User-Agent`. Poner el nombre de tu app ayuda cuando pedis soporte. */
+  /** Appended to the `User-Agent`. Putting your app's name here helps when you ask for support. */
   userAgent?: string;
   /**
-   * Se llama cuando la API marca una operacion como deprecada. Por defecto imprime un
-   * aviso por stderr, **una sola vez por operacion**: si tu integracion usa algo que va a
-   * desaparecer, te enteras corriendo tu propio codigo y no leyendo el changelog.
+   * Called when the API marks an operation as deprecated. By default it prints a warning
+   * to stderr, **once per operation**: if your integration uses something that is going
+   * away, you find out by running your own code, not by reading the changelog.
    */
   onDeprecation?: (info: DeprecationNotice) => void;
 }
 
 export interface DeprecationNotice {
   operationId: string;
-  /** Fecha del anuncio (header `Deprecation`). */
+  /** Announcement date (`Deprecation` header). */
   deprecation: string | null;
-  /** Fecha de corte (header `Sunset`). A partir de ahi la operacion deja de existir. */
+  /** Cutoff date (`Sunset` header). From then on the operation no longer exists. */
   sunset: string | null;
-  /** Enlace al changelog con la ruta de migracion (header `Link; rel="deprecation"`). */
+  /** Link to the changelog with the migration path (`Link; rel="deprecation"` header). */
   link: string | null;
 }

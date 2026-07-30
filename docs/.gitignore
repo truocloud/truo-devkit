@@ -1,9 +1,9 @@
-# Todo lo que sale de `bun scripts/generate.ts`: se regenera en cada build y
-# commitearlo solo produciria diffs de cientos de lineas en cada cambio del spec.
+# Everything `bun scripts/generate.ts` emits: it's regenerated on every build,
+# and committing it would only produce hundred-line diffs on every spec change.
 /public/openapi.json
 /public/llms.txt
 /public/llms-full.txt
-/src/content/docs/referencia/
+/src/content/docs/reference/
 
 node_modules/
 dist/
