@@ -25,6 +25,8 @@ const title = "API reference · TruoCloud";
       content="Interactive reference for the TruoCloud public API: try every endpoint against your own account."
     />
     <link rel="canonical" href="https://docs.truo.cloud/api/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <style>
       html,
       body {
@@ -39,15 +41,20 @@ const title = "API reference · TruoCloud";
         z-index: 100;
         padding: 6px 12px;
         border-radius: 999px;
-        background: #0f1410;
-        color: #ccd5cf;
-        border: 1px solid #27352b;
+        background: #14171c;
+        color: #c4c9cf;
+        border: 1px solid #3d444e;
         font: 500 13px/1 system-ui, sans-serif;
         text-decoration: none;
       }
       .back:hover {
         color: #fff;
-        border-color: #3b4e42;
+        border-color: #ff462d;
+      }
+      /* TruoCloud red as Scalar's accent, over its neutral base theme. */
+      .scalar-app,
+      .scalar-api-reference {
+        --scalar-color-accent: #ff462d;
       }
     </style>
   </head>
@@ -63,7 +70,9 @@ const title = "API reference · TruoCloud";
       // `createApiReference` is exposed by the standalone bundle on `window.Scalar`.
       window.Scalar.createApiReference("#app", {
         url: "/openapi.json",
-        theme: "purple",
+        // The neutral theme takes the brand accent from the CSS variable
+        // above; the colored built-ins (purple, etc.) are not TruoCloud.
+        theme: "default",
         darkMode: true,
         hideDownloadButton: false,
         metaData: { title: "TruoCloud API" },

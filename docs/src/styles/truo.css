@@ -1,24 +1,92 @@
-/* Truo's palette on top of Starlight's tokens. Only the variables are
-   touched: overriding concrete selectors breaks with every theme update. */
-:root {
-  --sl-color-accent-low: #0c2b18;
-  --sl-color-accent: #21c063;
-  --sl-color-accent-high: #8ee7b3;
+/* TruoCloud brand on top of Starlight's tokens. Palette and type come from the
+   TruoCloud brand kit: brand red #FF462D, ink #14171C, Funnel Sans for body
+   and Funnel Display for headings. Only variables (plus a couple of stable
+   selectors) are touched: overriding deep selectors breaks with every
+   Starlight update. */
 
+/* Funnel Sans (body) and Funnel Display (headings) — variable weight
+   (100–900), self-hosted. Both are published on Google Fonts under the SIL
+   Open Font License 1.1. */
+@font-face {
+  font-family: "Funnel Sans";
+  src: url("/fonts/funnel/FunnelSans-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F;
+}
+@font-face {
+  font-family: "Funnel Sans";
+  src: url("/fonts/funnel/FunnelSans-latin-ext.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-024F;
+}
+@font-face {
+  font-family: "Funnel Display";
+  src: url("/fonts/funnel/FunnelDisplay-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F;
+}
+@font-face {
+  font-family: "Funnel Display";
+  src: url("/fonts/funnel/FunnelDisplay-latin-ext.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-024F;
+}
+
+/* This stylesheet is unlayered, so it wins over Starlight's own `@layer`ed
+   rules regardless of specificity. That's why theme-specific values MUST be
+   scoped to their `data-theme`: a bare `:root` would silently override the
+   other theme's palette too, and the page renders as a light/dark mix. */
+:root {
+  --sl-font: "Funnel Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* Accent: TruoCloud red (both themes; light re-tunes it below). */
+  --sl-color-accent-low: #47130c;
+  --sl-color-accent: #ff462d;
+  --sl-color-accent-high: #ffb4a8;
+}
+
+:root[data-theme="dark"] {
+  /* Neutrals: cool grays derived from the brand's ink (#14171c). */
   --sl-color-white: #ffffff;
-  --sl-color-gray-1: #dfe7e2;
-  --sl-color-gray-2: #c0ccc5;
-  --sl-color-gray-3: #8c9c93;
-  --sl-color-gray-4: #56655c;
-  --sl-color-gray-5: #37453c;
-  --sl-color-gray-6: #212b23;
-  --sl-color-black: #0a0e0b;
+  --sl-color-gray-1: #e8eaed;
+  --sl-color-gray-2: #c4c9cf;
+  --sl-color-gray-3: #8d96a3;
+  --sl-color-gray-4: #5a626d;
+  --sl-color-gray-5: #3d444e;
+  --sl-color-gray-6: #23272e;
+  --sl-color-black: #14171c;
 }
 
 :root[data-theme="light"] {
-  --sl-color-accent-low: #cdf0dc;
-  --sl-color-accent: #10894a;
-  --sl-color-accent-high: #0a3d21;
+  /* The darker brand red: #ff462d on white doesn't pass contrast for text. */
+  --sl-color-accent-low: #ffe0da;
+  --sl-color-accent: #e03418;
+  --sl-color-accent-high: #7c1d0d;
+}
+
+/* Starlight's dark theme paints primary buttons with the pale accent-high;
+   the brand CTA is the red itself, with white text, in both themes. */
+.sl-link-button.primary {
+  background: var(--sl-color-accent);
+  border-color: var(--sl-color-accent);
+  color: #ffffff;
+}
+
+/* Headings carry the display face; the site title comes from the logo SVG. */
+.sl-markdown-content :is(h1, h2, h3, h4, h5),
+.hero h1,
+h1[data-page-title] {
+  font-family: "Funnel Display", var(--sl-font);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 /* The curl/CLI/SDK/MCP tabs are the entire argument of the reference: they

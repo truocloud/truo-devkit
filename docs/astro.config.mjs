@@ -20,6 +20,24 @@ export default defineConfig({
       locales: {
         root: { label: "English", lang: "en" },
       },
+      // Brand assets come from the TruoCloud brand kit; the wordmark replaces
+      // the plain-text title.
+      logo: {
+        light: "./src/assets/logo.svg",
+        dark: "./src/assets/logo-dark.svg",
+        replacesTitle: true,
+      },
+      favicon: "/favicon.svg",
+      head: [
+        {
+          tag: "link",
+          attrs: { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+        },
+      ],
       social: [
         {
           icon: "github",
