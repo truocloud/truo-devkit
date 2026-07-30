@@ -6,11 +6,45 @@ description: How to scope a credential for an AI agent, what x-truo-danger means
 The API is built so an agent can operate it **without being handed the whole
 account**. This page is what you need to know before connecting one.
 
-:::caution[The MCP server doesn't exist yet]
-`truo mcp serve` is under construction. The command exists and tells you so;
-the catalog (`x-truo-mcp`) already ships in the spec. In the meantime, an
-agent can use the API directly with what's below — which you'd need anyway.
-:::
+## The MCP server
+
+The CLI ships an MCP server over stdio. Register it with your client:
+
+```bash
+truo mcp install claude        # Claude Desktop
+truo mcp install claude-code   # prints the `claude mcp add` command
+truo mcp install cursor        # ~/.cursor/mcp.json
+truo mcp install vscode        # .vscode/mcp.json (workspace)
+```
+
+Or run it directly: `truo mcp serve`. Auth is your CLI profile — the token
+never enters the MCP client's config file. What the model gets is **one tool
+per product family** (`truo_vps`, `truo_dns`, …) dispatched by `action`, plus
+four meta-tools: `truo_whoami`, `truo_services`, `truo_operation` and
+`truo_docs`. Families your account doesn't have are not shown at all.
+
+The security model is enforced in the server, never in a prompt:
+
+- **Read-only by default.** Write actions are *omitted from the catalog*
+  unless you start the server with `--allow vps:write,dns:write`. What a
+  model cannot name, a prompt injection cannot request. `--allow '*'` is
+  rejected on purpose.
+- **Destructive actions take two calls.** The first returns a summary and a
+  `confirmation_token` — an HMAC over the exact arguments, 5-minute TTL.
+  Changing any argument invalidates it, so a confirmation obtained for
+  something small can't authorize something big.
+- **Credentials never reach the model.** Secrets in results are replaced by
+  single-use `secret_ref` values that only a human can redeem, on the same
+  machine, with `truo secret reveal sr_…`.
+- **Logs travel marked as data.** Attacker-writable content (container logs
+  and the like) is stripped of ANSI/control/bidi tricks and wrapped in an
+  untrusted-data envelope, capped at 32 KB.
+- **No tool accepts an account id.** The credential decides the tenant,
+  always — and the build fails if the spec ever tries to expose one.
+
+`truo mcp inspect --allow vps:write` prints exactly what a session would
+expose, with a **catalog fingerprint** you can pin: if the surface changes,
+the fingerprint changes.
 
 ## One credential per agent, scoped down
 
@@ -49,9 +83,9 @@ x-truo-mcp: { toolset: vps, action: reinstall, readonly: false }
 ```
 
 `x-truo-danger` is what you should use to decide **where to require human
-confirmation**. The CLI already does: everything marked `destructive` asks
-first, and the same classification will govern the MCP server. One taxonomy
-for both surfaces.
+confirmation**. The CLI asks first on everything marked `destructive`, and
+the MCP server requires its confirmation token for exactly the same set. One
+taxonomy for both surfaces.
 
 **Enforce the gate in your code, not in the prompt.** A prompt that says "ask
 before deleting" is a suggestion; an `if (danger === "destructive")` is a

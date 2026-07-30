@@ -8,7 +8,7 @@ Tools to operate [TruoCloud](https://www.truocloud.com) from code, from the term
 | [`@truocloud/sdk`](packages/sdk) | TypeScript client. **Zero dependencies** | beta |
 | [`@truocloud/cli`](packages/cli) | The `truo` command | beta |
 | [`docs/`](docs) | [docs.truo.cloud](https://docs.truo.cloud) — Astro Starlight + Scalar | beta |
-| `@truocloud/mcp` | MCP server for agents | *(does not exist yet)* |
+| `truo mcp serve` | MCP server for agents, built into the CLI | read-only by default; see the [agents guide](https://docs.truo.cloud/ai-agents/) |
 
 ---
 
@@ -119,7 +119,7 @@ bun run dev        # generates from the spec and starts Astro
 bun run generate   # only the generated parts, for inspection
 ```
 
-From `openapi/v1.json` come: `public/openapi.json` (what Scalar consumes at `/reference`), `public/llms.txt` and `llms-full.txt` (the catalog for agents), and one reference page per family where **every operation appears in its four forms** — curl, CLI, SDK and MCP — all derived from the same `operationId`. That automatic parity *is* the proof of "API-first"; written by hand, three of the four would go stale at the first new endpoint.
+From `openapi/v1.json` come: `public/openapi.json` (what Scalar consumes at `/api`), `public/llms.txt` and `llms-full.txt` (the catalog for agents), and one reference page per family where **every operation appears in its four forms** — curl, CLI, SDK and MCP — all derived from the same `operationId`. That automatic parity *is* the proof of "API-first"; written by hand, three of the four would go stale at the first new endpoint.
 
 It deploys to GitHub Pages on every push to `main` that touches `docs/` or the spec.
 

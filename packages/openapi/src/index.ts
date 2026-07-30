@@ -55,6 +55,18 @@ export interface JsonSchema {
   example?: unknown;
   default?: unknown;
   deprecated?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  minimum?: number;
+  maximum?: number;
+  minItems?: number;
+  maxItems?: number;
+  /**
+   * The generators only read the fields above; anything else the spec carries
+   * (vendor keywords, future validation keywords) must not break the build.
+   */
+  [keyword: string]: unknown;
 }
 
 export interface Parameter {

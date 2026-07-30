@@ -452,20 +452,66 @@ compdef _truo truo`);
   },
 };
 
-const mcp: BuiltinCommand = {
-  path: ["mcp"],
-  summary: "MCP server for AI agents (not available yet)",
+const mcpServeCmd: BuiltinCommand = {
+  path: ["mcp", "serve"],
+  summary: "MCP server on stdio for AI agents (read-only by default)",
+  usage: "truo mcp serve [--allow vps:write,dns:write] [--toolsets vps,dns]",
+  details:
+    "Write actions are OMITTED from the catalog unless their scope is in --allow: what a " +
+    "model cannot name, a prompt injection cannot request. Destructive actions always " +
+    "require a human-approved confirmation token, and credentials come back as secret_ref " +
+    "values only a human can redeem with 'truo secret reveal'.",
+  async run(ctx) {
+    const { mcpServe } = await import("./mcp/command.ts");
+    return mcpServe(ctx);
+  },
+};
+
+const mcpInspectCmd: BuiltinCommand = {
+  path: ["mcp", "inspect"],
+  summary: "Print the MCP catalog a session would expose, with its fingerprint",
+  usage: "truo mcp inspect [--allow …] [--toolsets …]",
   anonymous: true,
-  async run() {
-    // Declared and failing rather than absent: a missing command makes people think
-    // their CLI version is old. A command that exists and says "not yet" is information.
-    throw new CliError(
-      "The MCP server is not implemented yet.",
-      EXIT.USAGE,
-      "It is phase 4 of the devkit. In the meantime, an agent can use the API directly: " +
-        "the OpenAPI spec is at https://api.truo.cloud/v1/openapi.json and describes every " +
-        "operation with its toolset, its action, and whether it is read-only.",
-    );
+  async run(ctx) {
+    const { mcpInspect } = await import("./mcp/command.ts");
+    return mcpInspect(ctx);
+  },
+};
+
+const mcpInstallCmd: BuiltinCommand = {
+  path: ["mcp", "install"],
+  summary: "Register the server with an MCP client",
+  usage: "truo mcp install <claude|claude-code|cursor|vscode> [--allow …]",
+  anonymous: true,
+  async run(ctx) {
+    const { mcpInstall } = await import("./mcp/command.ts");
+    return mcpInstall(ctx);
+  },
+};
+
+const secretReveal: BuiltinCommand = {
+  path: ["secret", "reveal"],
+  summary: "Redeem a secret_ref produced by the MCP server (single use, 15 min TTL)",
+  usage: "truo secret reveal <sr_…>",
+  anonymous: true,
+  async run(ctx) {
+    const ref = ctx.positionals[0];
+    if (!ref || !ref.startsWith("sr_")) {
+      throw new CliError("Which ref?", EXIT.USAGE, "Usage: truo secret reveal <sr_…>");
+    }
+    const { revealSecretRef } = await import("./mcp/scrub.ts");
+    const value = revealSecretRef(ref);
+    if (value === null) {
+      throw new CliError(
+        "That ref does not exist, expired, or was already revealed.",
+        EXIT.NOT_FOUND,
+        "Refs are single-use and live 15 minutes. Re-run the action that produced it.",
+      );
+    }
+    // The value goes to stdout alone so it can be piped; the warning goes to stderr.
+    info("This ref is now consumed. Store the value where it belongs.");
+    out(value);
+    return EXIT.OK;
   },
 };
 
@@ -478,5 +524,8 @@ export const BUILTINS: BuiltinCommand[] = [
   configSet,
   apiRaw,
   completion,
-  mcp,
+  mcpServeCmd,
+  mcpInspectCmd,
+  mcpInstallCmd,
+  secretReveal,
 ];
