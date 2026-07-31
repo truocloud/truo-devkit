@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 109 commands derived from the spec. */
+/** The 122 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -3052,6 +3052,341 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     "path": [
+      "serverless",
+      "cron",
+      "get"
+    ],
+    "operationId": "serverless.cron.get",
+    "summary": "Get the account's Cron Jobs",
+    "description": "It takes no id: there is one Cron tenant per account. Returns the plan, its limits, how many schedules exist, and the month's executions. Schedules themselves are managed against the service's data plane with the tenant token.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "serverless",
+      "cron",
+      "key",
+      "rotate"
+    ],
+    "operationId": "serverless.cron.keys.rotate",
+    "summary": "Rotate the Cron token",
+    "description": "Issues a new `crt_…` token and returns it, exactly once. With `grace_seconds` the previous token keeps working that long; with `0` (the default) it dies immediately. Schedules keep firing through a rotation — the token only authenticates management.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "grace-seconds",
+        "key": "grace_seconds",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "How long the previous token stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately."
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "cron",
+      "usage"
+    ],
+    "operationId": "serverless.cron.usage.get",
+    "summary": "Get the Cron period's usage and billable line",
+    "description": "Webhook executions against the plan for the period, the overage, the total in USD, and the daily series. On the free plan, deliveries past the quota are skipped (visible in the execution log) instead of billed.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "period",
+        "key": "period",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "days",
+        "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "db",
+      "get"
+    ],
+    "operationId": "serverless.db.get",
+    "summary": "Get the account's Serverless DB",
+    "description": "It takes no id: there is one Serverless DB tenant per account. Returns the plan, its limits, the live namespaces and the month's usage. **This is not DBaaS** (`/v1/databases`, managed database VMs): this is the serverless SQL primitive, D1-compatible, one SQLite database per namespace.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "serverless",
+      "db",
+      "key",
+      "rotate"
+    ],
+    "operationId": "serverless.db.keys.rotate",
+    "summary": "Rotate the DB token",
+    "description": "Issues a new `dbt_…` token and returns it, exactly once. With `grace_seconds` the previous token keeps working that long — rotate with a grace window and redeploy your apps before it closes, or every query they run dies at the instant of rotation.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "grace-seconds",
+        "key": "grace_seconds",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "How long the previous token stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately."
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "db",
+      "usage"
+    ],
+    "operationId": "serverless.db.usage.get",
+    "summary": "Get the DB period's usage and billable line",
+    "description": "Rows read/written and the storage peak against the plan for the period, the overage, the total in USD, and the daily series. `exec` (multi-statement DDL) does not report rows and is not metered, same as D1.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "period",
+        "key": "period",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "days",
+        "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "functions",
+      "get"
+    ],
+    "operationId": "serverless.functions.get",
+    "summary": "Get the account's Serverless Functions",
+    "description": "It takes no id: there is one Functions tenant per account. Returns the plan, its limits, how many functions are deployed, and the month's invocations. Deploys and invocations go through the service's data plane, not this API.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "serverless",
+      "functions",
+      "key",
+      "rotate"
+    ],
+    "operationId": "serverless.functions.keys.rotate",
+    "summary": "Rotate the Functions token",
+    "description": "Issues a new `fnt_…` token and returns it, exactly once. With `grace_seconds` the previous token keeps working that long. Deployed functions keep serving through a rotation — the token only authenticates deploys and management, not the public invocation URLs.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "grace-seconds",
+        "key": "grace_seconds",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "How long the previous token stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately."
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "functions",
+      "usage"
+    ],
+    "operationId": "serverless.functions.usage.get",
+    "summary": "Get the Functions period's usage and billable line",
+    "description": "Invocations, errors and total execution time against the plan for the period, the overage, the total in USD, and the daily series.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "period",
+        "key": "period",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "days",
+        "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "kv",
+      "get"
+    ],
+    "operationId": "serverless.kv.get",
+    "summary": "Get the account's Serverless KV",
+    "description": "It takes no id: there is one KV tenant per account. Returns the plan, its limits, and the month's usage. If the account does not have the service, it returns 404.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "serverless",
+      "kv",
+      "key",
+      "create"
+    ],
+    "operationId": "serverless.kv.keys.create",
+    "summary": "Create an additional KV token",
+    "description": "Mints a new `kvt_…` token **without invalidating the existing ones** — KV is the only primitive that supports several live tokens per tenant (one per app or environment). The token is returned exactly once: only its hash is stored.\n\nIt does not work against this API: it authenticates the data plane at `{api_endpoint}/v1/ns/…`. It requires `serverless:keys` because holding it **is** the ability to read, write and bill against the account's tenant.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "serverless",
+      "kv",
+      "key",
+      "rotate"
+    ],
+    "operationId": "serverless.kv.keys.rotate",
+    "summary": "Rotate the KV tokens",
+    "description": "Issues a new token and returns it. **All** previous tokens of the tenant are affected: with `grace_seconds` they keep working that long; with `0` (the default) they die immediately. There is no going back.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "grace-seconds",
+        "key": "grace_seconds",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "How long the previous token stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately."
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "kv",
+      "usage"
+    ],
+    "operationId": "serverless.kv.usage.get",
+    "summary": "Get the KV period's usage and billable line",
+    "description": "Reads, writes and the storage peak against the plan for the period, the overage, the total in USD, and the daily series. On a hard-capped plan (`included.hard_cap`) the overage is never billed: the service stops at the quota instead.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "period",
+        "key": "period",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "days",
+        "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
       "services",
       "get"
     ],
@@ -3119,6 +3454,7 @@ export const COMMANDS: CommandSpec[] = [
           "objectstorage",
           "mailgateway",
           "images",
+          "serverless",
           "other"
         ]
       }

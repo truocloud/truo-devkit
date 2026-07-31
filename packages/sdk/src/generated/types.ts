@@ -130,7 +130,7 @@ export type Service = {
   /**
    * The service's family. It determines which resource manages it. `other` is a real product in the account that has no dedicated resource in v1 yet.
    */
-  family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "other";
+  family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "serverless" | "other";
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   /** The product's name in the catalog. */
   name: string | null;
@@ -1274,6 +1274,269 @@ export type ImageSigningSecret = {
   previous_valid_until: string | null;
 };
 
+export type ServerlessKv = {
+  object: "serverless_kv";
+  id: string;
+  status: "active" | "suspended" | "deleted" | "unknown";
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  /**
+   * The data plane. Keys are read and written against `{api_endpoint}/v1/ns/{namespace}/keys/{key}` with a token from `POST /v1/serverless/kv/keys`. Data does NOT go through this API.
+   */
+  api_endpoint: string;
+  limits: {
+    reads_month: number;
+    writes_month: number;
+    storage_gb: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  usage_month: {
+    /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+    period: string;
+    reads: number;
+    writes: number;
+    /** The month's storage peak, sampled daily. */
+    storage_bytes: number;
+  };
+};
+
+export type ServerlessKvUsage = {
+  object: "serverless_kv_usage";
+  /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+  period: string;
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  usage: {
+    reads: number;
+    writes: number;
+    storage_bytes: number;
+  };
+  included: {
+    base_usd: number;
+    reads: number;
+    writes: number;
+    storage_gb: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  overage: {
+    reads: number;
+    writes: number;
+    storage_gb: number;
+    amount_usd: number;
+  };
+  /** Base + overage for the period, in USD. */
+  total_usd: number;
+  /** Daily series, oldest first. */
+  series: ({
+    /** UTC day, `YYYY-MM-DD`. */
+    day: string;
+    reads: number;
+    writes: number;
+  })[];
+};
+
+export type ServerlessKey = {
+  object: "serverless_key";
+  service: "kv" | "cron" | "db" | "functions";
+  /**
+   * The full tenant token (`kvt_…`/`crt_…`/`dbt_…`/`fnt_…`), **exactly once**: only its hash is stored, so there is no way to show it again. It authenticates the data plane of that service's `api_endpoint`, never this API.
+   */
+  token: string;
+  api_endpoint: string;
+};
+
+export type ServerlessRotateRequest = {
+  /**
+   * How long the previous token stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately.
+   */
+  grace_seconds?: number;
+};
+
+export type ServerlessCron = {
+  object: "serverless_cron";
+  id: string;
+  status: "active" | "suspended" | "deleted" | "unknown";
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  /**
+   * The data plane. Schedules are managed against `{api_endpoint}/v1/schedules` with a token from `POST /v1/serverless/cron/keys/rotate`. Scheduling does NOT go through this API.
+   */
+  api_endpoint: string;
+  schedule_count: number;
+  limits: {
+    max_schedules: number;
+    executions_month: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  usage_month: {
+    /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+    period: string;
+    /** Webhook deliveries fired this month (successful or failed). */
+    executions: number;
+    failures: number;
+  };
+};
+
+export type ServerlessCronUsage = {
+  object: "serverless_cron_usage";
+  /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+  period: string;
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  usage: {
+    executions: number;
+    failures: number;
+  };
+  included: {
+    base_usd: number;
+    executions: number;
+    max_schedules: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  overage: {
+    executions: number;
+    amount_usd: number;
+  };
+  total_usd: number;
+  /** Daily series, oldest first. */
+  series: ({
+    /** UTC day, `YYYY-MM-DD`. */
+    day: string;
+    executions: number;
+    failures: number;
+  })[];
+};
+
+export type ServerlessDb = {
+  object: "serverless_db";
+  id: string;
+  status: "active" | "suspended" | "deleted" | "unknown";
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  /**
+   * The data plane. SQL runs against `{api_endpoint}/v1/db/{namespace}/query` (D1-compatible) with a token from `POST /v1/serverless/db/keys/rotate`. Queries do NOT go through this API.
+   */
+  api_endpoint: string;
+  /** The live databases. A namespace is created lazily by its first query. */
+  namespaces: string[];
+  limits: {
+    max_namespaces: number;
+    rows_read_month: number;
+    rows_written_month: number;
+    storage_gb: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  usage_month: {
+    /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+    period: string;
+    rows_read: number;
+    rows_written: number;
+    /** The month's storage peak, sampled daily. */
+    storage_bytes: number;
+  };
+};
+
+export type ServerlessDbUsage = {
+  object: "serverless_db_usage";
+  /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+  period: string;
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  usage: {
+    rows_read: number;
+    rows_written: number;
+    storage_bytes: number;
+  };
+  included: {
+    base_usd: number;
+    rows_read: number;
+    rows_written: number;
+    storage_gb: number;
+    max_namespaces: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  overage: {
+    rows_read: number;
+    rows_written: number;
+    storage_gb: number;
+    amount_usd: number;
+  };
+  total_usd: number;
+  /** Daily series, oldest first. */
+  series: ({
+    /** UTC day, `YYYY-MM-DD`. */
+    day: string;
+    rows_read: number;
+    rows_written: number;
+  })[];
+};
+
+export type ServerlessFunctions = {
+  object: "serverless_functions";
+  id: string;
+  status: "active" | "suspended" | "deleted" | "unknown";
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  /**
+   * The data plane. Functions are deployed against `{api_endpoint}/v1/functions` (the Workers fetch contract) with a token from `POST /v1/serverless/functions/keys/rotate`, and invoked at their public `{api_endpoint}/f/{slug}` URL. Neither goes through this API.
+   */
+  api_endpoint: string;
+  function_count: number;
+  limits: {
+    max_functions: number;
+    invocations_month: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  usage_month: {
+    /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+    period: string;
+    invocations: number;
+    errors: number;
+    /** Total execution time this month, in milliseconds. */
+    duration_ms: number;
+  };
+};
+
+export type ServerlessFunctionsUsage = {
+  object: "serverless_functions_usage";
+  /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+  period: string;
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  usage: {
+    invocations: number;
+    errors: number;
+    duration_ms: number;
+  };
+  included: {
+    base_usd: number;
+    invocations: number;
+    max_functions: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  overage: {
+    invocations: number;
+    amount_usd: number;
+  };
+  total_usd: number;
+  /** Daily series, oldest first. */
+  series: ({
+    /** UTC day, `YYYY-MM-DD`. */
+    day: string;
+    invocations: number;
+    errors: number;
+    duration_ms: number;
+  })[];
+};
+
 /** Query parameters of `GET /v1/api-keys`. */
 export type ApiKeysListQuery = {
   limit?: string;
@@ -1630,11 +1893,35 @@ export type OperationsListQuery = {
   cursor?: string;
 };
 
+/** Query parameters of `GET /v1/serverless/cron/usage`. */
+export type ServerlessCronUsageGetQuery = {
+  period?: string;
+  days?: string;
+};
+
+/** Query parameters of `GET /v1/serverless/db/usage`. */
+export type ServerlessDbUsageGetQuery = {
+  period?: string;
+  days?: string;
+};
+
+/** Query parameters of `GET /v1/serverless/functions/usage`. */
+export type ServerlessFunctionsUsageGetQuery = {
+  period?: string;
+  days?: string;
+};
+
+/** Query parameters of `GET /v1/serverless/kv/usage`. */
+export type ServerlessKvUsageGetQuery = {
+  period?: string;
+  days?: string;
+};
+
 /** Query parameters of `GET /v1/services`. */
 export type ServicesListQuery = {
   limit?: string;
   cursor?: string;
-  family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "other";
+  family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "serverless" | "other";
 };
 
 /** Body of `POST /v1/vps/{id}/backups`. */

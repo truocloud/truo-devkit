@@ -1141,6 +1141,142 @@ export function createResources(call: Call, paginate: Paginate) {
           "operations.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
         ),
     },
+    serverless: {
+      cron: {
+        /**
+         * Get the account's Cron Jobs
+         * It takes no id: there is one Cron tenant per account. Returns the plan, its limits, how many schedules exist, and the month's executions. Schedules themselves are managed against the service's data plane with the tenant token.
+         * 
+         * Scope: `serverless:read`
+         */
+        get: (params?: RequestOptions) =>
+          call<T.ServerlessCron>("serverless.cron.get", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        keys: {
+          /**
+           * Rotate the Cron token
+           * Issues a new `crt_…` token and returns it, exactly once. With `grace_seconds` the previous token keeps working that long; with `0` (the default) it dies immediately. Schedules keep firing through a rotation — the token only authenticates management.
+           * 
+           * Scope: `serverless:keys`
+           * **Destructive: there is no undo.**
+           */
+          rotate: (body?: T.ServerlessRotateRequest, params?: RequestOptions) =>
+            call<T.ServerlessKey>("serverless.cron.keys.rotate", { path: undefined, body: body, queryKeys: undefined, params }),
+        },
+        usage: {
+          /**
+           * Get the Cron period's usage and billable line
+           * Webhook executions against the plan for the period, the overage, the total in USD, and the daily series. On the free plan, deliveries past the quota are skipped (visible in the execution log) instead of billed.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessCronUsageGetQuery & RequestOptions) =>
+            call<T.ServerlessCronUsage>("serverless.cron.usage.get", { path: undefined, body: undefined, queryKeys: ["period", "days"], params }),
+        },
+      },
+      db: {
+        /**
+         * Get the account's Serverless DB
+         * It takes no id: there is one Serverless DB tenant per account. Returns the plan, its limits, the live namespaces and the month's usage. **This is not DBaaS** (`/v1/databases`, managed database VMs): this is the serverless SQL primitive, D1-compatible, one SQLite database per namespace.
+         * 
+         * Scope: `serverless:read`
+         */
+        get: (params?: RequestOptions) =>
+          call<T.ServerlessDb>("serverless.db.get", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        keys: {
+          /**
+           * Rotate the DB token
+           * Issues a new `dbt_…` token and returns it, exactly once. With `grace_seconds` the previous token keeps working that long — rotate with a grace window and redeploy your apps before it closes, or every query they run dies at the instant of rotation.
+           * 
+           * Scope: `serverless:keys`
+           * **Destructive: there is no undo.**
+           */
+          rotate: (body?: T.ServerlessRotateRequest, params?: RequestOptions) =>
+            call<T.ServerlessKey>("serverless.db.keys.rotate", { path: undefined, body: body, queryKeys: undefined, params }),
+        },
+        usage: {
+          /**
+           * Get the DB period's usage and billable line
+           * Rows read/written and the storage peak against the plan for the period, the overage, the total in USD, and the daily series. `exec` (multi-statement DDL) does not report rows and is not metered, same as D1.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessDbUsageGetQuery & RequestOptions) =>
+            call<T.ServerlessDbUsage>("serverless.db.usage.get", { path: undefined, body: undefined, queryKeys: ["period", "days"], params }),
+        },
+      },
+      functions: {
+        /**
+         * Get the account's Serverless Functions
+         * It takes no id: there is one Functions tenant per account. Returns the plan, its limits, how many functions are deployed, and the month's invocations. Deploys and invocations go through the service's data plane, not this API.
+         * 
+         * Scope: `serverless:read`
+         */
+        get: (params?: RequestOptions) =>
+          call<T.ServerlessFunctions>("serverless.functions.get", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        keys: {
+          /**
+           * Rotate the Functions token
+           * Issues a new `fnt_…` token and returns it, exactly once. With `grace_seconds` the previous token keeps working that long. Deployed functions keep serving through a rotation — the token only authenticates deploys and management, not the public invocation URLs.
+           * 
+           * Scope: `serverless:keys`
+           * **Destructive: there is no undo.**
+           */
+          rotate: (body?: T.ServerlessRotateRequest, params?: RequestOptions) =>
+            call<T.ServerlessKey>("serverless.functions.keys.rotate", { path: undefined, body: body, queryKeys: undefined, params }),
+        },
+        usage: {
+          /**
+           * Get the Functions period's usage and billable line
+           * Invocations, errors and total execution time against the plan for the period, the overage, the total in USD, and the daily series.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessFunctionsUsageGetQuery & RequestOptions) =>
+            call<T.ServerlessFunctionsUsage>("serverless.functions.usage.get", { path: undefined, body: undefined, queryKeys: ["period", "days"], params }),
+        },
+      },
+      kv: {
+        /**
+         * Get the account's Serverless KV
+         * It takes no id: there is one KV tenant per account. Returns the plan, its limits, and the month's usage. If the account does not have the service, it returns 404.
+         * 
+         * Scope: `serverless:read`
+         */
+        get: (params?: RequestOptions) =>
+          call<T.ServerlessKv>("serverless.kv.get", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        keys: {
+          /**
+           * Create an additional KV token
+           * Mints a new `kvt_…` token **without invalidating the existing ones** — KV is the only primitive that supports several live tokens per tenant (one per app or environment). The token is returned exactly once: only its hash is stored.
+           * 
+           * It does not work against this API: it authenticates the data plane at `{api_endpoint}/v1/ns/…`. It requires `serverless:keys` because holding it **is** the ability to read, write and bill against the account's tenant.
+           * 
+           * Scope: `serverless:keys`
+           */
+          create: (params?: RequestOptions) =>
+            call<T.ServerlessKey>("serverless.kv.keys.create", { path: undefined, body: undefined, queryKeys: undefined, params }),
+          /**
+           * Rotate the KV tokens
+           * Issues a new token and returns it. **All** previous tokens of the tenant are affected: with `grace_seconds` they keep working that long; with `0` (the default) they die immediately. There is no going back.
+           * 
+           * Scope: `serverless:keys`
+           * **Destructive: there is no undo.**
+           */
+          rotate: (body?: T.ServerlessRotateRequest, params?: RequestOptions) =>
+            call<T.ServerlessKey>("serverless.kv.keys.rotate", { path: undefined, body: body, queryKeys: undefined, params }),
+        },
+        usage: {
+          /**
+           * Get the KV period's usage and billable line
+           * Reads, writes and the storage peak against the plan for the period, the overage, the total in USD, and the daily series. On a hard-capped plan (`included.hard_cap`) the overage is never billed: the service stops at the quota instead.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessKvUsageGetQuery & RequestOptions) =>
+            call<T.ServerlessKvUsage>("serverless.kv.usage.get", { path: undefined, body: undefined, queryKeys: ["period", "days"], params }),
+        },
+      },
+    },
     services: {
       /**
        * Get a service
