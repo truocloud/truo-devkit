@@ -568,6 +568,7 @@
               "lb",
               "objectstorage",
               "mailgateway",
+              "images",
               "other"
             ],
             "description": "The service's family. It determines which resource manages it. `other` is a real product in the account that has no dedicated resource in v1 yet."
@@ -4600,6 +4601,351 @@
           "config_set",
           "password"
         ]
+      },
+      "ImageUsage": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "image_usage"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "description": "The UTC calendar month, `YYYY-MM`. It is the period that gets billed.",
+            "example": "2026-07"
+          },
+          "transformations": {
+            "type": "integer",
+            "description": "Cache misses served: real CPU work by the engine. Cached hits do not count here."
+          },
+          "deliveries": {
+            "type": "integer",
+            "description": "Images delivered (hits + misses)."
+          },
+          "bytes_out": {
+            "type": "integer",
+            "description": "Egress traffic, in bytes."
+          },
+          "errors": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "object",
+          "period",
+          "transformations",
+          "deliveries",
+          "bytes_out",
+          "errors"
+        ]
+      },
+      "ImageServices": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "image_services"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "example": "img3f9a2b1c4d5e"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended",
+              "deleted",
+              "unknown"
+            ]
+          },
+          "tier": {
+            "type": "string",
+            "description": "The plan. `free` has a hard cap: the service stops at the quota.",
+            "example": "free"
+          },
+          "api_endpoint": {
+            "type": "string",
+            "description": "The delivery plane. Transformations are requested against `{api_endpoint}/v1/img?url=…` with a token from `POST /v1/images/keys`, and signed URLs are served from `{api_endpoint}/s/…`. Delivery does NOT go through this API.",
+            "example": "https://img.truo.cloud"
+          },
+          "origin_count": {
+            "type": "integer",
+            "description": "Origins in the allowlist. **Zero means nothing is served**: the allowlist is fail-closed by design."
+          },
+          "usage_month": {
+            "$ref": "#/components/schemas/ImageUsage"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "status",
+          "tier",
+          "api_endpoint",
+          "origin_count",
+          "usage_month",
+          "created_at"
+        ]
+      },
+      "ImageUsageReport": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "image_usage_report"
+            ]
+          },
+          "period": {
+            "type": "string",
+            "example": "2026-07"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/ImageUsage"
+          },
+          "included": {
+            "type": "object",
+            "properties": {
+              "base_usd": {
+                "type": "number",
+                "description": "The base monthly price of the plan, in USD."
+              },
+              "transformations": {
+                "type": "integer"
+              },
+              "deliveries": {
+                "type": "integer"
+              },
+              "bytes_gb": {
+                "type": "number"
+              },
+              "hard_cap": {
+                "type": "boolean",
+                "description": "true = the plan stops serving at the quota instead of billing overage (the free plan)."
+              }
+            },
+            "required": [
+              "base_usd",
+              "transformations",
+              "deliveries",
+              "bytes_gb",
+              "hard_cap"
+            ],
+            "description": "What the plan's quota includes."
+          },
+          "overage": {
+            "type": "object",
+            "properties": {
+              "transformations": {
+                "type": "integer"
+              },
+              "deliveries": {
+                "type": "integer"
+              },
+              "bytes_gb": {
+                "type": "number"
+              },
+              "amount_usd": {
+                "type": "number",
+                "description": "What the overage adds to the invoice, in USD."
+              }
+            },
+            "required": [
+              "transformations",
+              "deliveries",
+              "bytes_gb",
+              "amount_usd"
+            ],
+            "description": "Consumption beyond the quota."
+          },
+          "total_usd": {
+            "type": "number",
+            "description": "Base + overage for the period, in USD."
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "description": "UTC day, `YYYY-MM-DD`.",
+                  "example": "2026-07-30"
+                },
+                "transformations": {
+                  "type": "integer"
+                },
+                "deliveries": {
+                  "type": "integer"
+                },
+                "bytes_out": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "day",
+                "transformations",
+                "deliveries",
+                "bytes_out"
+              ]
+            },
+            "description": "Daily series, oldest first."
+          }
+        },
+        "required": [
+          "object",
+          "period",
+          "tier",
+          "usage",
+          "included",
+          "overage",
+          "total_usd",
+          "series"
+        ]
+      },
+      "ImageOrigin": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "image_origin"
+            ]
+          },
+          "pattern": {
+            "type": "string",
+            "example": "images.example.com"
+          }
+        },
+        "required": [
+          "object",
+          "pattern"
+        ]
+      },
+      "ImageOriginList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImageOrigin"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "ImageOriginCreate": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "description": "A hostname (`images.example.com`) or a wildcard for its subdomains (`*.example.com`). Lowercased on save.",
+            "example": "images.example.com"
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      },
+      "ImageKey": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "image_key"
+            ]
+          },
+          "token": {
+            "type": "string",
+            "description": "The full `imgt_…` token, **exactly once**: only its hash is stored, so there is no way to show it again. It authenticates the delivery plane (`GET {api_endpoint}/v1/img` and `POST {api_endpoint}/v1/sign`), never this API."
+          },
+          "api_endpoint": {
+            "type": "string",
+            "example": "https://img.truo.cloud"
+          }
+        },
+        "required": [
+          "object",
+          "token",
+          "api_endpoint"
+        ]
+      },
+      "ImageRotateRequest": {
+        "type": "object",
+        "properties": {
+          "grace_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800,
+            "description": "How long the previous credential stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately.",
+            "example": 3600
+          }
+        }
+      },
+      "ImageSigningSecret": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "image_signing_secret"
+            ]
+          },
+          "secret": {
+            "type": "string",
+            "description": "The per-tenant HMAC-SHA256 secret that signs delivery URLs. It belongs on your server, **never in the browser**: anyone holding it can mint URLs that serve — and bill — through your tenant."
+          },
+          "previous_valid_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "After a rotation with `grace_seconds`, until when URLs signed with the previous secret keep working. `null` outside a grace window."
+          }
+        },
+        "required": [
+          "object",
+          "secret",
+          "previous_valid_until"
+        ]
       }
     },
     "parameters": {}
@@ -5418,6 +5764,7 @@
                 "lb",
                 "objectstorage",
                 "mailgateway",
+                "images",
                 "other"
               ],
               "description": "The service's family. It determines which resource manages it. `other` is a real product in the account that has no dedicated resource in v1 yet."
@@ -18649,6 +18996,1116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MailGatewaySmtpCredentials"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images": {
+      "get": {
+        "operationId": "images.tenant.get",
+        "summary": "Get the account's Image Services",
+        "description": "It takes no id: there is one Image Services tenant per account. Returns the plan, the month's usage, and how many origins are allowed. `origin_count: 0` means nothing is served yet — the allowlist is fail-closed. If the account does not have the service, it returns 404.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "images get"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "get",
+          "readonly": true
+        },
+        "responses": {
+          "200": {
+            "description": "The Image Services.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageServices"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/usage": {
+      "get": {
+        "operationId": "images.usage.get",
+        "summary": "Get the period's usage and billable line",
+        "description": "Consumption against the plan for the period: transformations (cache misses — real CPU work), deliveries, egress bytes, what the quota includes, the overage, and the total in USD. Includes the daily series. On a hard-capped plan (`included.hard_cap`) the overage is never billed: the service stops at the quota instead.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "images usage"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "usage",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "description": "UTC calendar month, `YYYY-MM`. Defaults to the current month.",
+              "example": "2026-07"
+            },
+            "required": false,
+            "name": "period",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "How many days of the daily series to return, 1–90. Defaults to 30.",
+              "example": "30"
+            },
+            "required": false,
+            "name": "days",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The period's usage report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageUsageReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/origins": {
+      "get": {
+        "operationId": "images.origins.list",
+        "summary": "List the origin allowlist",
+        "description": "The hostnames the service is allowed to fetch from. **Fail-closed**: an empty allowlist serves nothing, on purpose — an open image proxy is an attack tool.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "images origin list"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "origin_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "1–100. Defaults to 25.",
+              "example": "25"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor from `next_cursor`."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The allowed origins.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOriginList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "images.origins.add",
+        "summary": "Allow an origin",
+        "description": "Adds a hostname (`images.example.com`) or a wildcard (`*.example.com`) to the allowlist. Idempotent: re-adding an existing pattern changes nothing. Each plan caps how many origins it can hold; past the cap this returns `quota_exceeded`.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "images origin add",
+          "positional": [
+            "pattern"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "origin_add",
+          "readonly": false
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageOriginCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The allowed origin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageOrigin"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/origins/{pattern}": {
+      "delete": {
+        "operationId": "images.origins.remove",
+        "summary": "Remove an origin",
+        "description": "Stops serving from that origin immediately. Reversible: adding the pattern back restores it. If it was the last origin, the tenant serves nothing until one is added — the allowlist is fail-closed.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "images origin remove",
+          "positional": [
+            "pattern"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "origin_remove",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The origin pattern exactly as it was added. URL-encode it: `*.example.com` becomes `%2A.example.com`.",
+              "example": "cdn.example.com"
+            },
+            "required": true,
+            "name": "pattern",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Origin removed."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/keys": {
+      "post": {
+        "operationId": "images.keys.create",
+        "summary": "Create a delivery token",
+        "description": "Returns the full `imgt_…` token, **exactly once**: only its hash is stored, so there is no way to show it again. If it is lost, rotate or mint another.\n\nThis token **does not work against this API**: it authenticates the delivery plane — `GET {api_endpoint}/v1/img?url=…` for transformations and `POST {api_endpoint}/v1/sign` to sign URLs. Delivery deliberately does not go through `api.truo.cloud`: one extra hop on every `<img>` of every page is one extra failure mode.\n\nIt requires `images:keys` rather than `images:write` because holding this token **is** the ability to serve — and bill — traffic through the account's tenant.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:keys",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "images key create"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "key_create",
+          "readonly": false
+        },
+        "responses": {
+          "201": {
+            "description": "The new token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/keys/rotate": {
+      "post": {
+        "operationId": "images.keys.rotate",
+        "summary": "Rotate the delivery token",
+        "description": "Issues a new token and returns it. With `grace_seconds`, the previous token keeps working that long, so servers holding it do not fail at the instant of rotation; with `0` (the default) it dies immediately. There is no going back: the old token cannot be reactivated.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:keys",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "images key rotate"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "key_rotate",
+          "readonly": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageRotateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The new token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/signing-secret": {
+      "post": {
+        "operationId": "images.signing.reveal",
+        "summary": "Reveal the URL-signing secret",
+        "description": "Returns the per-tenant HMAC-SHA256 secret that signs delivery URLs. **It is a POST on purpose, even though it changes nothing**: a GET that returns a secret lands in browser history, in any proxy's cache, and in yesterday's `curl`. A POST forces a deliberate action, is not cacheable, and enters the audit log as a mutation.\n\nThe secret is recoverable (stored, not hashed) because your server needs it whole to sign every URL it emits. It belongs on the server, **never in the browser**: anyone holding it can mint URLs that serve — and bill — through your tenant. If it was compromised, rotate it with `POST /v1/images/signing-secret/rotate`.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:keys",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "images signing reveal"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "signing_reveal",
+          "readonly": false
+        },
+        "responses": {
+          "200": {
+            "description": "The secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageSigningSecret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/images/signing-secret/rotate": {
+      "post": {
+        "operationId": "images.signing.rotate",
+        "summary": "Rotate the URL-signing secret",
+        "description": "Issues a new secret and returns it. URLs signed with the previous secret keep working until `previous_valid_until` (per `grace_seconds`) — without a grace window, every `<img>` already rendered in your pages would break at the instant of rotation. Re-sign and redeploy before the window closes.",
+        "tags": [
+          "Image Services"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "images:keys",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "images signing rotate"
+        },
+        "x-truo-mcp": {
+          "toolset": "images",
+          "action": "signing_rotate",
+          "readonly": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageRotateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The new secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageSigningSecret"
                 }
               }
             }

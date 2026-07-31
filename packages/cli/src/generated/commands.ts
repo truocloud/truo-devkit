@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 100 commands derived from the spec. */
+/** The 109 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -1672,6 +1672,230 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     "path": [
+      "images",
+      "key",
+      "create"
+    ],
+    "operationId": "images.keys.create",
+    "summary": "Create a delivery token",
+    "description": "Returns the full `imgt_…` token, **exactly once**: only its hash is stored, so there is no way to show it again. If it is lost, rotate or mint another.\n\nThis token **does not work against this API**: it authenticates the delivery plane — `GET {api_endpoint}/v1/img?url=…` for transformations and `POST {api_endpoint}/v1/sign` to sign URLs. Delivery deliberately does not go through `api.truo.cloud`: one extra hop on every `<img>` of every page is one extra failure mode.\n\nIt requires `images:keys` rather than `images:write` because holding this token **is** the ability to serve — and bill — traffic through the account's tenant.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "images",
+      "key",
+      "rotate"
+    ],
+    "operationId": "images.keys.rotate",
+    "summary": "Rotate the delivery token",
+    "description": "Issues a new token and returns it. With `grace_seconds`, the previous token keeps working that long, so servers holding it do not fail at the instant of rotation; with `0` (the default) it dies immediately. There is no going back: the old token cannot be reactivated.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "grace-seconds",
+        "key": "grace_seconds",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "How long the previous credential stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately."
+      }
+    ]
+  },
+  {
+    "path": [
+      "images",
+      "origin",
+      "add"
+    ],
+    "operationId": "images.origins.add",
+    "summary": "Allow an origin",
+    "description": "Adds a hostname (`images.example.com`) or a wildcard (`*.example.com`) to the allowlist. Idempotent: re-adding an existing pattern changes nothing. Each plan caps how many origins it can hold; past the cap this returns `quota_exceeded`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "pattern",
+        "in": "body",
+        "key": "pattern",
+        "required": true,
+        "type": "string",
+        "description": "A hostname (`images.example.com`) or a wildcard for its subdomains (`*.example.com`). Lowercased on save."
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "images",
+      "origin",
+      "list"
+    ],
+    "operationId": "images.origins.list",
+    "summary": "List the origin allowlist",
+    "description": "The hostnames the service is allowed to fetch from. **Fail-closed**: an empty allowlist serves nothing, on purpose — an open image proxy is an attack tool.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "images",
+      "origin",
+      "remove"
+    ],
+    "operationId": "images.origins.remove",
+    "summary": "Remove an origin",
+    "description": "Stops serving from that origin immediately. Reversible: adding the pattern back restores it. If it was the last origin, the tenant serves nothing until one is added — the allowlist is fail-closed.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "pattern",
+        "in": "path",
+        "key": "pattern",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "images",
+      "signing",
+      "reveal"
+    ],
+    "operationId": "images.signing.reveal",
+    "summary": "Reveal the URL-signing secret",
+    "description": "Returns the per-tenant HMAC-SHA256 secret that signs delivery URLs. **It is a POST on purpose, even though it changes nothing**: a GET that returns a secret lands in browser history, in any proxy's cache, and in yesterday's `curl`. A POST forces a deliberate action, is not cacheable, and enters the audit log as a mutation.\n\nThe secret is recoverable (stored, not hashed) because your server needs it whole to sign every URL it emits. It belongs on the server, **never in the browser**: anyone holding it can mint URLs that serve — and bill — through your tenant. If it was compromised, rotate it with `POST /v1/images/signing-secret/rotate`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "images",
+      "signing",
+      "rotate"
+    ],
+    "operationId": "images.signing.rotate",
+    "summary": "Rotate the URL-signing secret",
+    "description": "Issues a new secret and returns it. URLs signed with the previous secret keep working until `previous_valid_until` (per `grace_seconds`) — without a grace window, every `<img>` already rendered in your pages would break at the instant of rotation. Re-sign and redeploy before the window closes.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:keys",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "grace-seconds",
+        "key": "grace_seconds",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "How long the previous credential stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately."
+      }
+    ]
+  },
+  {
+    "path": [
+      "images",
+      "get"
+    ],
+    "operationId": "images.tenant.get",
+    "summary": "Get the account's Image Services",
+    "description": "It takes no id: there is one Image Services tenant per account. Returns the plan, the month's usage, and how many origins are allowed. `origin_count: 0` means nothing is served yet — the allowlist is fail-closed. If the account does not have the service, it returns 404.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "images",
+      "usage"
+    ],
+    "operationId": "images.usage.get",
+    "summary": "Get the period's usage and billable line",
+    "description": "Consumption against the plan for the period: transformations (cache misses — real CPU work), deliveries, egress bytes, what the quota includes, the overage, and the total in USD. Includes the daily series. On a hard-capped plan (`included.hard_cap`) the overage is never billed: the service stops at the quota instead.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "images:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "period",
+        "key": "period",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "days",
+        "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
       "lb",
       "backend",
       "add"
@@ -2894,6 +3118,7 @@ export const COMMANDS: CommandSpec[] = [
           "lb",
           "objectstorage",
           "mailgateway",
+          "images",
           "other"
         ]
       }

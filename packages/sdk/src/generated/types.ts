@@ -130,7 +130,7 @@ export type Service = {
   /**
    * The service's family. It determines which resource manages it. `other` is a real product in the account that has no dedicated resource in v1 yet.
    */
-  family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "other";
+  family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "other";
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   /** The product's name in the catalog. */
   name: string | null;
@@ -1160,6 +1160,120 @@ export type MailGatewaySmtpCredentials = {
   password: string;
 };
 
+export type ImageUsage = {
+  object: "image_usage";
+  /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+  period: string;
+  /** Cache misses served: real CPU work by the engine. Cached hits do not count here. */
+  transformations: number;
+  /** Images delivered (hits + misses). */
+  deliveries: number;
+  /** Egress traffic, in bytes. */
+  bytes_out: number;
+  errors: number;
+};
+
+export type ImageServices = {
+  object: "image_services";
+  id: string;
+  status: "active" | "suspended" | "deleted" | "unknown";
+  /** The plan. `free` has a hard cap: the service stops at the quota. */
+  tier: string;
+  /**
+   * The delivery plane. Transformations are requested against `{api_endpoint}/v1/img?url=…` with a token from `POST /v1/images/keys`, and signed URLs are served from `{api_endpoint}/s/…`. Delivery does NOT go through this API.
+   */
+  api_endpoint: string;
+  /** Origins in the allowlist. **Zero means nothing is served**: the allowlist is fail-closed by design. */
+  origin_count: number;
+  usage_month: ImageUsage;
+  created_at: string | null;
+};
+
+export type ImageUsageReport = {
+  object: "image_usage_report";
+  period: string;
+  tier: string;
+  usage: ImageUsage;
+  /** What the plan's quota includes. */
+  included: {
+    /** The base monthly price of the plan, in USD. */
+    base_usd: number;
+    transformations: number;
+    deliveries: number;
+    bytes_gb: number;
+    /** true = the plan stops serving at the quota instead of billing overage (the free plan). */
+    hard_cap: boolean;
+  };
+  /** Consumption beyond the quota. */
+  overage: {
+    transformations: number;
+    deliveries: number;
+    bytes_gb: number;
+    /** What the overage adds to the invoice, in USD. */
+    amount_usd: number;
+  };
+  /** Base + overage for the period, in USD. */
+  total_usd: number;
+  /** Daily series, oldest first. */
+  series: ({
+    /** UTC day, `YYYY-MM-DD`. */
+    day: string;
+    transformations: number;
+    deliveries: number;
+    bytes_out: number;
+  })[];
+};
+
+export type ImageOrigin = {
+  object: "image_origin";
+  pattern: string;
+};
+
+export type ImageOriginList = {
+  object: "list";
+  data: ImageOrigin[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type ImageOriginCreate = {
+  /**
+   * A hostname (`images.example.com`) or a wildcard for its subdomains (`*.example.com`). Lowercased on save.
+   */
+  pattern: string;
+};
+
+export type ImageKey = {
+  object: "image_key";
+  /**
+   * The full `imgt_…` token, **exactly once**: only its hash is stored, so there is no way to show it again. It authenticates the delivery plane (`GET {api_endpoint}/v1/img` and `POST {api_endpoint}/v1/sign`), never this API.
+   */
+  token: string;
+  api_endpoint: string;
+};
+
+export type ImageRotateRequest = {
+  /**
+   * How long the previous credential stays valid after the rotation, in seconds (up to 7 days). With `0` it dies immediately.
+   */
+  grace_seconds?: number;
+};
+
+export type ImageSigningSecret = {
+  object: "image_signing_secret";
+  /**
+   * The per-tenant HMAC-SHA256 secret that signs delivery URLs. It belongs on your server, **never in the browser**: anyone holding it can mint URLs that serve — and bill — through your tenant.
+   */
+  secret: string;
+  /**
+   * After a rotation with `grace_seconds`, until when URLs signed with the previous secret keep working. `null` outside a grace window.
+   */
+  previous_valid_until: string | null;
+};
+
 /** Query parameters of `GET /v1/api-keys`. */
 export type ApiKeysListQuery = {
   limit?: string;
@@ -1340,6 +1454,18 @@ export type DnsZonesListQuery = {
   cursor?: string;
 };
 
+/** Query parameters of `GET /v1/images/origins`. */
+export type ImagesOriginsListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Query parameters of `GET /v1/images/usage`. */
+export type ImagesUsageGetQuery = {
+  period?: string;
+  days?: string;
+};
+
 /** Body of `POST /v1/load-balancers/{id}/backends`. */
 export type LbBackendsCreateBody = {
   /** The name of an existing listener. */
@@ -1508,7 +1634,7 @@ export type OperationsListQuery = {
 export type ServicesListQuery = {
   limit?: string;
   cursor?: string;
-  family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "other";
+  family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "other";
 };
 
 /** Body of `POST /v1/vps/{id}/backups`. */

@@ -579,6 +579,106 @@ export function createResources(call: Call, paginate: Paginate) {
           ),
       },
     },
+    images: {
+      keys: {
+        /**
+         * Create a delivery token
+         * Returns the full `imgt_…` token, **exactly once**: only its hash is stored, so there is no way to show it again. If it is lost, rotate or mint another.
+         * 
+         * This token **does not work against this API**: it authenticates the delivery plane — `GET {api_endpoint}/v1/img?url=…` for transformations and `POST {api_endpoint}/v1/sign` to sign URLs. Delivery deliberately does not go through `api.truo.cloud`: one extra hop on every `<img>` of every page is one extra failure mode.
+         * 
+         * It requires `images:keys` rather than `images:write` because holding this token **is** the ability to serve — and bill — traffic through the account's tenant.
+         * 
+         * Scope: `images:keys`
+         */
+        create: (params?: RequestOptions) =>
+          call<T.ImageKey>("images.keys.create", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Rotate the delivery token
+         * Issues a new token and returns it. With `grace_seconds`, the previous token keeps working that long, so servers holding it do not fail at the instant of rotation; with `0` (the default) it dies immediately. There is no going back: the old token cannot be reactivated.
+         * 
+         * Scope: `images:keys`
+         * **Destructive: there is no undo.**
+         */
+        rotate: (body?: T.ImageRotateRequest, params?: RequestOptions) =>
+          call<T.ImageKey>("images.keys.rotate", { path: undefined, body: body, queryKeys: undefined, params }),
+      },
+      origins: {
+        /**
+         * Allow an origin
+         * Adds a hostname (`images.example.com`) or a wildcard (`*.example.com`) to the allowlist. Idempotent: re-adding an existing pattern changes nothing. Each plan caps how many origins it can hold; past the cap this returns `quota_exceeded`.
+         * 
+         * Scope: `images:write`
+         */
+        add: (body: T.ImageOriginCreate, params?: RequestOptions) =>
+          call<T.ImageOrigin>("images.origins.add", { path: undefined, body: body, queryKeys: undefined, params }),
+        /**
+         * List the origin allowlist
+         * The hostnames the service is allowed to fetch from. **Fail-closed**: an empty allowlist serves nothing, on purpose — an open image proxy is an attack tool.
+         * 
+         * Scope: `images:read`
+         */
+        list: (params?: T.ImagesOriginsListQuery & RequestOptions) =>
+          call<T.ImageOriginList>("images.origins.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `images.origins.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (params?: T.ImagesOriginsListQuery & RequestOptions) =>
+          paginate<T.ImageOrigin>(
+            "images.origins.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
+          ),
+        /**
+         * Remove an origin
+         * Stops serving from that origin immediately. Reversible: adding the pattern back restores it. If it was the last origin, the tenant serves nothing until one is added — the allowlist is fail-closed.
+         * 
+         * Scope: `images:write`
+         */
+        remove: (pattern: string, params?: RequestOptions) =>
+          call<void>("images.origins.remove", { path: { pattern }, body: undefined, queryKeys: undefined, params }),
+      },
+      signing: {
+        /**
+         * Reveal the URL-signing secret
+         * Returns the per-tenant HMAC-SHA256 secret that signs delivery URLs. **It is a POST on purpose, even though it changes nothing**: a GET that returns a secret lands in browser history, in any proxy's cache, and in yesterday's `curl`. A POST forces a deliberate action, is not cacheable, and enters the audit log as a mutation.
+         * 
+         * The secret is recoverable (stored, not hashed) because your server needs it whole to sign every URL it emits. It belongs on the server, **never in the browser**: anyone holding it can mint URLs that serve — and bill — through your tenant. If it was compromised, rotate it with `POST /v1/images/signing-secret/rotate`.
+         * 
+         * Scope: `images:keys`
+         */
+        reveal: (params?: RequestOptions) =>
+          call<T.ImageSigningSecret>("images.signing.reveal", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Rotate the URL-signing secret
+         * Issues a new secret and returns it. URLs signed with the previous secret keep working until `previous_valid_until` (per `grace_seconds`) — without a grace window, every `<img>` already rendered in your pages would break at the instant of rotation. Re-sign and redeploy before the window closes.
+         * 
+         * Scope: `images:keys`
+         * **Destructive: there is no undo.**
+         */
+        rotate: (body?: T.ImageRotateRequest, params?: RequestOptions) =>
+          call<T.ImageSigningSecret>("images.signing.rotate", { path: undefined, body: body, queryKeys: undefined, params }),
+      },
+      tenant: {
+        /**
+         * Get the account's Image Services
+         * It takes no id: there is one Image Services tenant per account. Returns the plan, the month's usage, and how many origins are allowed. `origin_count: 0` means nothing is served yet — the allowlist is fail-closed. If the account does not have the service, it returns 404.
+         * 
+         * Scope: `images:read`
+         */
+        get: (params?: RequestOptions) =>
+          call<T.ImageServices>("images.tenant.get", { path: undefined, body: undefined, queryKeys: undefined, params }),
+      },
+      usage: {
+        /**
+         * Get the period's usage and billable line
+         * Consumption against the plan for the period: transformations (cache misses — real CPU work), deliveries, egress bytes, what the quota includes, the overage, and the total in USD. Includes the daily series. On a hard-capped plan (`included.hard_cap`) the overage is never billed: the service stops at the quota instead.
+         * 
+         * Scope: `images:read`
+         */
+        get: (params?: T.ImagesUsageGetQuery & RequestOptions) =>
+          call<T.ImageUsageReport>("images.usage.get", { path: undefined, body: undefined, queryKeys: ["period", "days"], params }),
+      },
+    },
     lb: {
       backends: {
         /**
