@@ -11,6 +11,22 @@ import starlight from "@astrojs/starlight";
  */
 export default defineConfig({
   site: "https://docs.truo.cloud",
+  /**
+   * These three URLs are PUBLISHED and immutable: they are the `homepage` of
+   * `@truocloud/img-next`, `-nuxt` and `-angular` on npm, and npm metadata
+   * cannot be edited after a version ships. They were written before the
+   * frameworks page merged into one, and they 404-ed until somebody reported
+   * it from a pull request in another project.
+   *
+   * So they redirect rather than being "fixed" at the source: the packages that
+   * point here are already out, and every future version will keep pointing at
+   * the same place.
+   */
+  redirects: {
+    "/images/nextjs": "/images/frameworks/#nextjs",
+    "/images/nuxt": "/images/frameworks/#nuxt",
+    "/images/angular": "/images/frameworks/#angular",
+  },
   integrations: [
     starlight({
       title: "TruoCloud",
