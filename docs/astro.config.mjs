@@ -81,6 +81,7 @@ export default defineConfig({
         {
           label: "Images",
           items: [
+            { label: "Overview", slug: "images" },
             { label: "The image URL", slug: "images/url" },
             { label: "JavaScript", slug: "images/javascript" },
             { label: "Frameworks", slug: "images/frameworks" },

@@ -44,6 +44,7 @@ jobs:
       # as part of `build` too, but it's invoked separately so a generator
       # failure is distinguishable from an Astro failure.
       - run: bun scripts/generate.ts
+        working-directory: docs
       # The image parameter table comes from the shared URL fixture, not from
       # the OpenAPI document — the delivery contract is not part of the API.
       - run: bun scripts/generate-images.ts

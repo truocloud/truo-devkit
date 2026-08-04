@@ -1,0 +1,79 @@
+---
+title: Images
+description: Image optimization and delivery on img.truo.cloud — resize, convert and serve images from a plain URL.
+---
+
+Resize, crop and convert images by changing a URL. No SDK call, no token, no
+build step:
+
+```
+https://img.truo.cloud/i/<pid>/uploads/photo.jpg?w=800&f=auto
+```
+
+`<pid>` is your tenant's public id, shown in the console under **Images →
+Endpoint**. It is not a secret — it appears in every image URL on your site.
+
+## Start here
+
+| | |
+| --- | --- |
+| [The image URL](/images/url/) | the contract: path mapping, proxying, parameters, format negotiation, caching and signing |
+| [JavaScript](/images/javascript/) | `@truocloud/img` — `srcset`, `sizes`, placeholders and signed URLs |
+| [Frameworks](/images/frameworks/) | loaders for Next.js, Nuxt, Angular, and anything unpic supports |
+| [Migrating](/images/migrate/) | parameter mapping from imgix, ImageKit, Cloudinary and Cloudflare |
+
+## In one minute
+
+**Point at your own origin.** Configure an origin on your tenant and the path
+maps straight onto it:
+
+```
+https://img.truo.cloud/i/acme/uploads/photo.jpg?w=800&fit=cover&h=600
+```
+
+**Or proxy somebody else's**, if the host is on your allowlist:
+
+```
+https://img.truo.cloud/i/acme/fetch/https%3A%2F%2Fexample.com%2Fphoto.jpg?w=800
+```
+
+**Let the browser choose the format.** `f=auto` answers avif or webp depending
+on what the browser accepts, with `Vary: Accept`:
+
+```
+https://img.truo.cloud/i/acme/uploads/photo.jpg?w=800&f=auto
+```
+
+**Use the names you already know.** `width`, `format`, `fm`, `quality`, `fit=crop`
+and the rest of the imgix, ImageKit and Cloudinary vocabularies are accepted and
+translated, so migrating is often just changing the hostname.
+
+## From JavaScript
+
+```bash
+npm install @truocloud/img
+```
+
+```ts
+import { createTruoImg } from "@truocloud/img";
+
+const img = createTruoImg({ pid: "acme" });
+
+img.url("uploads/photo.jpg", { width: 800, format: "auto" });
+img.srcset("uploads/photo.jpg", { transform: { format: "auto" } });
+```
+
+## Things that will bite you otherwise
+
+**Add both hosts to your CSP.** `img-src` needs `img.truo.cloud` *and your own
+origin*: when a tenant runs out of quota the service answers 302 to the origin
+so images keep loading, and a CSP that only allows one of the two turns a soft
+degradation into broken images.
+
+**Do not emit a `srcset` without a `sizes`.** The browser assumes `100vw` and
+downloads the largest candidate on a phone — the most common way a responsive
+setup ends up slower than the plain `<img>` it replaced.
+
+**Keep the ladder short.** A transformation is cached on its second identical
+request, so each extra width costs two transformations before it starts paying
+off. Five breakpoints cover the real range.
