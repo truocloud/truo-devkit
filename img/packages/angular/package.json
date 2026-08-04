@@ -1,0 +1,42 @@
+{
+  "name": "@truocloud/img-angular",
+  "version": "0.1.0",
+  "description": "NgOptimizedImage loader for img.truo.cloud",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./loader": {
+      "types": "./dist/loader.d.ts",
+      "import": "./dist/loader.js",
+      "require": "./dist/loader.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "img/packages/angular"
+  },
+  "homepage": "https://docs.truo.cloud/images/angular",
+  "bugs": { "url": "https://github.com/truocloud/truo-devkit/issues" },
+  "keywords": ["truocloud", "angular", "ngoptimizedimage", "image-loader", "image-cdn"],
+  "engines": { "node": ">=20" },
+  "sideEffects": false,
+  "dependencies": { "@truocloud/img": "0.1.0" },
+  "//peerDependencies": "Angular is a peer and a wide range on purpose: NgOptimizedImage has been stable since 15 and the IMAGE_LOADER contract has not changed since.",
+  "peerDependencies": {
+    "@angular/common": ">=15",
+    "@angular/core": ">=15"
+  },
+  "scripts": { "test": "bun test" }
+}

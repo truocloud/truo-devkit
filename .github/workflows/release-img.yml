@@ -1,0 +1,133 @@
+name: Release (img)
+
+# Triggered by an `img-vX.Y.Z` tag, which deliberately does not match the `v*`
+# trigger of the other release workflow. Two release tracks, no shared tag: the
+# version of these packages follows the URL contract, not the OpenAPI spec.
+on:
+  push:
+    tags: ["img-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to rehearse (without publishing), e.g. 0.1.0"
+        required: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: img
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned. See the note in the other release workflow: with `latest`, a newer
+      # Bun emitted a bundle Node refused to parse.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - run: bun install --frozen-lockfile
+
+      - id: version
+        run: |
+          RAW="${{ github.event.inputs.version || github.ref_name }}"
+          echo "version=${RAW#img-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Pin the version across the four packages
+        run: bun scripts/set-version.ts "${{ steps.version.outputs.version }}"
+
+      # The same gates as on every push. A release is not the place to relax them:
+      # it is exactly the moment a stale fixture becomes a published package that
+      # builds URLs the service no longer serves.
+      - run: bun run sync:fixtures --check
+      - run: bun run gen:check
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run build
+
+      - name: The built core imports from Node (ESM and CJS)
+        run: |
+          cd "$(mktemp -d)"
+          echo '{"type":"module"}' > package.json
+          cat > check.mjs <<'EOF'
+          import { buildUrl } from "PKG/index.js";
+          import { signUrl } from "PKG/sign.js";
+          const url = buildUrl("a.jpg", { width: 800, format: "auto" }, { pid: "acme" });
+          if (url !== "https://img.truo.cloud/i/acme/a.jpg?f=auto&w=800") throw new Error(url);
+          if (!(await signUrl(url, { secret: "x" })).includes("&s=")) throw new Error("sign broke");
+          console.log("ok");
+          EOF
+          sed -i "s|PKG|file://$GITHUB_WORKSPACE/img/packages/url/dist|g" check.mjs
+          node check.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: img-dist
+          # `packages/*/package.json` travels because it already carries the
+          # version written above: the publish job does not re-run set-version.
+          path: |
+            img/packages/*/dist/**
+            img/packages/*/package.json
+            img/packages/url/fixtures/**
+            img/packages/next/loader.js
+          retention-days: 7
+
+  publish-npm:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/img-v')
+    runs-on: ubuntu-latest
+    permissions:
+      # Provenance: GitHub signs an attestation tying the tarball to this commit
+      # and this workflow, so anyone can verify the package came from this repo.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      # `path: img/packages`, not `.`: upload-artifact@v4 trims the common
+      # ancestor of every path in the artifact (here `img/packages/`), so
+      # downloading to `.` would leave dist/ OUTSIDE the packages and npm would
+      # publish empty packages with exit 0.
+      - uses: actions/download-artifact@v4
+        with:
+          name: img-dist
+          path: img/packages
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # In dependency order, and here the order is load-bearing: the three loaders
+      # declare an exact dependency on `@truocloud/img`, so publishing one before
+      # the core leaves a version npm cannot resolve for however long the gap is.
+      - name: Publish
+        working-directory: img
+        run: |
+          set -e
+          for pkg in packages/url packages/next packages/nuxt packages/angular; do
+            echo "── $pkg"
+            ls "$pkg"/dist/*.js >/dev/null || { echo "::error::$pkg has no dist/ — the artifact did not land where publish expects it"; exit 1; }
+            ( cd "$pkg" && npm publish --provenance --access public )
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/img-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes

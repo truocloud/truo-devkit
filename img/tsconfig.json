@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node", "bun"],
+
+    // Same reasoning as the root tsconfig: imports carry the `.ts` extension so the
+    // sources run as-is under Bun and Deno, and the bundler resolves what the editor sees.
+    "allowImportingTsExtensions": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "noEmit": true,
+
+    // The loaders import `@truocloud/img` by its published name so the sources
+    // read exactly like a consumer's would; the mapping is what makes that
+    // resolve in-repo without a build step or a workspace link.
+    "baseUrl": ".",
+    "paths": {
+      "@truocloud/img": ["packages/url/src/index.ts"],
+      "@truocloud/img/sign": ["packages/url/src/sign.ts"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules", "**/dist", "**/node_modules"]
+}

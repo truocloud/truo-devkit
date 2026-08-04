@@ -3,7 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+    # `img/` has its own workflow and its own release track; running this one on
+    # its commits would gate a loader fix on an OpenAPI spec it never touches.
+    paths-ignore: ["img/**"]
   pull_request:
+    paths-ignore: ["img/**"]
   # Daily: the API can change without anyone touching this repo, and finding out
   # from a client's build is finding out late.
   schedule:

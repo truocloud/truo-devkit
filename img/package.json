@@ -1,0 +1,36 @@
+{
+  "name": "truo-img",
+  "version": "0.0.0",
+  "private": true,
+  "description": "URL builder and framework loaders for img.truo.cloud",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "//workspace": "A workspace of its own, deliberately outside packages/*. The three packages there share a single version because they all come out of the same commit of the same OpenAPI spec; these do not. Their version tracks the URL contract, they need real peerDependencies (a loader must never bundle next/vue/@angular/common), and they must not be blocked by a spec drift they have nothing to do with. Same reasoning that already keeps docs/ out of the workspace.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "sync:fixtures": "bun scripts/sync-fixtures.ts",
+    "gen": "bun scripts/generate-names.ts",
+    "gen:check": "bun scripts/generate-names.ts --check",
+    "build": "bun scripts/build.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "unpic:prepare": "bun scripts/prepare-unpic.ts",
+    "verify:next": "bun scripts/verify-next.ts",
+    "version:set": "bun scripts/set-version.ts",
+    "version:check": "bun scripts/set-version.ts --check"
+  },
+  "devDependencies": {
+    "@angular/common": "^19",
+    "@angular/core": "^19",
+    "@types/bun": "^1.3.9",
+    "@types/node": "^22.10.0",
+    "rxjs": "^7.8.2",
+    "typescript": "^5.9.3",
+    "unpic": "4.2.2",
+    "zone.js": "^0.16.2"
+  }
+}

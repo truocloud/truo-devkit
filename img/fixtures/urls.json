@@ -1,0 +1,474 @@
+{
+  "$schema": "https://img.truo.cloud/fixtures/urls.schema.json",
+  "version": 1,
+  "_comment": "Vectores compartidos del contrato de URL de img.truo.cloud. Los consumen CUATRO implementaciones: el servidor (test/fixtures.test.ts), el core @truocloud/img, cada loader de framework, y class-url-builder.php del plugin de WordPress. GENERADO por scripts/build-fixtures.ts — no editar a mano.",
+  "tenant": {
+    "public_id": "acme",
+    "base_origin": "https://cdn.example.com",
+    "public_base_url": "https://img.truo.cloud",
+    "origins": [
+      "cdn.example.com",
+      "otro.com"
+    ],
+    "default_quality": 82,
+    "max_width": 4096,
+    "max_height": 4096,
+    "signing_secret": "truo-fixture-secret-not-a-real-key",
+    "_comment": "Secreto de juguete: este archivo se publica. Nunca poner uno real."
+  },
+  "rules": {
+    "_comment": "Las reglas que un builder tiene que implementar. Cada una tiene su vector abajo.",
+    "path_encoding": "RFC 3986 por SEGMENTO (rawurlencode de PHP). Las barras separan y no se codifican.",
+    "param_order": "Alfabetico por nombre canonico. `exp` y `s` se agregan DESPUES, en ese orden.",
+    "param_names": "Se traducen los NOMBRES al canonico; los VALORES viajan crudos y los traduce el servidor.",
+    "comma": "Literal en el alambre (`crop=60,30,0,0`), pero `%2C` dentro del payload de la firma.",
+    "booleans": "true -> `1`; false -> se omite el parametro.",
+    "numbers": "Sin ceros de cola: 2.0 -> `2`.",
+    "signature": "s = base64url(HMAC-SHA256(secret, 'v2\\n' + pid + '\\n' + pathname + '\\n' + queryCanonico)). El query canonico ordena por (clave, valor), codifica con encodeURIComponent AMBOS lados (o sea la coma SI va como %2C), excluye `s` y todo lo que empiece con `_`.",
+    "clamping": "El builder NO clampea en buildUrl (lo hace el servidor). SI clampea en srcset, para no emitir candidatos duplicados."
+  },
+  "canonical_names": {
+    "w": "w",
+    "width": "w",
+    "h": "h",
+    "height": "h",
+    "dpr": "dpr",
+    "fit": "fit",
+    "t": "fit",
+    "we": "we",
+    "withoutenlargement": "we",
+    "cbg": "cbg",
+    "crop": "crop",
+    "precrop": "precrop",
+    "a": "a",
+    "gravity": "a",
+    "focus": "a",
+    "align": "a",
+    "trim": "trim",
+    "tbg": "tbg",
+    "flip": "flip",
+    "flop": "flop",
+    "ro": "ro",
+    "rot": "ro",
+    "rotate": "ro",
+    "rbg": "rbg",
+    "mask": "mask",
+    "mtrim": "mtrim",
+    "mbg": "mbg",
+    "blur": "blur",
+    "sharp": "sharp",
+    "sharpen": "sharp",
+    "con": "con",
+    "contrast": "con",
+    "sat": "sat",
+    "saturation": "sat",
+    "bri": "bri",
+    "brightness": "bri",
+    "hue": "hue",
+    "gam": "gam",
+    "gamma": "gam",
+    "mod": "mod",
+    "filt": "filt",
+    "filter": "filt",
+    "tint": "tint",
+    "bg": "bg",
+    "background": "bg",
+    "output": "f",
+    "f": "f",
+    "fm": "f",
+    "format": "f",
+    "q": "q",
+    "quality": "q",
+    "ll": "ll",
+    "lossless": "ll",
+    "il": "il",
+    "interlace": "il",
+    "progressive": "il",
+    "l": "l",
+    "level": "l",
+    "af": "af",
+    "adaptive": "af",
+    "n": "n",
+    "frames": "n",
+    "page": "page",
+    "filename": "filename"
+  },
+  "vectors": [
+    {
+      "name": "endpoint-basico",
+      "why": "El caso central. Fija dos cosas: los params van ORDENADOS alfabeticamente por nombre canonico (`f` antes que `w`), y `format` se escribe `f`, no `output`.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "width": 800,
+        "format": "auto"
+      },
+      "accept": "image/avif,image/webp,image/apng,*/*;q=0.8",
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=800",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "output=avif&q=82&w=800",
+      "exp": null,
+      "expected_signed": "https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=800&s=lUFvTTMh1YVYW9i6vKYyHEjlovhPcmGMOno5lHo5sUE"
+    },
+    {
+      "name": "endpoint-sin-transformacion",
+      "why": "Una URL pelada NO lleva query, y en particular NO lleva la calidad por defecto: inyectarla convertiria un passthrough de bytes en una recodificacion que a veces pesa mas que el original. El `upstream_query` vacio es la afirmacion.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {},
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": ""
+    },
+    {
+      "name": "endpoint-barra-inicial",
+      "why": "`/uploads/foto.jpg` y `uploads/foto.jpg` son el mismo archivo. WordPress entrega paths con barra y un loader de framework sin ella; si no se normaliza son dos URLs, dos entradas de cache y dos firmas.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "/uploads/foto.jpg",
+      "transform": {
+        "width": 400
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?w=400",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "q=82&w=400"
+    },
+    {
+      "name": "endpoint-subdirectorios",
+      "why": "Las barras SEPARAN segmentos y no se codifican; se codifica cada segmento por separado. Un `encodeURIComponent` sobre el path entero produciria `2026%2F08%2Ffoto.jpg`, que este servidor rechaza como traversal.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "2026/08/foto.jpg",
+      "transform": {
+        "width": 300
+      },
+      "expected": "https://img.truo.cloud/i/acme/2026/08/foto.jpg?w=300",
+      "upstream_url": "https://cdn.example.com/2026/08/foto.jpg",
+      "upstream_query": "q=82&w=300"
+    },
+    {
+      "name": "endpoint-espacio-y-parentesis",
+      "why": "LA DIVERGENCIA JS/PHP. `rawurlencode` de PHP escapa `!*'()` (RFC 3986); `encodeURIComponent` de JS los deja pasar. `mi foto (1).jpg` es literalmente como WordPress nombra un duplicado. Canonico = RFC 3986 estricto: en JS hay que escapar `!*'()` a mano.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/mi foto (1).jpg",
+      "transform": {
+        "width": 600
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/mi%20foto%20%281%29.jpg?w=600",
+      "upstream_url": "https://cdn.example.com/uploads/mi%20foto%20%281%29.jpg",
+      "upstream_query": "q=82&w=600",
+      "exp": null,
+      "expected_signed": "https://img.truo.cloud/i/acme/uploads/mi%20foto%20%281%29.jpg?w=600&s=xtpfOeo-HMmQyP2Da7cJwOFsCsIUsuqgAdDXINEGX1s"
+    },
+    {
+      "name": "endpoint-signo-mas",
+      "why": "El `+` TIENE que salir como `%2B`. Este path termina dentro del `url=` del motor, que es un query: ahi un `+` crudo significa ESPACIO y el motor pediria un archivo que no existe. Es el bug de niveles de codificacion, y es silencioso.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/a+b.jpg",
+      "transform": {
+        "width": 200
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/a%2Bb.jpg?w=200",
+      "upstream_url": "https://cdn.example.com/uploads/a%2Bb.jpg",
+      "upstream_query": "q=82&w=200"
+    },
+    {
+      "name": "endpoint-porciento-literal",
+      "why": "Un archivo que se llama `100%.jpg`. El `%` se codifica UNA vez (`%25`) y nadie lo decodifica de mas por el camino. Si alguien 'normaliza' decodificando primero, este archivo deja de existir.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/100%.jpg",
+      "transform": {
+        "width": 200
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/100%25.jpg?w=200",
+      "upstream_url": "https://cdn.example.com/uploads/100%25.jpg",
+      "upstream_query": "q=82&w=200"
+    },
+    {
+      "name": "endpoint-utf8",
+      "why": "Acentos y ene: UTF-8 y despues percent-encoding, no al reves. PHP y JS coinciden aca, pero solo si el string de entrada ya es UTF-8 — en WordPress con una base latin1 no lo es, y este vector es donde se nota.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/piñata-año.jpg",
+      "transform": {
+        "width": 500
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/pi%C3%B1ata-a%C3%B1o.jpg?w=500",
+      "upstream_url": "https://cdn.example.com/uploads/pi%C3%B1ata-a%C3%B1o.jpg",
+      "upstream_query": "q=82&w=500"
+    },
+    {
+      "name": "endpoint-carpeta-fetch",
+      "why": "LA COLISION. Un cliente con una carpeta `fetch/` de verdad. `fetch/` solo dispara el modo proxy si lo que sigue arranca con http(s); aca sigue `logo.png`, asi que es un archivo suyo y el builder NO debe tratarlo distinto.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "fetch/logo.png",
+      "transform": {
+        "width": 120
+      },
+      "expected": "https://img.truo.cloud/i/acme/fetch/logo.png?w=120",
+      "upstream_url": "https://cdn.example.com/fetch/logo.png",
+      "upstream_query": "q=82&w=120"
+    },
+    {
+      "name": "fetch-absoluta",
+      "why": "Modo proxy. La URL de origen va codificada ENTERA como un solo segmento: sus barras tienen que ser `%2F` o el servidor la partiria en segmentos y el `https://` se veria como traversal.",
+      "mode": "fetch",
+      "pid": "acme",
+      "src": "https://otro.com/a.jpg",
+      "transform": {
+        "width": 400
+      },
+      "expected": "https://img.truo.cloud/i/acme/fetch/https%3A%2F%2Fotro.com%2Fa.jpg?w=400",
+      "upstream_url": "https://otro.com/a.jpg",
+      "upstream_query": "q=82&w=400",
+      "exp": null,
+      "expected_signed": "https://img.truo.cloud/i/acme/fetch/https%3A%2F%2Fotro.com%2Fa.jpg?w=400&s=ylSvf7RTqzJKiERoI_ImaT99LGIRcgQurHjUiXkY9C8"
+    },
+    {
+      "name": "fetch-con-query-propio",
+      "why": "El origen trae su propio `?v=3&x=1`. Codificado entero, sus params no se mezclan con los nuestros; sin codificar, `v` y `x` llegarian como params de transformacion y `w` quedaria del otro lado del `?`.",
+      "mode": "fetch",
+      "pid": "acme",
+      "src": "https://otro.com/a.jpg?v=3&x=1",
+      "transform": {
+        "width": 400
+      },
+      "expected": "https://img.truo.cloud/i/acme/fetch/https%3A%2F%2Fotro.com%2Fa.jpg%3Fv%3D3%26x%3D1?w=400",
+      "upstream_url": "https://otro.com/a.jpg?v=3&x=1",
+      "upstream_query": "q=82&w=400"
+    },
+    {
+      "name": "idempotencia",
+      "why": "El `src` YA es una URL nuestra. Los filtros de WordPress y los loaders corren dos veces sobre el mismo HTML mas seguido de lo que uno cree; envolver dos veces daria `/i/acme/fetch/https%3A%2F%2Fimg.truo.cloud%2Fi%2Facme%2F…`. Se mergean los params y gana el explicito.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "https://img.truo.cloud/i/acme/uploads/foto.jpg?w=400&q=70",
+      "transform": {
+        "width": 800
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?q=70&w=800",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "q=70&w=800"
+    },
+    {
+      "name": "passthrough-data-uri",
+      "why": "Un `data:` no tiene origen que buscar. Envolverlo produce una URL enorme que el servidor rechaza; devolverlo tal cual es lo unico correcto. Igual para `blob:`.",
+      "mode": "passthrough",
+      "pid": "acme",
+      "src": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
+      "transform": {
+        "width": 800
+      },
+      "expected": "data:image/gif;base64,R0lGODlhAQABAAAAACw=",
+      "upstream_url": null,
+      "upstream_query": null
+    },
+    {
+      "name": "params-coma-literal",
+      "why": "La coma viaja SIN codificar (`crop=60,30,0,0`): el motor no decodifica `%2C` y con la coma escapada IGNORA el recorte en silencio. `http_build_query` de PHP y `URLSearchParams` de JS la escapan las dos — hay que deshacerlo. Ojo: en el PAYLOAD DE LA FIRMA si va `%2C`.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "crop": "60,30,0,0",
+        "width": 100
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?crop=60,30,0,0&w=100",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "crop=60,30,0,0&q=82&w=100",
+      "exp": null,
+      "expected_signed": "https://img.truo.cloud/i/acme/uploads/foto.jpg?crop=60,30,0,0&w=100&s=6H5ZKavVLIEW-MeIU0PesT9zHMznGdYIzXGlqlqQ3O0"
+    },
+    {
+      "name": "params-numeros-y-banderas",
+      "why": "`2.0` se escribe `2` y `true` se escribe `1`. Dos formas de escribir el mismo pedido son dos entradas de cache. En PHP `(string)2.0` da `2` pero `json_decode` puede dar `2.0`: normalizar es obligatorio, no cosmetico.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "dpr": 2,
+        "withoutEnlargement": true,
+        "width": 500
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?dpr=2&w=500&we=1",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "dpr=2&q=82&w=500&we=1"
+    },
+    {
+      "name": "params-alias-de-nombre-no-de-valor",
+      "why": "El builder traduce NOMBRES (`gravity` -> `a`) pero NO valores: `fit=crop` viaja crudo y lo traduce el servidor a `cover`. Es la frontera deliberada — replicar las ~30 entradas de alias de valores en TS, PHP y cada loader es la tabla que se desincroniza.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "fit": "crop",
+        "width": 300,
+        "height": 300,
+        "gravity": "attention"
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?a=attention&fit=crop&h=300&w=300",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "a=attention&fit=cover&h=300&q=82&w=300"
+    },
+    {
+      "name": "params-desconocido-pasa",
+      "why": "`?ver=6.4` sale de WordPress pegado a media web. El builder lo emite y el servidor lo descarta sin quejarse. Un 400 aca romperia paginas por decoracion; y como va dentro de la firma, tampoco se puede colgar basura de una URL firmada.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "width": 200,
+        "ver": "6.4"
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?ver=6.4&w=200",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "q=82&w=200"
+    },
+    {
+      "name": "params-fuera-de-rango-los-clampea-el-servidor",
+      "why": "El builder NO clampea en `buildUrl`: emite lo que le pidieron y el servidor ajusta (`w=99999` -> 4096) devolviendo `x-img-clamped`. Si clampeara el builder, el cap dejaria de ser una politica del servidor y viviria en cinco copias con cinco valores distintos. La excepcion es `srcset`, que si clampea — ver la seccion `srcset`.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "width": 99999
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?w=99999",
+      "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
+      "upstream_query": "q=82&w=4096"
+    },
+    {
+      "name": "firmada-con-expiracion",
+      "why": "`exp` y `s` se AGREGAN AL FINAL, despues de los params ordenados — no se ordenan con ellos. Es el orden que ya emite `/v1/sign`, y una URL firmada tiene que compararse byte a byte.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/privado.jpg",
+      "transform": {
+        "width": 800
+      },
+      "expected": "https://img.truo.cloud/i/acme/uploads/privado.jpg?w=800",
+      "upstream_url": "https://cdn.example.com/uploads/privado.jpg",
+      "upstream_query": "q=82&w=800",
+      "exp": 4102444800,
+      "expected_signed": "https://img.truo.cloud/i/acme/uploads/privado.jpg?w=800&exp=4102444800&s=QXVp_Ej0eh9VQRHgzexAcSydSfU_9G04aYkbunBctzI"
+    },
+    {
+      "name": "firmada-sin-params",
+      "why": "Una URL sin transformacion tambien se firma, y el query canonico del payload queda VACIO. Es el caso que rompe una implementacion que asume que siempre hay al menos un par.",
+      "mode": "endpoint",
+      "pid": "acme",
+      "src": "uploads/privado.jpg",
+      "transform": {},
+      "expected": "https://img.truo.cloud/i/acme/uploads/privado.jpg",
+      "upstream_url": "https://cdn.example.com/uploads/privado.jpg",
+      "upstream_query": "",
+      "exp": null,
+      "expected_signed": "https://img.truo.cloud/i/acme/uploads/privado.jpg?s=z_sLavUy8DUB8p9UWa6DCPWLwce8VJzR507sf8mA2uA"
+    }
+  ],
+  "srcset": [
+    {
+      "name": "escalera-por-defecto",
+      "why": "5 anchos, no 8. Con `proxy_cache_min_uses 2` cada ancho cuesta DOS transformaciones antes de cachear: con los 8 de `deviceSizes` de Next, una pagina de 5 imagenes son 80 transformaciones en la primera visita y el plan free (5.000/mes) aguanta ~62 visitas.",
+      "src": "uploads/foto.jpg",
+      "transform": {
+        "format": "auto"
+      },
+      "resolved_widths": [
+        640,
+        828,
+        1200,
+        1600,
+        2048
+      ],
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=640 640w, https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=828 828w, https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=1200 1200w, https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=1600 1600w, https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=2048 2048w"
+    },
+    {
+      "name": "clamp-y-dedup",
+      "why": "Se clampea al cap y DESPUES se deduplica. Al reves, `[4096, 8192]` emitiria dos candidatos identicos: el navegador bajaria el mismo archivo creyendo que es mas grande, y nosotros pagariamos dos entradas de cache.",
+      "src": "uploads/foto.jpg",
+      "widths": [
+        2048,
+        4096,
+        8192
+      ],
+      "max_width": 4096,
+      "transform": {},
+      "resolved_widths": [
+        2048,
+        4096
+      ],
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?w=2048 2048w, https://img.truo.cloud/i/acme/uploads/foto.jpg?w=4096 4096w"
+    },
+    {
+      "name": "anchos-explicitos-ordenados",
+      "why": "Los anchos salen ORDENADOS aunque entren desordenados. El navegador no lo exige, pero un srcset con orden inestable es un diff distinto en cada build y rompe cualquier cache de HTML.",
+      "src": "uploads/foto.jpg",
+      "widths": [
+        1200,
+        400,
+        800
+      ],
+      "transform": {
+        "fit": "cover",
+        "height": 300
+      },
+      "resolved_widths": [
+        400,
+        800,
+        1200
+      ],
+      "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?fit=cover&h=300&w=400 400w, https://img.truo.cloud/i/acme/uploads/foto.jpg?fit=cover&h=300&w=800 800w, https://img.truo.cloud/i/acme/uploads/foto.jpg?fit=cover&h=300&w=1200 1200w"
+    }
+  ],
+  "rejects": [
+    {
+      "name": "traversal-codificado",
+      "why": "`new URL()` colapsa `/../` pero NO `%2e%2e%2f`, que queda como UN segmento. Es la unica forma en que alguien intenta esto de verdad.",
+      "path": "/i/acme/%2e%2e%2fsecreto.jpg",
+      "status": 400,
+      "error": "path_traversal"
+    },
+    {
+      "name": "url-como-parametro",
+      "why": "`url=` seria un segundo camino de origen sin pasar por la allowlist. En la ruta publica es 400, no un descarte silencioso.",
+      "path": "/i/acme/uploads/foto.jpg?url=https%3A%2F%2Fevil.com%2Fx.jpg",
+      "status": 400,
+      "error": "param_forbidden"
+    },
+    {
+      "name": "default-como-parametro",
+      "why": "`default=` hace que el motor emita un 302 a esa URL sin que la allowlist la haya visto. Era un SSRF vivo.",
+      "path": "/i/acme/uploads/foto.jpg?default=https%3A%2F%2Fevil.com%2Fx.jpg",
+      "status": 400,
+      "error": "param_forbidden"
+    },
+    {
+      "name": "valor-malformado",
+      "why": "El motor IGNORA `w=abc` y devuelve la imagen entera. En la ruta publica eso es un bug del cliente que se cobra en ancho de banda: 400.",
+      "path": "/i/acme/uploads/foto.jpg?w=abc",
+      "status": 400,
+      "error": "param_invalid"
+    },
+    {
+      "name": "pid-inexistente",
+      "why": "404 indistinguible de un archivo que no existe: la ruta es anonima y no confirma que tenants hay.",
+      "path": "/i/noexiste/uploads/foto.jpg",
+      "status": 404,
+      "error": "not_found"
+    },
+    {
+      "name": "fetch-fuera-de-la-allowlist",
+      "why": "El modo proxy NO abre el servicio: pasa por el MISMO gate que las rutas viejas.",
+      "path": "/i/acme/fetch/https%3A%2F%2Fno-permitido.com%2Fa.jpg",
+      "status": 403,
+      "error": "origin_not_allowed"
+    }
+  ]
+}

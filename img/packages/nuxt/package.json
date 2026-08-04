@@ -1,0 +1,34 @@
+{
+  "name": "@truocloud/img-nuxt",
+  "version": "0.1.0",
+  "description": "@nuxt/image provider for img.truo.cloud",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "img/packages/nuxt"
+  },
+  "homepage": "https://docs.truo.cloud/images/nuxt",
+  "bugs": { "url": "https://github.com/truocloud/truo-devkit/issues" },
+  "keywords": ["truocloud", "nuxt", "nuxt-image", "image-provider", "image-cdn"],
+  "engines": { "node": ">=20" },
+  "sideEffects": false,
+  "dependencies": { "@truocloud/img": "0.1.0" },
+  "peerDependencies": { "@nuxt/image": ">=1" },
+  "peerDependenciesMeta": { "@nuxt/image": { "optional": true } },
+  "scripts": { "test": "bun test" }
+}

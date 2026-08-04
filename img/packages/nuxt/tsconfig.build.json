@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "allowImportingTsExtensions": false,
+    "rewriteRelativeImportExtensions": true,
+
+    // For the DECLARATION build the core resolves to its built .d.ts, not to its
+    // source. Two reasons, and both are errors otherwise: source files outside
+    // this package fall foul of `rootDir`, and a loader would end up re-emitting
+    // declarations for code it does not own. `baseUrl` is restated because the
+    // workspace tsconfig sets it to the workspace root, and an inherited baseUrl
+    // would resolve these relative paths from there.
+    "baseUrl": ".",
+    "paths": {
+      "@truocloud/img": ["../url/dist/index.d.ts"],
+      "@truocloud/img/sign": ["../url/dist/sign.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["test"]
+}

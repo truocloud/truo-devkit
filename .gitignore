@@ -17,3 +17,7 @@ dist/
 
 .DS_Store
 Thumbs.db
+/img/packages/url/fixtures/
+# Declaraciones emitidas por el build; viven en dist/, nunca junto a las fuentes.
+/img/packages/*/src/*.d.ts
+/img/unpic-src/dist/

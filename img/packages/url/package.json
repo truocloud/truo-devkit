@@ -1,0 +1,48 @@
+{
+  "name": "@truocloud/img",
+  "version": "0.1.0",
+  "description": "URL builder for img.truo.cloud — responsive srcset, format negotiation and signed URLs. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "//exports": "Two entrypoints, and the split is a security boundary: `./sign` is the only one that touches crypto, so a bundler cannot pull the signing secret into browser code unless somebody imports it by name.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./sign": {
+      "types": "./dist/sign.d.ts",
+      "import": "./dist/sign.js",
+      "require": "./dist/sign.cjs"
+    },
+    "./fixtures/urls.json": "./fixtures/urls.json",
+    "./package.json": "./package.json"
+  },
+  "//files": "The build output is published, not the sources: they import with the .ts extension and Node does not load them. The fixture ships too — it is how the PHP builder's CI verifies against the same contract without vendoring it.",
+  "files": ["dist", "fixtures", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "img/packages/url"
+  },
+  "homepage": "https://docs.truo.cloud/images",
+  "bugs": {
+    "url": "https://github.com/truocloud/truo-devkit/issues"
+  },
+  "keywords": ["truocloud", "image", "cdn", "srcset", "responsive-images", "image-optimization"],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "dependencies": {},
+  "scripts": {
+    "test": "bun test"
+  }
+}

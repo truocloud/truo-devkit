@@ -1,0 +1,58 @@
+{
+  "name": "@truocloud/img-next",
+  "version": "0.1.0",
+  "description": "next/image loader for img.truo.cloud",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./loader": {
+      "types": "./dist/loader.d.ts",
+      "import": "./dist/loader.js",
+      "require": "./dist/loader.cjs"
+    },
+    "./loader.js": "./loader.js",
+    "./package.json": "./package.json"
+  },
+  "//loader.js": "A re-export at the package root, because that is the path a human types into next.config.js: `./node_modules/@truocloud/img-next/loader.js`. Every provider ships this exact file for that exact reason — a config line that has to reach into dist/ is a config line people get wrong.",
+  "files": ["dist", "loader.js", "README.md"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/truocloud/truo-devkit.git",
+    "directory": "img/packages/next"
+  },
+  "homepage": "https://docs.truo.cloud/images/nextjs",
+  "bugs": {
+    "url": "https://github.com/truocloud/truo-devkit/issues"
+  },
+  "keywords": ["truocloud", "nextjs", "next-image", "image-loader", "image-cdn"],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "@truocloud/img": "0.1.0"
+  },
+  "//peerDependencies": "Next is a peer, not a dependency: bundling a copy of it would be absurd, and the loader works against anything from 13 (when loaderFile landed) onwards.",
+  "peerDependencies": {
+    "next": ">=13"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}
