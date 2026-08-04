@@ -1,0 +1,110 @@
+# gitleaks — configuración del holding RedMasiva.
+#
+# QUÉ PROTEGE ESTO Y QUÉ NO
+# -------------------------
+# Bloquea que entren secretos NUEVOS. NO limpia los que ya están en el historial:
+# eso lo cierra la rotación (Fase 3 del plan de accesos), no un escáner.
+#
+# Por eso el hook usa `gitleaks git --staged` (solo lo que estás por commitear) y
+# CI escanea solo el rango de commits del push. Escanear el historial completo
+# fallaría siempre por lo viejo y el equipo aprendería a ignorar el rojo — que es
+# la única forma real de que un control como este muera.
+#
+# CÓMO PROBARLO SIN COMMITEAR NADA
+#   gitleaks git --staged --no-banner --redact
+#   gitleaks dir . --no-banner --redact          # árbol de trabajo completo
+
+title = "RedMasiva"
+
+[extend]
+useDefault = true
+
+# ── Reglas propias del holding ───────────────────────────────────────────────
+# Las genéricas de gitleaks no conocen nuestros formatos. Estas sí.
+
+[[rules]]
+id = "redmasiva-legacy-fleet-password"
+description = "Contraseña root legacy de la flota, hardcodeada"
+regex = '''_#Ramphy\d{4}#_'''
+keywords = ["ramphy"]
+
+[[rules]]
+id = "redmasiva-api-master-key"
+description = "API master key de server-status (ssp_...)"
+regex = '''ssp_[a-f0-9]{40,}'''
+keywords = ["ssp_"]
+
+[[rules]]
+id = "redmasiva-age-secret-key"
+description = "Identidad privada age — abre el bundle de recuperación del holding"
+regex = '''AGE-SECRET-KEY-1[0-9A-Z]{50,}'''
+keywords = ["AGE-SECRET-KEY"]
+
+[[rules]]
+id = "redmasiva-openbao-token"
+description = "Token de OpenBao/Vault"
+regex = '''\b(hvs\.[A-Za-z0-9_-]{20,}|hvb\.[A-Za-z0-9_-]{20,}|s\.[A-Za-z0-9]{24})\b'''
+keywords = ["hvs.", "hvb.", "s."]
+
+[[rules]]
+id = "redmasiva-restic-b2"
+description = "Credencial de repositorio restic o Backblaze B2"
+regex = '''(?i)(restic_password|b2_app_key|b2_account_key)\s*[:=]\s*['"]?[A-Za-z0-9+/=_\-]{16,}'''
+keywords = ["restic_password", "b2_app_key", "b2_account_key"]
+
+[[rules]]
+id = "redmasiva-ssh-privkey-inline"
+description = "Clave privada SSH pegada en un archivo"
+regex = '''-----BEGIN (RSA|OPENSSH|DSA|EC|PGP) PRIVATE KEY( BLOCK)?-----'''
+keywords = ["BEGIN", "PRIVATE KEY"]
+
+# ── Exclusiones ──────────────────────────────────────────────────────────────
+[allowlist]
+description = "Rutas y valores que no son hallazgos reales"
+
+paths = [
+  # Ruido de build y dependencias: no es código nuestro.
+  '''(^|/)node_modules/''',
+  '''(^|/)(dist|build|out|\.next|\.turbo|__pycache__|coverage)/''',
+  '''(^|/)(bun\.lock|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|poetry\.lock|Cargo\.lock)$''',
+  '''\.(min\.js|map|pyc|woff2?|ttf|png|jpe?g|gif|webp|ico|pdf)$''',
+
+  # ⚠️ TEMPORAL — QUITAR EN LA FASE 4.
+  # `servers.json` contiene HOY 73 contraseñas root en claro, a propósito y
+  # documentado: es la red de seguridad mientras se monta OpenBao. Sin esta
+  # excepción el hook rechazaría cada commit del inventario y se desactivaría
+  # el mismo día. Cuando la Fase 4 vacíe el archivo, BORRAR esta línea — y que
+  # el escáner sea quien garantice que no vuelvan.
+  '''^business/infraestructura/servers\.json$''',
+
+  # ⚠️ TEMPORAL — MISMO CASO, QUITAR EN LA FASE 4.
+  # Inventario de proveedores de IA con sus API keys en claro. Ya está versionado
+  # con claves adentro, por la misma decisión deliberada que servers.json. Se
+  # allowlistea EXPLÍCITAMENTE y con fecha de vencimiento, en vez de dejar que el
+  # hook lo bloquee sin explicación o —peor— que alguien lo silencie a mano.
+  '''^business/vendors/ai-providers\.json$''',
+
+  # Material de recuperación CIFRADO. Es alta entropía por diseño; sin la
+  # identidad offline no es nada. Que esté en git es la propiedad buscada.
+  '''^business/infraestructura/acceso/recovery-bundle\.age$''',
+
+  # Inventario de vendors/servicios sin secretos, pero con muchos ids largos.
+  '''^business/infraestructura/(backups|backblaze|destinos)\.json$''',
+
+  # Llave break-glass: está commiteada A PROPÓSITO y documentado. Lo secreto es
+  # su passphrase, que NO está en git — por eso un clon del repo ya no es root
+  # en la flota. Sin esta excepción el escáner marcaría la decisión como error.
+  '''^business/infraestructura/bin/breakglass_ed25519$''',
+
+  # Archivo de correspondencia: correos reales guardados como referencia. Los
+  # tokens que traen son de terceros y de sus propios sistemas, no nuestros.
+  '''^business/global/correos-referencia/''',
+]
+
+regexes = [
+  # Huellas sha256_16: son la convención del repo JUSTAMENTE para poder verificar
+  # una credencial sin re-exponerla. Marcarlas sería castigar el buen patrón.
+  '''sha256_16''',
+  # Placeholders de documentación y ejemplos.
+  '''(?i)(xxx+|<[a-z_-]+>|\.\.\.|placeholder|your[-_]?(key|token|secret)|changeme|example)''',
+]

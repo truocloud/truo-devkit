@@ -1,0 +1,73 @@
+name: gitleaks
+
+# Escanea SOLO lo que trae el push o el PR, no el historial completo.
+#
+# Por qué: el historial ya tiene secretos (el inventario en claro, tokens viejos)
+# y eso se cierra rotando, no escaneando. Un CI que sale rojo siempre por algo
+# que nadie puede arreglar en ese PR se termina ignorando — y entonces tampoco
+# avisa el día que sí entra un secreto nuevo.
+#
+# Es el mismo contrato que el hook local `.githooks/pre-commit`, con la misma
+# config: lo que pasa en tu máquina pasa acá.
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Historia completa: hace falta para resolver el rango a escanear.
+          fetch-depth: 0
+
+      - name: Instalar gitleaks
+        env:
+          # Fijada: que una versión nueva cambie las reglas y rompa un PR que no
+          # tocó nada es exactamente cómo un control pierde credibilidad.
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar xz -C /tmp gitleaks
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Escanear los cambios
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+
+          if [ "$EVENT" = "pull_request" ]; then
+            RANGE="origin/${BASE_REF}..HEAD"
+          elif [ -n "${BEFORE:-}" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            RANGE="${BEFORE}..${SHA}"
+          else
+            # Primer push de la rama, o `before` ya no existe (force-push, rebase).
+            # Escanear el último commit es mejor que no escanear nada y mucho mejor
+            # que escanear la historia entera, que saldría roja por lo viejo.
+            RANGE="${SHA}~1..${SHA}"
+            echo "::notice::Sin rango previo utilizable; escaneo solo el último commit."
+          fi
+
+          echo "Rango: $RANGE"
+          if gitleaks git --log-opts="$RANGE" --no-banner --redact; then
+            echo "Sin secretos nuevos."
+            exit 0
+          fi
+
+          echo "::error::Hay algo que parece un secreto en los cambios de este $EVENT."
+          echo "Si es un falso positivo o una excepción deliberada, agregalo a [allowlist] en .gitleaks.toml con un comentario que diga por qué."
+          exit 1

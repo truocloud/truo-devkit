@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#
+# pre-commit — impide commitear un secreto nuevo.
+#
+# Escanea SOLO lo que está en el índice (`--staged`), no el historial: el
+# historial ya tiene secretos y eso se cierra rotando, no escaneando. Un hook que
+# se pone rojo por algo viejo que nadie puede arreglar en ese momento se termina
+# desactivando, y entonces no protege de nada.
+#
+# Instalación (una vez por clon):   git config core.hooksPath .githooks
+#
+# Emergencia: `git commit --no-verify` lo salta. Está bien que exista y está bien
+# que sea visible — un control sin salida de emergencia se desactiva entero.
+set -uo pipefail
+
+# El hook corre desde la raíz del repo, pero no lo demos por sentado.
+ROOT="$(git rev-parse --show-toplevel)"
+CONFIG="$ROOT/.gitleaks.toml"
+
+# winget instala en Packages/ pero no siempre deja el enlace en el PATH — pasó con
+# `age` y vuelve a pasar acá. Sin esto el hook degradaría a modo aviso en la
+# máquina del founder justo después de instalarlo, que es el peor momento para
+# que un control se apague en silencio.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  for d in \
+    "$LOCALAPPDATA/Microsoft/WinGet/Packages"/Gitleaks.Gitleaks_*/ \
+    "$HOME/AppData/Local/Microsoft/WinGet/Packages"/Gitleaks.Gitleaks_*/
+  do
+    [ -x "${d}gitleaks.exe" ] && { PATH="$PATH:${d%/}"; break; }
+  done
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+
+  ⚠  gitleaks no está instalado — este commit NO fue revisado en busca de secretos.
+
+     Windows : winget install --id Gitleaks.Gitleaks
+     macOS   : brew install gitleaks
+     Linux   : https://github.com/gitleaks/gitleaks/releases
+
+  Se deja pasar el commit a propósito: bloquear por una herramienta faltante
+  convierte "instalá esto" en "usá --no-verify siempre", y ahí el hook muere.
+  Instalalo y el próximo commit ya queda cubierto.
+
+EOF
+  exit 0
+fi
+
+ARGS=(git --staged --no-banner --redact)
+[ -f "$CONFIG" ] && ARGS+=(--config "$CONFIG")
+
+if gitleaks "${ARGS[@]}"; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+
+  ✖ COMMIT BLOQUEADO — hay algo que parece un secreto en los cambios de arriba.
+
+  Qué hacer, en orden:
+    1. ¿Es un secreto de verdad?  Sacalo del archivo y leelo por la puerta única
+       (credentials.mjs / OpenBao). No lo reemplaces por un comentario que lo
+       nombre: describir el secreto no es lo mismo que citarlo, y el escáner
+       —con razón— lo va a seguir marcando.
+    2. ¿Es un falso positivo?  Agregá la ruta o el patrón a [allowlist] en
+       .gitleaks.toml, con un comentario que diga POR QUÉ no es un secreto.
+    3. ¿Es una excepción deliberada?  Mismo lugar, mismo comentario. Si no se
+       puede explicar en una línea, probablemente no sea deliberada.
+
+  Emergencia real: git commit --no-verify
+
+EOF
+exit 1
