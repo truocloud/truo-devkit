@@ -289,6 +289,28 @@ Authentication: \`Authorization: Bearer tc_live_...\` (API key with scopes).
 - [Deprecation policy](https://docs.truo.cloud/deprecation/)
 - [For AI agents](https://docs.truo.cloud/ai-agents/)
 
+## Image delivery
+
+Images are NOT part of the API above: they are plain URLs, with no token and no
+SDK call. An agent writing HTML can emit one directly.
+
+    https://img.truo.cloud/i/<pid>/<path>?w=800&f=auto
+
+- \`<pid>\` is the tenant's public id, shown in the console. It is not a secret.
+- \`<path>\` is the path on the tenant's configured origin, percent-encoded per
+  segment (RFC 3986 — escape !*'() too). To proxy a third-party image instead:
+  \`/i/<pid>/fetch/<the whole URL, percent-encoded>\`.
+- Parameters: \`w\` \`h\` \`q\` \`f\` \`fit\` \`dpr\` \`blur\` \`a\` (gravity) \`crop\` \`bg\` \`ro\`.
+  The imgix/ImageKit/Cloudinary spellings (\`width\`, \`format\`, \`fm\`, \`quality\`,
+  \`gravity\`…) are accepted and translated. Emit them **sorted by name**: two
+  orderings of one request are two CDN cache entries for the same image.
+- \`f=auto\` negotiates avif/webp from \`Accept\` and answers \`Vary: Accept\`.
+- An invalid VALUE is a 400 (\`?w=abc\`); an unknown NAME is dropped silently.
+- Out of range is clamped, not rejected, and says so with \`X-Img-Clamped\`.
+
+Full contract: https://docs.truo.cloud/images/url/
+Machine-readable URL vectors: https://img.truo.cloud/fixtures/urls.json
+
 ## Operations (${ops.length})
 ${tags
   .map(

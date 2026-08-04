@@ -1,0 +1,123 @@
+---
+title: Frameworks
+description: Loaders for Next.js, Nuxt, Angular and anything unpic supports.
+---
+
+Each loader is a thin adapter over [`@truocloud/img`](/images/javascript/) — the
+same URL builder, so every framework emits byte-identical URLs and shares CDN
+cache entries.
+
+## Next.js
+
+```bash
+npm install @truocloud/img-next
+```
+
+```js
+// next.config.js
+module.exports = {
+  images: {
+    loader: "custom",
+    loaderFile: "./node_modules/@truocloud/img-next/loader.js",
+    deviceSizes: [640, 828, 1200, 1600, 2048],
+  },
+};
+```
+
+```bash
+# .env
+NEXT_PUBLIC_TRUO_IMG_PID=acme
+```
+
+That is the whole setup — `<Image>` works unchanged.
+
+`deviceSizes` is trimmed from the default eight for the reason described in
+[the ladder](/images/javascript/#why-five-widths-and-not-eight).
+
+:::note[Why `loaderFile` and not the `loader` prop]
+The prop takes a function, and a function cannot cross the Server Component
+boundary — passing one from a server component to `<Image>` fails to serialise.
+`loaderFile` is resolved by the bundler at build time and works from anywhere.
+:::
+
+Next only walks `deviceSizes` when the image has a `sizes` prop. Without one it
+emits a 1x/2x density pair around the declared width — which is fine, but it is
+not the responsive ladder, and it surprises people.
+
+## Nuxt
+
+```bash
+npm install @truocloud/img-nuxt
+```
+
+```ts
+// nuxt.config.ts
+export default defineNuxtConfig({
+  modules: ["@nuxt/image"],
+  image: {
+    providers: {
+      truocloud: { provider: "@truocloud/img-nuxt", options: { pid: "acme" } },
+    },
+    provider: "truocloud",
+    screens: { xs: 640, sm: 828, md: 1200, lg: 1600, xl: 2048 },
+  },
+});
+```
+
+```vue
+<NuxtImg src="/uploads/photo.jpg" width="800" format="auto" />
+```
+
+## Angular
+
+```bash
+npm install @truocloud/img-angular
+```
+
+```ts
+import { provideTruoImageLoader } from "@truocloud/img-angular";
+
+bootstrapApplication(AppComponent, {
+  providers: [provideTruoImageLoader("https://img.truo.cloud/i/acme")],
+});
+```
+
+```html
+<img ngSrc="uploads/photo.jpg" width="800" height="600" priority />
+```
+
+The signature mirrors Angular's own `provideImageKitLoader`, so swapping
+providers is a one-line change. Anything the directive does not model goes
+through `loaderParams`:
+
+```html
+<img ngSrc="hero.jpg" width="1200" height="600"
+     [loaderParams]="{ transform: { fit: 'cover', gravity: 'attention' } }" />
+```
+
+## React, Vue, Svelte, Solid, Qwik, Astro
+
+Through [unpic](https://unpic.pics), which detects `img.truo.cloud` and
+transforms the URL for you:
+
+```jsx
+import { Image } from "@unpic/react";
+
+<Image src="https://img.truo.cloud/i/acme/uploads/photo.jpg" layout="constrained" width={800} height={600} />
+```
+
+A custom domain does not autodetect — `/i/` is too generic a path to claim
+globally — so pass `cdn="truocloud"` explicitly if you use one.
+
+## Pinning the format
+
+Every loader defaults to `format: "auto"`. If your images sit behind a
+third-party CDN that ignores `Vary` on images, pin it instead:
+
+```js
+createTruoLoader({ pid: "acme", format: "webp" })   // Next
+{ options: { pid: "acme", format: "webp" } }        // Nuxt
+provideTruoImageLoader(endpoint, { format: "webp" }) // Angular
+```
+
+The reasoning is in [format negotiation](/images/url/#format-negotiation).

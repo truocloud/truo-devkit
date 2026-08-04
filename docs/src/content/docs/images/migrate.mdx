@@ -1,0 +1,101 @@
+---
+title: Migrating from another provider
+description: Parameter mapping from imgix, ImageKit, Cloudinary and Cloudflare, and the one-line diff per framework.
+---
+
+Most of the work is already done for you: **the parameter names of imgix,
+ImageKit and Cloudinary are accepted and translated**. In many cases migrating
+is changing the hostname.
+
+```diff
+- https://mysite.imgix.net/photo.jpg?w=800&h=600&fit=crop&fm=webp
++ https://img.truo.cloud/i/acme/photo.jpg?w=800&h=600&fit=crop&fm=webp
+```
+
+Both work. `fit=crop` is imgix's spelling of `cover`, and `fm` of `format` — the
+service maps them itself.
+
+## Parameter mapping
+
+| What you want | imgix | ImageKit | Cloudinary | Cloudflare | TruoCloud |
+| --- | --- | --- | --- | --- | --- |
+| width | `w` | `tr=w-800` | `w_800` | `width=800` | `w` (or `width`) |
+| height | `h` | `tr=h-600` | `h_600` | `height=600` | `h` (or `height`) |
+| quality | `q` | `tr=q-80` | `q_80` | `quality=80` | `q` (or `quality`) |
+| format | `fm` | `tr=f-webp` | `f_webp` | `format=webp` | `f` (or `format`, `fm`) |
+| auto format | `auto=format` | `tr=f-auto` | `f_auto` | `format=auto` | `f=auto` |
+| crop to fill | `fit=crop` | `tr=c-maintain_ratio` | `c_fill` | `fit=cover` | `fit=cover` (or `fit=crop`) |
+| fit inside | `fit=clip` | `tr=c-at_max` | `c_fit` | `fit=scale-down` | `fit=inside` (or `clip`, `max`) |
+| pad | `fit=fill&bg=…` | `tr=cm-pad_resize` | `c_pad` | `fit=pad` | `fit=contain` (or `pad`) |
+| smart crop | `crop=entropy` | `tr=fo-auto` | `g_auto` | — | `a=attention` (or `gravity=auto`) |
+| blur | `blur` | `tr=bl-10` | `e_blur` | `blur` | `blur` |
+| DPR | `dpr` | `tr=dpr-2` | `dpr_2` | `dpr` | `dpr` |
+| background | `bg` | `tr=bg-FFFFFF` | `b_white` | `background` | `bg` (or `background`) |
+
+:::caution[`fit=fill` means different things]
+imgix letterboxes; TruoCloud follows sharp and **stretches**. If you are coming
+from imgix, `fit=fill` is the one parameter to change — use `fit=contain` for
+padding. It catches people exactly once.
+:::
+
+## URL shape
+
+| | Their shape | Ours |
+| --- | --- | --- |
+| imgix (Web Folder) | `https://you.imgix.net/path.jpg?…` | `https://img.truo.cloud/i/<pid>/path.jpg?…` |
+| imgix (Web Proxy) | `https://you.imgix.net/https%3A%2F%2F…` | `https://img.truo.cloud/i/<pid>/fetch/https%3A%2F%2F…` |
+| ImageKit | `https://ik.imagekit.io/you/path.jpg?tr=…` | `https://img.truo.cloud/i/<pid>/path.jpg?…` |
+| Cloudflare | `/cdn-cgi/image/width=800/path.jpg` | `https://img.truo.cloud/i/<pid>/path.jpg?w=800` |
+
+The main structural difference from ImageKit and Cloudinary: transformations are
+**query parameters**, not path segments. That keeps the source path readable and
+lets a CDN key on the query without a rewrite rule.
+
+## The diff per framework
+
+**Next.js** — replace the loader file and the environment variable:
+
+```diff
+  images: {
+    loader: "custom",
+-   loaderFile: "./node_modules/@imagekit/next-loader/loader.js",
++   loaderFile: "./node_modules/@truocloud/img-next/loader.js",
+  }
+```
+
+**Nuxt** — replace the provider:
+
+```diff
+  image: {
+-   imgix: { baseURL: "https://mysite.imgix.net" },
+-   provider: "imgix",
++   truocloud: { baseURL: "https://img.truo.cloud/i/acme" },
++   provider: "truocloud",
+  }
+```
+
+**Angular** — the signature is identical to Angular's built-in loaders:
+
+```diff
+- provideImageKitLoader("https://ik.imagekit.io/mysite")
++ provideTruoImageLoader("https://img.truo.cloud/i/acme")
+```
+
+**unpic** — nothing. It detects the hostname.
+
+## What to check after switching
+
+**Your CSP.** `img-src` needs `img.truo.cloud` **and your own origin**: when a
+tenant exceeds its quota the service answers 302 to the origin, and images keep
+loading — unless the CSP blocks the fallback.
+
+**Your `srcset` width count.** If you brought over an eight-width ladder,
+consider trimming it: the service caches on the second identical request, so
+each width costs two transformations before it pays off.
+
+**`f=auto` behind your CDN.** If there is a CDN in front that you did not
+configure, check whether it honours `Vary` on images. If not, emit `f=webp`
+explicitly — see [format negotiation](/images/url/#format-negotiation).
+
+**Signed URLs.** They do not carry over: the payload and the secret are ours.
+Signing is off by default, so nothing breaks until you turn it on.

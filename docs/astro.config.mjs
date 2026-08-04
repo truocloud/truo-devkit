@@ -79,6 +79,15 @@ export default defineConfig({
           ],
         },
         {
+          label: "Images",
+          items: [
+            { label: "The image URL", slug: "images/url" },
+            { label: "JavaScript", slug: "images/javascript" },
+            { label: "Frameworks", slug: "images/frameworks" },
+            { label: "Migrating", slug: "images/migrate" },
+          ],
+        },
+        {
           label: "AI agents",
           items: [{ label: "Giving an agent access", slug: "ai-agents" }],
         },

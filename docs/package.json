@@ -2,11 +2,11 @@
   "name": "@truocloud/docs",
   "version": "0.0.0",
   "private": true,
-  "description": "docs.truo.cloud — documentation for the public API, the SDK, and the CLI",
+  "description": "docs.truo.cloud \u2014 documentation for the public API, the SDK, and the CLI",
   "type": "module",
   "//": "Outside the `packages/*` workspace on purpose: the devkit is meant to be cloned and run without installing anything, and Astro is a dependency tree that has no business in the middle of that. Install only if you're going to work on the docs.",
   "scripts": {
-    "generate": "bun scripts/generate.ts",
+    "generate": "bun scripts/generate.ts && bun scripts/generate-images.ts",
     "dev": "bun scripts/generate.ts && astro dev",
     "build": "bun scripts/generate.ts && astro build",
     "preview": "astro preview",

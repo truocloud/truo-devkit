@@ -1,0 +1,157 @@
+---
+title: The image URL
+description: How img.truo.cloud URLs are built — path mapping, proxying, format negotiation and signing.
+---
+
+import Parameters from "./_parameters.md";
+
+Every image is a URL. There is no SDK call to make one, no token to attach, and
+nothing to sign unless you ask for it:
+
+```
+https://img.truo.cloud/i/<pid>/uploads/photo.jpg?w=800&f=auto
+```
+
+`<pid>` is your tenant's public id, shown in the console under **Images →
+Endpoint**. It is not a secret — it appears in every image URL on your site.
+
+## Two modes share the path
+
+```
+https://img.truo.cloud/i/acme/uploads/photo.jpg          your own origin
+https://img.truo.cloud/i/acme/fetch/https%3A%2F%2F…      somebody else's
+```
+
+The first maps the path onto the origin you configured. The second proxies an
+absolute URL, which has to be percent-encoded whole so its slashes do not split
+into path segments.
+
+If you genuinely have a `fetch/` directory, it still works: the proxy mode only
+triggers when what follows `fetch/` starts with `http://` or `https://`.
+
+### Both go through the same allowlist
+
+Configuring an origin is not an authorisation. Every request — mapped or
+proxied — is checked against the origin patterns on your tenant, so removing a
+pattern actually stops the traffic.
+
+## Parameters
+
+Names from imgix, ImageKit and Cloudinary are accepted and translated, so you
+can usually paste a URL from another provider and change the host.
+
+<Parameters />
+
+An unknown parameter is dropped in silence — real HTML carries `?ver=6.4` glued
+to image URLs, and answering 400 would break pages over decoration.
+
+An **invalid value** is not: `?w=abc` answers `400`, because the alternative is
+returning the full-size image and billing you for it while you believe you
+asked for a thumbnail.
+
+A value **out of range** is clamped, and the response says so with
+`X-Img-Clamped`. That is deliberate: a `srcset` overflowing on a huge viewport
+should not break the page.
+
+### `fit` stretches, if you are coming from imgix
+
+`fit=fill` follows sharp's semantics and **stretches** the image. imgix
+letterboxes. Use `fit=contain` for padding — it is the one difference that
+catches people exactly once.
+
+## Format negotiation
+
+`f=auto` picks avif or webp from the browser's `Accept` header and answers
+`Vary: Accept`:
+
+```
+Accept: image/avif,image/webp,*/*   →  image/avif
+Accept: image/webp,*/*              →  image/webp
+Accept: */*                         →  the source format
+```
+
+`*/*` alone does **not** count as support. Bots, proxies and `curl` send it, and
+serving them avif is how half of an integration breaks silently.
+
+:::caution[`f=auto` behind a third-party CDN]
+`Vary: Accept` is correct HTTP and fragile in practice. `Accept` has very high
+cardinality, and some CDNs ignore `Vary` on images unless you enable it
+(Cloudflare calls it "Vary for Images"). If your images sit behind a CDN you did
+not configure, emit `f=webp` or `f=avif` explicitly in your `srcset` and keep
+`f=auto` for one-off URLs.
+:::
+
+## Caching
+
+Responses carry your tenant's TTL, an `ETag`, and `stale-while-revalidate`:
+
+```
+cache-control: public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400
+etag: W/"6bab8bd88028581d72162fab1bd2417a"
+```
+
+`immutable` is opt-in per tenant and off by default. A year of `immutable` on a
+URL whose file can change is not revocable from a browser — it is the expensive
+mistake everybody makes once.
+
+Errors are always `no-store`. A cached `403` leaves a site broken long after the
+allowlist is fixed, and the diagnosis is miserable.
+
+## Signed URLs
+
+Signing is **optional**, per tenant. Turn on `require_signature` and every
+request needs an `s` parameter:
+
+```
+https://img.truo.cloud/i/acme/uploads/private.jpg?w=800&s=lUFvTTMh1YVYW9i6vKYy…
+```
+
+```
+s = base64url(HMAC-SHA256(secret, "v2\n" + pid + "\n" + pathname + "\n" + canonicalQuery))
+```
+
+Three things about that payload matter:
+
+- **the pathname is in it.** In this contract the path *is* the source image, so
+  signing only the query would leave the signature decorative — anyone could
+  swap the file and keep it valid.
+- **`exp` is optional.** Without it the URL does not expire, which is what
+  static HTML, a CMS and a CDN all need. It travels as a normal parameter, so
+  the canonical query already covers it and it cannot be altered.
+- **the canonical query is sorted by name then value**, excludes `s`, and
+  percent-encodes both sides — including the comma, which the wire form keeps
+  literal.
+
+In practice you do not implement this. `@truocloud/img/sign` does it:
+
+```ts
+import { signUrl } from "@truocloud/img/sign";
+
+const url = await signUrl(img.url("uploads/private.jpg", { width: 800 }), {
+  secret: process.env.TRUO_IMG_SECRET, // server-side only
+});
+```
+
+## Quota
+
+When a tenant runs out of quota the service answers **302 to the origin** rather
+than an error. Images keep loading, unoptimised.
+
+That matters for your Content Security Policy: `img-src` needs
+`img.truo.cloud` **and your origin**, or the fallback is the thing that breaks.
+
+## The URL vectors
+
+Every rule on this page is pinned by a fixture of URL vectors, generated by the
+service from its own parser and signer:
+
+```
+https://img.truo.cloud/fixtures/urls.json
+```
+
+It ships inside `@truocloud/img` as well, at
+`@truocloud/img/fixtures/urls.json`. It is what keeps the TypeScript builder,
+the WordPress plugin's PHP builder and the service itself emitting
+byte-identical URLs — down to whether `mi foto (1).jpg` escapes its parentheses.
+
+If you build these URLs yourself, test against it.

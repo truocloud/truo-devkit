@@ -1,0 +1,127 @@
+---
+title: JavaScript
+description: Building image URLs with @truocloud/img — srcset, sizes, placeholders and signing.
+---
+
+```bash
+npm install @truocloud/img
+```
+
+Zero dependencies, about 2 KB gzipped, ESM and CommonJS.
+
+```ts
+import { createTruoImg } from "@truocloud/img";
+
+const img = createTruoImg({ pid: "acme" });
+
+img.url("uploads/photo.jpg", { width: 800, format: "auto" });
+// https://img.truo.cloud/i/acme/uploads/photo.jpg?f=auto&w=800
+```
+
+## Naming a source
+
+```ts
+img.url("uploads/photo.jpg");                    // a path on your own origin
+img.url("https://example.com/photo.jpg");        // proxied through /fetch/
+img.url(anExistingTruoUrl, { width: 800 });      // rewritten, not wrapped again
+img.url("data:image/gif;base64,…");              // returned untouched
+```
+
+The third one matters more than it looks. Framework loaders and CMS filters run
+over the same markup twice more often than anyone expects, and wrapping twice
+produces a URL that works, costs double and is unreadable in a bug report.
+
+## Responsive images
+
+```jsx
+<img
+  src={img.url("uploads/photo.jpg", { width: 1200 })}
+  srcSet={img.srcset("uploads/photo.jpg", { transform: { format: "auto" } })}
+  sizes={img.sizes([[768, "100vw"], [1200, "50vw"]], "33vw")}
+  width={1200}
+  height={800}
+  alt=""
+/>
+```
+
+:::danger[Do not skip `sizes`]
+With a `srcset` and no `sizes`, the browser assumes `100vw` and downloads the
+largest candidate on a phone. It is the single most common way a "responsive
+images" setup ends up slower than the plain `<img>` it replaced.
+:::
+
+### Why five widths and not eight
+
+The default ladder is `640, 828, 1200, 1600, 2048`.
+
+The service caches a transformation on its **second** identical request, so
+every width costs two transformations before it starts being served from cache.
+With eight widths — Next's default `deviceSizes` — a page with five images costs
+`5 × 8 × 2 = 80` transformations on its first visit. The free tier's 5.000 per
+month covers about 62 first visits.
+
+Pass your own if you know your breakpoints:
+
+```ts
+img.srcset("uploads/photo.jpg", { widths: [400, 800, 1600] });
+```
+
+Widths are clamped to the cap and **then** de-duplicated. The other order would
+emit two identical URLs with different descriptors: the browser downloads the
+same bytes believing one is larger, and you pay for a cache entry that can never
+be a hit.
+
+## Placeholders
+
+```ts
+img.lqip("uploads/photo.jpg");            // a URL: 20px wide, blurred, webp
+await img.lqipDataUrl("uploads/photo.jpg"); // an inlineable data: URI
+```
+
+`lqip()` is synchronous because it only builds a URL. `lqipDataUrl()` fetches
+the bytes, so it belongs in a build step or a server component — in browser code
+it would add a round trip to the critical path to save one.
+
+## Reading a URL back
+
+```ts
+import { parseUrl } from "@truocloud/img";
+
+parseUrl("https://img.truo.cloud/i/acme/uploads/photo.jpg?f=auto&w=800");
+// { pid: "acme", mode: "endpoint", src: "uploads/photo.jpg", transform: { f: "auto", w: "800" } }
+```
+
+`buildUrl(parseUrl(u).src, parseUrl(u).transform, cfg) === u` for every URL the
+package produces. Building normalises — a leading slash disappears, parameters
+get sorted — so parsing recovers what the URL actually carries, not what was
+typed.
+
+## Signing
+
+Signing lives behind a second entrypoint. That is a real boundary: a bundler
+only pulls it into browser code if somebody imports it by name.
+
+```ts
+import { signUrl } from "@truocloud/img/sign";
+
+const url = await signUrl(img.url("uploads/private.jpg", { width: 800 }), {
+  secret: process.env.TRUO_IMG_SECRET,
+});
+```
+
+Omit `ttl` and the URL does not expire — the normal case for static HTML, a CMS
+or anything a CDN will hold on to.
+
+It is not, however, a guarantee. Nothing stops a developer who deliberately
+imports `/sign` in client code from shipping the secret, and no packaging trick
+can. Keep it on the server.
+
+## Configuration
+
+| | |
+| --- | --- |
+| `pid` | your tenant's public id (required) |
+| `baseUrl` | override for a custom domain |
+| `widths` | default ladder for `srcset()` |
+| `maxWidth` | ceiling `srcset()` clamps to before de-duplicating |
+| `mode` | `auto` (default), `endpoint` or `fetch` |
