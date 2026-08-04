@@ -85,8 +85,12 @@ export default function Page() {
   // The assertions that matter: Next called OUR loader, and it produced the
   // canonical URL shape rather than something that merely looks right.
   const expectations = [
-    `/i/${PID}/uploads/photo.jpg?f=auto&amp;w=640`,
-    `/i/${PID}/uploads/photo.jpg?f=auto&amp;w=2048`,
+    // density pair (no `sizes`)
+    `/i/${PID}/uploads/photo.jpg?f=auto&amp;w=1200 1x`,
+    `/i/${PID}/uploads/photo.jpg?f=auto&amp;w=2048 2x`,
+    // width ladder from deviceSizes (with `sizes`) — the ends of it
+    `/i/${PID}/uploads/hero.jpg?f=auto&amp;w=640 640w`,
+    `/i/${PID}/uploads/hero.jpg?f=auto&amp;w=2048 2048w`,
   ];
   for (const expected of expectations) {
     if (!html.includes(expected)) {
