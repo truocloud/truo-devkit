@@ -44,7 +44,10 @@ jobs:
       - run: bun run sync:spec --check
       - run: bun run gen:check
       - run: bun run typecheck
-      - run: bun test
+      # `bun run test`, not `bun test`: the script scopes the run to packages/,
+      # and a bare `bun test` also walks img/ — a separate workspace with its own
+      # dependencies and its own CI. It passes locally and fails here.
+      - run: bun run test
 
       - name: Build the npm packages
         run: bun run build:npm
