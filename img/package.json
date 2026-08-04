@@ -21,15 +21,18 @@
     "unpic:prepare": "bun scripts/prepare-unpic.ts",
     "verify:next": "bun scripts/verify-next.ts",
     "version:set": "bun scripts/set-version.ts",
-    "version:check": "bun scripts/set-version.ts --check"
+    "version:check": "bun scripts/set-version.ts --check",
+    "nuxt:prepare": "bun scripts/prepare-nuxt.ts"
   },
   "devDependencies": {
     "@angular/common": "^19",
     "@angular/core": "^19",
+    "@nuxt/image": "2.1.0",
     "@types/bun": "^1.3.9",
     "@types/node": "^22.10.0",
     "rxjs": "^7.8.2",
     "typescript": "^5.9.3",
+    "ufo": "^1.5.4",
     "unpic": "4.2.2",
     "zone.js": "^0.16.2"
   }
