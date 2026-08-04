@@ -67,9 +67,19 @@ try {
   );
   await writeFile(
     join(dir, "app/page.js"),
+    // TWO images on purpose. Next only walks `deviceSizes` and emits `w`
+    // descriptors when `sizes` is present; without it, it emits a 1x/2x density
+    // pair around the declared width. Asserting only one of the two would hide
+    // whichever path broke — and the first version of this script did exactly
+    // that, expecting a width ladder from an image that could not produce one.
     `import Image from "next/image";
 export default function Page() {
-  return <Image src="/uploads/photo.jpg" alt="" width={1200} height={800} />;
+  return (
+    <>
+      <Image src="/uploads/photo.jpg" alt="" width={1200} height={800} />
+      <Image src="/uploads/hero.jpg" alt="" width={1200} height={800} sizes="100vw" />
+    </>
+  );
 }\n`,
   );
 
