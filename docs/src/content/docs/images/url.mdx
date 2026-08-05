@@ -61,14 +61,30 @@ catches people exactly once.
 
 ## Format negotiation
 
-`f=auto` picks avif or webp from the browser's `Accept` header and answers
+`f=auto` picks a format from the browser's `Accept` header and answers
 `Vary: Accept`:
 
 ```
-Accept: image/avif,image/webp,*/*   →  image/avif
+Accept: image/avif,image/webp,*/*   →  image/webp
 Accept: image/webp,*/*              →  image/webp
+Accept: image/avif,*/*              →  image/avif
 Accept: */*                         →  the source format
 ```
+
+**`auto` prefers WebP over AVIF**, which surprises people, so here is the
+measurement behind it. Against the transformation engine under its production
+quota, a burst of 24 transforms of a real product image took **9.72s and 990 MB
+of peak memory in AVIF, against 1.21s and 267 MB in WebP** — eight times the
+wall clock. Isolated at `w=1200`: AVIF 2.20s for 189 KB, WebP 0.24s for 138 KB.
+On four of five real catalogue images WebP was also *smaller* at the same `q`.
+
+AVIF earns its cost on large photographic content at low quality. Product shots,
+logos and UI assets are where it loses, and that is most of what a CDN serves.
+The size comparison is at equal `q` and the two codecs' quality scales are not
+perceptually equivalent — but the CPU difference does not depend on that.
+
+If you want AVIF, ask for it: `f=avif` is unchanged, and `auto` still returns it
+for a client that accepts AVIF but not WebP.
 
 `*/*` alone does **not** count as support. Bots, proxies and `curl` send it, and
 serving them avif is how half of an integration breaks silently.

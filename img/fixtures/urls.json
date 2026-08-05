@@ -107,7 +107,7 @@
       "accept": "image/avif,image/webp,image/apng,*/*;q=0.8",
       "expected": "https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=800",
       "upstream_url": "https://cdn.example.com/uploads/foto.jpg",
-      "upstream_query": "output=avif&q=82&w=800",
+      "upstream_query": "output=webp&q=82&w=800",
       "exp": null,
       "expected_signed": "https://img.truo.cloud/i/acme/uploads/foto.jpg?f=auto&w=800&s=lUFvTTMh1YVYW9i6vKYyHEjlovhPcmGMOno5lHo5sUE"
     },
