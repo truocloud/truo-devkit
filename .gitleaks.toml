@@ -43,8 +43,16 @@ keywords = ["AGE-SECRET-KEY"]
 [[rules]]
 id = "redmasiva-openbao-token"
 description = "Token de OpenBao/Vault"
-regex = '''\b(hvs\.[A-Za-z0-9_-]{20,}|hvb\.[A-Za-z0-9_-]{20,}|s\.[A-Za-z0-9]{24})\b'''
-keywords = ["hvs.", "hvb.", "s."]
+# Se cayó la alternativa `s\.[A-Za-z0-9]{24}` (formato de token de Vault <= 1.9).
+# Medido 2026-08-14: matcheaba `s.totalTicketsFirstResponded` y cualquier otro
+# acceso a propiedad sobre una variable llamada `s` con nombre de 24 caracteres.
+# Sintácticamente no hay forma de distinguirlo de un token, y el holding no usa
+# ese formato: los dos vaults son OpenBao y emiten `hvs.` / `hvb.`. Una regla que
+# se pone roja sobre codigo normal se termina silenciando entera, y ahi tambien
+# se pierden los prefijos que si importan. Esta regla se reparte a 21 repos, asi
+# que el falso positivo se multiplicaba por 21.
+regex = '''\b(hvs\.[A-Za-z0-9_-]{20,}|hvb\.[A-Za-z0-9_-]{20,})\b'''
+keywords = ["hvs.", "hvb."]
 
 [[rules]]
 id = "redmasiva-restic-b2"
@@ -90,6 +98,39 @@ paths = [
 
   # Inventario de vendors/servicios sin secretos, pero con muchos ids largos.
   '''^business/infraestructura/(backups|backblaze|destinos)\.json$''',
+
+  # ⚠️ TEMPORAL — MISMO CASO QUE servers.json, QUITAR EN LA FASE 4.
+  # `backup-keys.json` son las claves de cifrado de TODOS los respaldos del
+  # holding: sin ellas los backups en B2/OVH son irrecuperables, y por eso su
+  # copia canónica vive acá a propósito (el meta-repo es sistema de registro
+  # privado). `vault-agents.json` guarda los tokens maestros del vault de
+  # agents-truo, también hardcodeados por decisión documentada.
+  #
+  # Se allowlistean EXPLÍCITAMENTE en vez de dejar que el hook los bloquee sin
+  # explicación: un rojo que nadie puede resolver termina en `--no-verify`
+  # permanente, y ahí el control muere para todo el repo, no solo para estos dos.
+  '''^business/infraestructura/backup-keys\.json$''',
+  '''^business/infraestructura/vault-agents\.json$''',
+
+  # ⚠️ TEMPORAL — MISMO CASO, QUITAR EN LA FASE 4.
+  # Definiciones capturadas de los stacks que corren HOY en Swarm/Portainer
+  # (beta y usbeta), tal cual estan desplegadas: traen `POSTGRES_PASSWORD` y
+  # `AUTHENTICATION_API_KEY` reales adentro. Sanearlas las volveria inutiles
+  # para lo unico que existen —poder relevantar el stack tal cual estaba— y ese
+  # es justo el escenario en el que nadie va a tener tiempo de ir a buscar la
+  # clave a otro lado. Misma decision deliberada que servers.json.
+  # El escaner tambien marca acá una etiqueta de Traefik
+  # (`routers.X.service=Y`) que no es un secreto: cae bajo la misma linea.
+  '''^business/infraestructura/shared/migracion/stacks/''',
+
+  # ⚠️ TEMPORAL — MISMO CASO, QUITAR EN LA FASE 4.
+  # `init-pricing/configs/` declara los servidores WHMCS de cada marca con su
+  # password, igual que servers.json y por la misma decision: es provisioning
+  # declarativo y sin la credencial no provisiona nada.
+  # `haztap/queries/` son los scripts de volcado del inventario de tiendas, que
+  # traen la clave por defecto de cada marca.
+  '''^tools/init-pricing/configs/''',
+  '''^business/haztap/queries/''',
 
   # Llave break-glass: está commiteada A PROPÓSITO y documentado. Lo secreto es
   # su passphrase, que NO está en git — por eso un clon del repo ya no es root
