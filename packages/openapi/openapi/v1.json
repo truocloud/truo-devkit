@@ -3,7 +3,7 @@
   "info": {
     "title": "TruoCloud API",
     "version": "1.0.0",
-    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, and Mail Gateway— manageable over HTTP, through the `truo` CLI, and via MCP.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
+    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, and serverless primitives— manageable over HTTP, through the `truo` CLI, and via MCP.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
       "url": "https://www.truocloud.com"
@@ -25,16 +25,52 @@
       "description": "The account and the credential in use."
     },
     {
-      "name": "API Keys",
-      "description": "Credentials. Requires a session."
-    },
-    {
       "name": "Services",
       "description": "Contracted services. The entry point to everything else."
     },
     {
+      "name": "VPS",
+      "description": "Virtual servers: power, metrics, console, rebuilds, and backups."
+    },
+    {
+      "name": "DNS",
+      "description": "Records in zones already hosted here."
+    },
+    {
+      "name": "DBaaS",
+      "description": "Managed PostgreSQL, MySQL, and Valkey instances."
+    },
+    {
+      "name": "CaaS",
+      "description": "Containerized applications: deploys, logs, environment, and domains."
+    },
+    {
+      "name": "Load Balancer",
+      "description": "Listeners and backends in front of a dedicated failover IP."
+    },
+    {
+      "name": "Object Storage",
+      "description": "Buckets and credentials. Objects themselves go to the S3-compatible endpoint, not here."
+    },
+    {
+      "name": "Mail Gateway",
+      "description": "Sending domains, keys, and delivery stats. Sending a message goes to the Mail Gateway endpoint, not here."
+    },
+    {
+      "name": "Image Services",
+      "description": "Transformation tenants, allowed origins, and signing keys."
+    },
+    {
+      "name": "Serverless",
+      "description": "KV, SQL databases, functions, and cron: tenants, quotas, and tokens. Reads and writes go to each service endpoint, not here."
+    },
+    {
       "name": "Operations",
       "description": "Asynchronous work."
+    },
+    {
+      "name": "API Keys",
+      "description": "Credentials. Requires a session."
     },
     {
       "name": "Audit",
