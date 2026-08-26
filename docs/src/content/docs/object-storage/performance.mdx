@@ -1,0 +1,89 @@
+---
+title: Getting the speed
+description: Four client settings that triple throughput on bulk transfers.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+Default SDK settings leave most of the available throughput unused. This is not
+a property of the platform — it is the client waiting on one round trip at a
+time.
+
+| Setting | Value | Why |
+|---|---|---|
+| Upload concurrency | **16** (8 minimum) | Multipart is latency-bound *per part*: without concurrency each part waits a full round trip before the next begins. |
+| Part size | **16–64 MB** | Small parts multiply round trips. Very large ones hit the request size limit. |
+| Addressing style | **path** | Required — see [connecting](/object-storage/). |
+
+## Measured
+
+Uploading 1 GB:
+
+| Configuration | Time | Throughput |
+|---|---|---|
+| `rclone` defaults (concurrency 4) | 77 s | 112 Mbps |
+| `--s3-upload-concurrency=16` | 25.5 s | **337 Mbps** |
+| Line rate for the same transfer | — | 346 Mbps |
+
+At concurrency 16 you are within 3% of line rate. At the defaults you lose two
+thirds of the available speed, and it is the client that loses it.
+
+<Tabs syncKey="lang">
+<TabItem label="rclone">
+
+```bash
+rclone copy ./data truo:my-bucket \
+  --s3-upload-concurrency 16 \
+  --s3-chunk-size 32M \
+  --transfers 8
+```
+
+</TabItem>
+<TabItem label="aws-cli">
+
+```bash
+aws configure set default.s3.max_concurrent_requests 16
+aws configure set default.s3.multipart_chunksize 32MB
+```
+
+</TabItem>
+<TabItem label="boto3">
+
+```python
+from boto3.s3.transfer import TransferConfig
+
+cfg = TransferConfig(
+    max_concurrency=16,
+    multipart_chunksize=32 * 1024 * 1024,
+)
+s3.upload_file("big.tar", "my-bucket", "big.tar", Config=cfg)
+```
+
+</TabItem>
+</Tabs>
+
+## Limits worth knowing
+
+**Parts over ~100 MB return `413`.** That is the endpoint's request size limit.
+Parts of 16–64 MB never come near it. Setting
+`chunk_size=128M` to "go faster" does the opposite: it fails.
+
+**Objects over ~512 MB are not edge-cached.** Repeated downloads of large files
+— backups, video, disk images — come from origin every time. It does not change
+what you are billed, but on large objects the service behaves like object
+storage rather than a CDN. For content served many times over, split it.
+
+**Rate limits are per plan**, defaulting to 1,200 requests per minute (~20/s) —
+enough for multipart at concurrency 16. Over it you get `503 SlowDown`, which
+every S3 SDK already retries with backoff. It is not an error you need to
+handle.
+
+<Aside type="note" title="What does not help">
+- **More transfers at concurrency 1.** The bottleneck is per-part latency, not
+  how many files are in flight.
+- **Compressing already-compressed data** before upload. CPU for nothing.
+- **Retrying quickly after `503 SlowDown`.** The SDK is already backing off;
+  retrying sooner just adds to the queue you are being asked to drain.
+</Aside>

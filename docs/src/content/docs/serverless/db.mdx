@@ -1,0 +1,137 @@
+---
+title: DB
+description: SQL over HTTP with prepared statements, batches and migrations.
+sidebar:
+  order: 3
+---
+
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+```
+https://db.truo.cloud
+Authorization: Bearer dbt_...
+```
+
+SQL over HTTP. Databases are **namespaces**, created on the first query — you
+name one and start using it.
+
+## Query
+
+```
+POST /v1/db/{namespace}/query
+```
+
+<Tabs syncKey="lang">
+<TabItem label="curl">
+
+```bash
+curl "https://db.truo.cloud/v1/db/app/query" \
+  -X POST \
+  -H "Authorization: Bearer $DB_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sql": "SELECT id, email FROM users WHERE plan = ? LIMIT 10",
+    "params": ["pro"]
+  }'
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js
+async function query(sql, params = []) {
+  const res = await fetch("https://db.truo.cloud/v1/db/app/query", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${process.env.DB_TOKEN}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ sql, params }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  return res.json();
+}
+
+const { results } = await query(
+  "SELECT id, email FROM users WHERE plan = ? LIMIT 10",
+  ["pro"],
+);
+```
+
+</TabItem>
+</Tabs>
+
+`params` binds `?` placeholders positionally.
+
+<Aside type="danger" title="Bind, do not concatenate">
+`params` exists so that user input never becomes SQL. Building the statement by
+string concatenation is an injection, and no amount of escaping on your side
+fixes it reliably.
+</Aside>
+
+## Batch
+
+```
+POST /v1/db/{namespace}/batch
+```
+
+```json
+{
+  "statements": [
+    { "sql": "INSERT INTO users (email) VALUES (?)", "params": ["a@acme.com"] },
+    { "sql": "UPDATE counters SET n = n + 1 WHERE k = ?", "params": ["users"] }
+  ]
+}
+```
+
+Returns one result per statement, in order. **Maximum 100 statements** per
+request; more returns `too_many_statements`.
+
+## Exec
+
+```
+POST /v1/db/{namespace}/exec
+```
+
+Takes `{ "sql": "..." }` and returns `{ "count", "duration" }`. This is the one
+to use for schema work — migrations, indexes — where you care that it ran, not
+what it returned.
+
+## Namespaces
+
+| | |
+|---|---|
+| `GET /v1/db` | Lists your namespaces. |
+| `DELETE /v1/db/{namespace}` | Drops one. Returns `404` if it was not there. |
+
+Your plan caps how many you can have; passing it returns
+`namespace_limit_reached`, with the cap in `limit`.
+
+## Errors
+
+A JSON object with an `error` string — **not** the `{ error: { code, message } }`
+shape the public API uses. SQL failures are the exception: they add a `message`
+carrying the engine's own text.
+
+```json
+{ "error": "sql_error", "message": "no such table: users" }
+```
+
+| Status | `error` | |
+|---|---|---|
+| 400 | `sql_error` | The statement failed. `message` says why. |
+| 400 | `sql_required` | No `sql` field, or not a string. |
+| 400 | `body_invalid` | The body is not valid JSON. |
+| 400 | `statements_invalid` | `statements` missing or not an array. |
+| 400 | `too_many_statements` | Over 100. The cap is in `limit`. |
+| 400 | `namespace_invalid` | Name outside the allowed characters. |
+| 401 | `missing_token` | No `Authorization: Bearer`. |
+| 403 | `invalid_or_suspended_token` | Unknown, revoked, or suspended token. |
+| 404 | `not_found` | Unknown namespace, on delete. |
+| 405 | `method_not_allowed` | Wrong verb for the path. |
+| 429 | `quota_exceeded` | Includes a `dimension` naming what ran out. |
+| 429 | `namespace_limit_reached` | Your plan's cap, in `limit`. |
+
+Note that `sql_error` is a `400`, not a `500`: a query that references a
+missing table is a problem with the request, and retrying it unchanged will
+fail the same way.

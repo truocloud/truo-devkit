@@ -1,0 +1,51 @@
+---
+title: Mail Gateway
+description: Send transactional email over HTTP or SMTP from your own verified domains.
+sidebar:
+  order: 1
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+Transactional email for applications: password resets, receipts, alerts — the
+messages your product sends to one person because that person did something.
+
+There are two ways in, and they carry the same mail from the same verified
+domains. Which one you use is a property of your codebase, not of your plan.
+
+<CardGrid>
+  <Card title="HTTP API" icon="rocket">
+    A JSON `POST`. No connection to hold open, no MTA to configure, and errors
+    come back as data you can branch on.
+    **[Sending over HTTP](/mail-gateway/send/)**
+  </Card>
+  <Card title="SMTP" icon="email">
+    For anything that already speaks SMTP — a framework mailer, a CMS, an
+    appliance. Change four settings and you are done.
+    **[Sending over SMTP](/mail-gateway/smtp/)**
+  </Card>
+</CardGrid>
+
+## Before the first message
+
+Two things, in this order:
+
+1. **A verified sending domain.** Mail is rejected unless the address in `from`
+   belongs to a domain you have verified. This is the first thing that goes
+   wrong for most people — see [Sending domains](/mail-gateway/domains/).
+2. **A credential.** An API key (`mg_live_...`) for HTTP, or an SMTP username
+   and password. Both come from your panel, and they are not interchangeable:
+   the API key will not authenticate an SMTP session.
+
+## What lives where
+
+Mail Gateway has two surfaces, and they do different jobs:
+
+| You want to | Use |
+|---|---|
+| Send a message | `mg.truo.cloud` — this guide |
+| Add a domain, issue a key, read delivery stats | [`/v1/mail-gateway`](/reference/mail-gateway/) in the public API |
+
+Setting the service up belongs to the public API and is documented in the
+[reference](/reference/mail-gateway/). Everything under this section is about
+the sending itself.

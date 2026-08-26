@@ -1,0 +1,141 @@
+---
+title: Cron
+description: Scheduled, signed webhooks to a URL of yours.
+sidebar:
+  order: 5
+---
+
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+```
+https://cron.truo.cloud
+Authorization: Bearer crt_...
+```
+
+A schedule is a cron expression plus a URL. On each tick we `POST` to that URL
+with a signature you can verify.
+
+## Create
+
+```
+POST /v1/schedules
+```
+
+```bash
+curl https://cron.truo.cloud/v1/schedules \
+  -X POST \
+  -H "Authorization: Bearer $CRON_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "nightly-rollup",
+    "cron": "0 3 * * *",
+    "url": "https://api.acme.com/jobs/rollup"
+  }'
+```
+
+| Field | |
+|---|---|
+| `name` | 1–64 characters, `a-z A-Z 0-9 _ . -`. Unique within your account. |
+| `cron` | Five fields. **Evaluated in UTC** — `0 3 * * *` is 3 AM UTC, whatever your server's clock says. |
+| `url` | Must start with `http://` or `https://`. |
+
+<Aside type="danger" title="The signing secret is shown once">
+The `201` response includes `signing_secret`. It is returned **only on
+creation** — it is stored encrypted and never displayed again. Store it before
+you close the connection; if you lose it, rotate the schedule.
+</Aside>
+
+## Verifying a delivery
+
+Every call carries two headers:
+
+| Header | |
+|---|---|
+| `x-cron-truo-timestamp` | When we signed it. |
+| `x-cron-truo-signature` | `HMAC-SHA256` of `{timestamp}.{body}`, hex-encoded, keyed with your signing secret. |
+
+<Tabs syncKey="lang">
+<TabItem label="JavaScript">
+
+```js
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+function verify(req, rawBody, secret) {
+  const ts = req.headers["x-cron-truo-timestamp"];
+  const sig = req.headers["x-cron-truo-signature"];
+
+  // Reject anything old enough to be a replay of a captured request.
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+
+  const expected = createHmac("sha256", secret)
+    .update(`${ts}.${rawBody}`)
+    .digest("hex");
+
+  // Constant-time: `===` on a hex string leaks its prefix through timing.
+  const a = Buffer.from(expected, "hex");
+  const b = Buffer.from(sig, "hex");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+import hmac, hashlib, time
+
+def verify(headers, raw_body: bytes, secret: str) -> bool:
+    ts = headers["x-cron-truo-timestamp"]
+    sig = headers["x-cron-truo-signature"]
+
+    if abs(time.time() - float(ts)) > 300:
+        return False
+
+    expected = hmac.new(
+        secret.encode(),
+        f"{ts}.".encode() + raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(expected, sig)
+```
+
+</TabItem>
+</Tabs>
+
+Sign over the **raw body bytes**, before any JSON parsing. Re-serializing the
+parsed body changes key order and whitespace, and the signature will never
+match.
+
+The timestamp is what makes a captured request expire. Without checking it, a
+valid signature stays valid forever.
+
+## Manage
+
+| | |
+|---|---|
+| `GET /v1/schedules` | List. |
+| `GET /v1/schedules/{id}` | One schedule. |
+| `PATCH /v1/schedules/{id}` | Change `cron`, `url`, or status. |
+| `DELETE /v1/schedules/{id}` | Remove it. |
+| `GET /v1/schedules/{id}/executions?limit=N` | Recent runs — this is where you look when a job did not fire. |
+
+On the free tier, a tick that would exceed your quota is recorded as `skipped`
+in the execution log rather than being silently dropped.
+
+## Errors
+
+A JSON object with an `error` string.
+
+| Status | `error` | |
+|---|---|---|
+| 400 | `name_invalid` | Missing, or outside the allowed characters. |
+| 400 | `cron_required` | No `cron` field. |
+| 400 | `cron_invalid` | The expression does not parse. `detail` says why. |
+| 400 | `url_invalid` | Missing, or not `http://` / `https://`. |
+| 401 | `missing_token` | No `Authorization: Bearer`. |
+| 403 | `invalid_or_suspended_token` | Unknown, revoked, or suspended token. |
+| 404 | `not_found` | Unknown schedule. |
+| 405 | `method_not_allowed` | Wrong verb for the path. |
+| 409 | `name_taken` | You already have a schedule with that name. |
+| 429 | `schedule_limit_reached` | Your plan's cap, in `limit`. |

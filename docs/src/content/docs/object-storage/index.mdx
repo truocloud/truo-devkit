@@ -1,0 +1,111 @@
+---
+title: Object Storage
+description: An S3-compatible endpoint you point existing tools at.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+```
+https://s3.truo.cloud
+```
+
+This is a real S3 endpoint, not a wrapper with an S3-shaped facade: requests are
+authenticated with **AWS Signature V4** and the wire format is S3's. Anything
+that speaks S3 — `aws-cli`, `boto3`, `rclone`, backup software — works by
+changing the endpoint.
+
+## Connect
+
+| | |
+|---|---|
+| Endpoint | `https://s3.truo.cloud` |
+| Access key / secret | Issued from your panel or [the public API](/reference/object-storage/) |
+| Region | Any value. Use `us-east-1` if your tool insists on one. |
+| Addressing style | **`path`** — required, see below |
+
+<Aside type="caution" title="Path-style addressing is required">
+Many SDKs default to virtual-hosted style (`https://bucket.s3.truo.cloud/key`).
+That does not resolve here. Set path-style explicitly:
+
+- `aws-cli`: `aws configure set default.s3.addressing_style path`
+- `boto3`: `Config(s3={"addressing_style": "path"})`
+- `rclone`: `force_path_style = true`
+</Aside>
+
+<Tabs syncKey="lang">
+<TabItem label="aws-cli">
+
+```bash
+aws configure set aws_access_key_id     "$S3_ACCESS_KEY"
+aws configure set aws_secret_access_key "$S3_SECRET_KEY"
+aws configure set default.s3.addressing_style path
+
+aws --endpoint-url https://s3.truo.cloud s3 ls
+aws --endpoint-url https://s3.truo.cloud s3 cp ./file.zip s3://my-bucket/
+```
+
+</TabItem>
+<TabItem label="boto3">
+
+```python
+import boto3
+from botocore.config import Config
+
+s3 = boto3.client(
+    "s3",
+    endpoint_url="https://s3.truo.cloud",
+    aws_access_key_id=S3_ACCESS_KEY,
+    aws_secret_access_key=S3_SECRET_KEY,
+    region_name="us-east-1",
+    config=Config(s3={"addressing_style": "path"}),
+)
+
+s3.upload_file("file.zip", "my-bucket", "file.zip")
+```
+
+</TabItem>
+<TabItem label="rclone">
+
+```ini
+[truo]
+type = s3
+provider = Other
+endpoint = https://s3.truo.cloud
+access_key_id = ...
+secret_access_key = ...
+force_path_style = true
+```
+
+</TabItem>
+</Tabs>
+
+## What works
+
+Objects (`GET`, `PUT`, `DELETE`, `HEAD`, `COPY`), bucket listing, prefix and
+delimiter listing, **multipart uploads**, and **presigned URLs** for handing out
+time-limited access without sharing a credential.
+
+## What returns 501
+
+These are answered with an explicit `NotImplemented`, so your SDK fails cleanly
+instead of behaving strangely:
+
+- Object and bucket **ACLs**
+- **Versioning**
+- **Tagging**
+- **Lifecycle** rules
+- **CORS** configuration
+- **Bucket policies**
+
+If your workflow depends on one of these, it will fail loudly on the call that
+needs it rather than silently doing nothing. Lifecycle is the one that catches
+people out: objects are not expired for you, so retention has to be something
+your own job does.
+
+## Next
+
+Default SDK settings leave roughly two thirds of the available throughput on the
+table. **[Getting the speed](/object-storage/performance/)** is four settings
+and it is worth reading before a bulk migration.

@@ -1,6 +1,6 @@
 ---
 title: TruoCloud API
-description: Manage VPS, DNS, managed databases, containers, load balancers, Object Storage, and Mail Gateway from code, from the terminal, or from an agent.
+description: Manage VPS, DNS, managed databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, and serverless primitives from code, from the terminal, or from an agent.
 template: splash
 hero:
   tagline: Cloud infrastructure you operate with code. And with an agent, if you want.
@@ -15,6 +15,7 @@ hero:
 ---
 
 import { Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
+import Catalog from "./_catalog.md";
 
 ## The same thirty seconds, on four surfaces
 
@@ -84,9 +85,7 @@ await truo.operations.wait(op.id);
 
 ## What you can manage
 
-VPS · DNS · managed databases · containers · load balancers ·
-Object Storage · Mail Gateway. **103 operations** in total —
-[the full reference](/reference/vps/).
+<Catalog />
 
 WordPress, cPanel, domains, tickets, and billing arrive in `v1.1`. Anything
 not in [`/v1/openapi.json`](https://api.truo.cloud/v1/openapi.json) has no

@@ -173,10 +173,56 @@ const TAG_ORDER = [
   "Load Balancer",
   "Object Storage",
   "Mail Gateway",
+  "Image Services",
+  "Serverless",
   "Operations",
   "API Keys",
   "Audit",
 ];
+
+/**
+ * The families a customer actually buys, with the words the site uses for
+ * them: `DBaaS` and `CaaS` are our names, not theirs.
+ *
+ * The rest of the tags (`Meta`, `Account`, `API Keys`, `Services`,
+ * `Operations`, `Audit`) are how you drive the API, not things you can
+ * provision — they don't belong in a "what you can manage" list.
+ *
+ * A family missing from here falls back to its tag, so a new one shows up
+ * looking slightly wrong rather than silently disappearing from the catalog.
+ */
+/**
+ * Families whose reference page is only half the story.
+ *
+ * For most of them, `/v1` is the whole service: a VPS is rebooted through the
+ * API and nowhere else. But a handful have a second endpoint of their own —
+ * you create a Mail Gateway key through `/v1/mail-gateway`, then send the
+ * message to `mg.truo.cloud`; you get an Object Storage credential here, then
+ * sign a request to `s3.truo.cloud`. The reference documents the first half
+ * and has no way to mention the second, which is the half people actually
+ * came for.
+ *
+ * Kept here rather than in each page's frontmatter because the pages are
+ * wiped and regenerated on every build.
+ */
+const GUIDE: Record<string, { label: string; href: string }> = {
+  "Mail Gateway": { label: "Sending email", href: "/mail-gateway/" },
+  Serverless: { label: "Using the primitives", href: "/serverless/" },
+  "Object Storage": { label: "Using the S3 endpoint", href: "/object-storage/" },
+  "Image Services": { label: "Delivering images", href: "/images/" },
+};
+
+const FAMILY_LABEL: Record<string, string> = {
+  VPS: "VPS",
+  DNS: "DNS",
+  DBaaS: "managed databases",
+  CaaS: "containers",
+  "Load Balancer": "load balancers",
+  "Object Storage": "Object Storage",
+  "Mail Gateway": "Mail Gateway",
+  "Image Services": "Image Services",
+  Serverless: "serverless primitives",
+};
 
 const tags = [...byTag.keys()].sort((a, b) => {
   const ia = TAG_ORDER.indexOf(a);
@@ -228,6 +274,8 @@ for (const [index, tag] of tags.entries()) {
     ].join("\n");
   });
 
+  const guide = GUIDE[tag];
+
   const page = `---
 title: ${tag}
 description: ${tag} operations in the TruoCloud public API.
@@ -243,7 +291,16 @@ SDK, and MCP examples are derived from the same \`operationId\`, so they can't
 contradict each other. To try calls against your own account, use the
 [API playground](/api/).
 :::
-
+${
+  guide
+    ? `
+:::tip[This is the control plane]
+These operations set the service up — they don't use it. ${tag} has its own
+endpoint for the actual work: **[${guide.label}](${guide.href})**.
+:::
+`
+    : ""
+}
 ${sections.join("\n")}`;
 
   // `.mdx`, not `.md`: in plain Markdown the `import` renders as literal text
@@ -253,14 +310,36 @@ ${sections.join("\n")}`;
   writeFileSync(resolve(REFERENCE, `${slug(tag)}.mdx`), page.replace(/\r\n/g, "\n"), "utf8");
 }
 
+// ── The catalog ─────────────────────────────────────────────────────────────
+// The family list and the operation count appear in three places: the home
+// page, the `llms.txt` header, and the spec's own description. Written by
+// hand, they drift the day a family ships — the home page claimed "103
+// operations" against a spec with 125, and two families that had been live
+// for weeks were missing from both lists. Nothing compared them, because
+// there was nothing to compare against.
+
+const families = tags.filter((tag) => tag in FAMILY_LABEL).map((tag) => FAMILY_LABEL[tag]!);
+const familyProse =
+  families.length > 1
+    ? `${families.slice(0, -1).join(", ")}, and ${families.at(-1)}`
+    : (families[0] ?? "");
+
+// A partial, not a page: the `_` prefix keeps Astro from routing it. Same
+// mechanism `images/_parameters.md` already uses.
+writeFileSync(
+  resolve(DOCS, "src/content/docs/_catalog.md"),
+  `${families.join(" · ")}. **${ops.length} operations** in total —\n` +
+    `[the full reference](/reference/${slug(tags.find((t) => t in FAMILY_LABEL) ?? "vps")}/).\n`,
+  "utf8",
+);
+
 // ── llms.txt ────────────────────────────────────────────────────────────────
 // An agent that lands on this without ever having read our docs must be able
 // to assemble a correct call from what's in here.
 
 const llms = `# TruoCloud
 
-> Public API for operating cloud infrastructure: VPS, DNS, managed databases,
-> containers, load balancers, Object Storage, and Mail Gateway.
+> Public API for operating cloud infrastructure: ${familyProse}.
 
 Base: ${BASE_URL}/v1 · OpenAPI: ${BASE_URL}/v1/openapi.json
 Authentication: \`Authorization: Bearer tc_live_...\` (API key with scopes).
@@ -279,6 +358,19 @@ Authentication: \`Authorization: Bearer tc_live_...\` (API key with scopes).
 - A service that doesn't exist **or that your credential can't see** returns 404, never 403.
   A 403 would confirm it exists.
 - Ids carry a typed prefix (\`svc_10432\`). The bare number is accepted; the prefixed form is returned.
+
+## Services with a second endpoint
+
+Some services are only half-operable through the API above. \`/v1\` provisions
+them; the work itself goes to a different host, with a different credential.
+An agent that only reads the reference will conclude the service cannot do the
+thing it is for.
+
+${Object.entries(GUIDE)
+  .map(([tag, g]) => `- **${tag}** — ${g.label}: https://docs.truo.cloud${g.href}`)
+  .join("\n")}
+- **Truo AI** — OpenAI-compatible, \`https://ai.truo.cloud/v1\`, key \`sk-...\`:
+  https://docs.truo.cloud/ai/
 
 ## Documentation
 - [Introduction](https://docs.truo.cloud/)

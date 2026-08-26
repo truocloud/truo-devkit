@@ -1,0 +1,132 @@
+---
+title: KV
+description: Key/value storage over HTTP, with prefix listing, TTL and metadata.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+```
+https://kv.truo.cloud
+Authorization: Bearer kvt_...
+```
+
+Keys live inside a **namespace** you name yourself. Namespaces are created on
+first write — there is nothing to provision.
+
+## Write
+
+```
+PUT /v1/ns/{namespace}/keys/{key}
+```
+
+The request body is the value, sent raw. It is bytes, not JSON: send whatever
+you want and read the same bytes back.
+
+<Tabs syncKey="lang">
+<TabItem label="curl">
+
+```bash
+curl "https://kv.truo.cloud/v1/ns/sessions/keys/user-42" \
+  -X PUT \
+  -H "Authorization: Bearer $KV_TOKEN" \
+  --data-binary '{"plan":"pro"}'
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js
+await fetch("https://kv.truo.cloud/v1/ns/sessions/keys/user-42", {
+  method: "PUT",
+  headers: { authorization: `Bearer ${process.env.KV_TOKEN}` },
+  body: JSON.stringify({ plan: "pro" }),
+});
+```
+
+</TabItem>
+</Tabs>
+
+Returns `204` with no body.
+
+### Expiry
+
+| Query parameter | |
+|---|---|
+| `?expiration_ttl=3600` | Seconds from now. Must be at least `1`. |
+| `?expiration=1789000000` | Absolute Unix time in seconds. Must be at least a second away. |
+
+Pass one or the other. Without either, the key does not expire.
+
+### Metadata
+
+Send an `x-kv-metadata` header alongside the value. It must be **valid JSON**
+and at most **1 KB**; it comes back on `GET` in the same header.
+
+```bash
+-H 'x-kv-metadata: {"content-type":"image/png"}'
+```
+
+## Read
+
+```
+GET /v1/ns/{namespace}/keys/{key}
+```
+
+`200` with the raw value, plus `x-kv-metadata` if the key has any. A key that
+does not exist — or that expired — returns **`404` with an empty body**, not an
+error document.
+
+A miss still counts as a read against your quota: the lookup happened.
+
+## List
+
+```
+GET /v1/ns/{namespace}/keys?prefix=&limit=&cursor=
+```
+
+Returns the keys in the namespace. Pass the `cursor` from the previous response
+to get the next page.
+
+## Delete
+
+```
+DELETE /v1/ns/{namespace}/keys/{key}
+```
+
+Returns `204`. **Deleting a key that was never there also returns `204`** — it
+is idempotent, so a retry is safe and you cannot use the status to test for
+existence.
+
+## Limits
+
+| | |
+|---|---|
+| Namespace name | 1–64 characters, `a-z A-Z 0-9 _ -` |
+| Key | 1–512 characters |
+| Value | 25 MB |
+| Metadata | 1 KB, and it must parse as JSON |
+
+## Errors
+
+Errors are a JSON object with a single `error` string — **not** the
+`{ error: { code, message } }` shape the public API uses.
+
+```json
+{ "error": "value_too_large" }
+```
+
+| Status | `error` | |
+|---|---|---|
+| 400 | `namespace_invalid` | Name outside the allowed characters or length. |
+| 400 | `key_invalid` | Empty, or over 512 characters. |
+| 400 | `expiration_ttl_invalid` | Not a number, or under 1 second. |
+| 400 | `expiration_invalid` | The absolute time is in the past or too close. |
+| 400 | `metadata_too_large` | Over 1 KB. |
+| 400 | `metadata_invalid_json` | The header is not valid JSON. |
+| 401 | `missing_token` | No `Authorization: Bearer`. |
+| 403 | `invalid_or_suspended_token` | Unknown, revoked, or suspended token. |
+| 405 | `method_not_allowed` | Only `GET`, `PUT` and `DELETE` exist on a key. |
+| 413 | `value_too_large` | Body over 25 MB. |
+| 429 | `quota_exceeded` | Includes a `dimension` field naming what ran out. |

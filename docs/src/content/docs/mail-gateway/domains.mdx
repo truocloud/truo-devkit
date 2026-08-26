@@ -1,0 +1,47 @@
+---
+title: Sending domains
+description: Verify a domain before sending, and what to do when a message is rejected.
+sidebar:
+  order: 4
+---
+
+Mail Gateway only sends from domains you have proven you control. Until a
+domain is verified, every message from it is rejected — over HTTP with
+`domain_not_verified`, over SMTP with a `554`.
+
+## Verifying
+
+1. Add the domain, from the panel or with
+   [`POST /v1/mail-gateway/domains`](/reference/mail-gateway/).
+2. Publish the DNS records you are shown. They authenticate your mail and align
+   it with your domain, and they are specific to that domain.
+3. Verify. Publishing is not instant: the records have to propagate first, and
+   how long that takes depends on the TTL your provider was already serving.
+
+The records live on your own domain, so recipients see your domain in the
+signature and nothing identifying a mail provider.
+
+## Subdomains are included
+
+Verifying `acme.com` also allows `mail.acme.com`, `notifications.acme.com`, and
+anything else below it. You do not verify each one separately.
+
+The reverse does not hold: verifying `mail.acme.com` does **not** allow
+`acme.com`.
+
+## When a message is rejected
+
+`domain_not_verified` is the most common failure on a first integration, and it
+is rarely about the domain actually being unverified. In order of likelihood:
+
+1. **The `from` domain is not the one you verified.** Check for a typo, and
+   check `.co` against `.com`.
+2. **Something rewrote the sender.** Frameworks and plugins substitute their own
+   `From` when the one they are handed looks wrong to them, and the substitute
+   is on a domain you never verified. Log the address that actually left your
+   application.
+3. **Verification has not finished.** The records are published but not yet
+   visible to us. Re-verify the existing domain rather than adding it again.
+
+Only the address in `from` is checked. `reply_to` can be any domain — that is
+what it is for.

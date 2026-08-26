@@ -76,6 +76,45 @@ export default defineConfig({
             { label: "The API contract", slug: "getting-started/api-contract" },
           ],
         },
+        /**
+         * Services come before Reference on purpose.
+         *
+         * `/v1` is only half of most of these: you create a Mail Gateway key
+         * through the API and then send the message to `mg.truo.cloud`. The
+         * reference documents the half that provisions; these pages document
+         * the half people actually arrived to do. Someone looking for "how do
+         * I send an email" should not have to work out that the answer is not
+         * in a list of 125 operations.
+         *
+         * Each lives at its own root (`/mail-gateway/`, not
+         * `/services/mail-gateway/`): the grouping is the sidebar's job, and
+         * `/images/*` is published as the `homepage` of four npm packages,
+         * where the URL can never be corrected.
+         */
+        {
+          label: "Services",
+          items: [
+            // Same shape as `Reference > Operations` below: the `autogenerate`
+            // goes inside `items` and carries no `label` of its own.
+            { label: "Mail Gateway", items: [{ autogenerate: { directory: "mail-gateway" } }] },
+            { label: "Serverless", items: [{ autogenerate: { directory: "serverless" } }] },
+            {
+              label: "Object Storage",
+              items: [{ autogenerate: { directory: "object-storage" } }],
+            },
+            {
+              label: "Images",
+              items: [
+                { label: "Overview", slug: "images" },
+                { label: "The image URL", slug: "images/url" },
+                { label: "JavaScript", slug: "images/javascript" },
+                { label: "Frameworks", slug: "images/frameworks" },
+                { label: "Migrating", slug: "images/migrate" },
+              ],
+            },
+            { label: "Truo AI", slug: "ai" },
+          ],
+        },
         {
           label: "Reference",
           items: [
@@ -92,16 +131,6 @@ export default defineConfig({
           items: [
             { label: "`truo` CLI", slug: "tools/cli" },
             { label: "TypeScript SDK", slug: "tools/sdk" },
-          ],
-        },
-        {
-          label: "Images",
-          items: [
-            { label: "Overview", slug: "images" },
-            { label: "The image URL", slug: "images/url" },
-            { label: "JavaScript", slug: "images/javascript" },
-            { label: "Frameworks", slug: "images/frameworks" },
-            { label: "Migrating", slug: "images/migrate" },
           ],
         },
         {

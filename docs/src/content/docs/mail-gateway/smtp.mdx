@@ -1,0 +1,134 @@
+---
+title: Sending over SMTP
+description: Point an existing mailer at Mail Gateway with four settings.
+sidebar:
+  order: 3
+---
+
+import { Tabs, TabItem, Aside } from "@astrojs/starlight/components";
+
+For anything that already speaks SMTP. Four settings:
+
+| | |
+|---|---|
+| Host | `smtp.mg.truo.cloud` |
+| Port | **`465`** |
+| Encryption | **Implicit TLS (SMTPS)** — TLS from the first byte, no upgrade |
+| Username / password | From your panel |
+
+<Aside type="caution" title="Port 465 only">
+There is no port 587 and no STARTTLS.
+
+Many frameworks default to 587, so their out-of-the-box configuration will not
+connect — and it fails as a timeout or a dropped connection rather than an
+authentication error, which sends people looking in the wrong place.
+
+If your library has a `secure` / `ssl` / `tls` boolean, it must be **on**. If it
+has a separate STARTTLS option, it must be **off**.
+</Aside>
+
+## The credentials are not your API key
+
+The SMTP username and password are issued separately from the `mg_live_...`
+key, and neither works in the other's place. Both are in your panel, on the
+service's SMTP tab. The username is not an email address.
+
+## Configuration
+
+<Tabs syncKey="lang">
+<TabItem label="Nodemailer">
+
+```js
+import nodemailer from "nodemailer";
+
+const transport = nodemailer.createTransport({
+  host: "smtp.mg.truo.cloud",
+  port: 465,
+  secure: true, // implicit TLS. `false` here attempts STARTTLS and stalls.
+  auth: {
+    user: process.env.MG_SMTP_USER,
+    pass: process.env.MG_SMTP_PASSWORD,
+  },
+});
+
+await transport.sendMail({
+  from: "Acme <no-reply@acme.com>",
+  to: "customer@example.com",
+  subject: "Your receipt",
+  html: "<p>Thanks for your order.</p>",
+});
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+import os, smtplib
+from email.message import EmailMessage
+
+msg = EmailMessage()
+msg["From"] = "Acme <no-reply@acme.com>"
+msg["To"] = "customer@example.com"
+msg["Subject"] = "Your receipt"
+msg.set_content("Thanks for your order.")
+
+# SMTP_SSL, not SMTP().starttls(): the connection is TLS from the start.
+with smtplib.SMTP_SSL("smtp.mg.truo.cloud", 465) as s:
+    s.login(os.environ["MG_SMTP_USER"], os.environ["MG_SMTP_PASSWORD"])
+    s.send_message(msg)
+```
+
+</TabItem>
+<TabItem label="PHPMailer">
+
+```php
+$mail = new PHPMailer(true);
+$mail->isSMTP();
+$mail->Host       = 'smtp.mg.truo.cloud';
+$mail->Port       = 465;
+$mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS; // not ENCRYPTION_STARTTLS
+$mail->SMTPAuth   = true;
+$mail->Username   = getenv('MG_SMTP_USER');
+$mail->Password   = getenv('MG_SMTP_PASSWORD');
+
+$mail->setFrom('no-reply@acme.com', 'Acme');
+$mail->addAddress('customer@example.com');
+$mail->Subject = 'Your receipt';
+$mail->msgHTML('<p>Thanks for your order.</p>');
+$mail->send();
+```
+
+</TabItem>
+<TabItem label="WordPress">
+
+```php
+// A small mu-plugin. Define the constants in wp-config.php, not here.
+add_action('phpmailer_init', function ($mail) {
+    $mail->isSMTP();
+    $mail->Host       = 'smtp.mg.truo.cloud';
+    $mail->Port       = 465;
+    $mail->SMTPSecure = 'ssl';
+    $mail->SMTPAuth   = true;
+    $mail->Username   = MG_SMTP_USER;
+    $mail->Password   = MG_SMTP_PASSWORD;
+});
+
+// WordPress sends as wordpress@yourdomain unless you say otherwise, and that
+// address is usually on a domain you never verified.
+add_filter('wp_mail_from', fn () => 'no-reply@acme.com');
+add_filter('wp_mail_from_name', fn () => 'Acme');
+```
+
+</TabItem>
+</Tabs>
+
+## What differs from HTTP
+
+Same domains, same quota, same stats. Two practical differences:
+
+- **Errors arrive as SMTP replies**, not JSON. An unverified sending domain is
+  a `554` when the message is handed over, not a `403`.
+- **The sender still has to be a verified domain**, and something in your stack
+  may be rewriting it. The rejected address is the one that actually left your
+  application, not the one you typed. Log it before assuming the verification
+  is at fault.

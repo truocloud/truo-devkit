@@ -1,0 +1,118 @@
+---
+title: Functions
+description: Deploy a fetch handler to a public URL, with KV and DB bound.
+sidebar:
+  order: 4
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+```
+https://fn.truo.cloud
+Authorization: Bearer fnt_...
+```
+
+A function is an ES module exporting a `fetch` handler:
+
+```js
+export default {
+  async fetch(request, env) {
+    const visits = Number((await env.KV.get("visits")) ?? 0) + 1;
+    await env.KV.put("visits", String(visits));
+    return Response.json({ visits });
+  },
+};
+```
+
+## Deploy
+
+```
+POST /v1/functions
+```
+
+```bash
+curl https://fn.truo.cloud/v1/functions \
+  -X POST \
+  -H "Authorization: Bearer $FN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --rawfile code ./worker.js '{name:"counter", code:$code}')"
+```
+
+The code is sent as a **string in a JSON field**, not as a file upload. Deploying
+the same `name` again replaces it.
+
+The response includes the URL your function is served on:
+
+```json
+{
+  "name": "counter",
+  "slug": "counter-a1b2c3",
+  "invoke_url": "https://fn.truo.cloud/f/counter-a1b2c3",
+  "bindings": {}
+}
+```
+
+<Aside type="caution" title="The invoke URL is public and unauthenticated">
+Anyone with the URL can call your function. There is no token on the way in —
+`fnt_` authenticates deploys, not invocations.
+
+If the function does anything that should not be open to the internet, it has
+to check for that itself: a shared secret in a header, a signature, a session.
+The slug is unguessable, but a URL that leaks into a log or a `Referer` header
+stays valid.
+</Aside>
+
+## Invoke
+
+```
+ANY https://fn.truo.cloud/f/{slug}[/anything]
+```
+
+Any method, any path below the slug. Your handler receives the whole request.
+
+## Bindings
+
+Pass `bindings` at deploy time to get `env.KV` and `env.DB` inside the handler,
+pointing at your own KV namespace and database.
+
+The tokens for those services are **not** visible to your code. They are
+injected at the boundary, so a function that leaks its `env` does not leak
+credentials that work anywhere else.
+
+You can also pass plain variables, and read them from `env`.
+
+## Manage
+
+| | |
+|---|---|
+| `GET /v1/functions` | List, with each `invoke_url`. |
+| `GET /v1/functions/{name}` | One function. |
+| `PATCH /v1/functions/{name}` | Update code or bindings. |
+| `DELETE /v1/functions/{name}` | Remove it. The URL stops resolving. |
+
+## Limits
+
+| | |
+|---|---|
+| Name | 1–64 characters, `a-z A-Z 0-9 _ . -` |
+| Code | 1 MB |
+| Functions | Set by your plan |
+
+## Errors
+
+A JSON object with an `error` string.
+
+| Status | `error` | |
+|---|---|---|
+| 400 | `body_invalid` | Body is not valid JSON. |
+| 400 | `name_invalid` | Missing, or outside the allowed characters. |
+| 400 | `code_required` | `code` missing, not a string, or empty. |
+| 401 | `missing_token` | No `Authorization: Bearer`. |
+| 403 | `invalid_or_suspended_token` | Unknown, revoked, or suspended token. |
+| 404 | `not_found` | Unknown function — or, on the invoke URL, one that is not active. |
+| 413 | `code_too_large` | Over 1 MB. |
+| 429 | `function_limit_reached` | Your plan's cap, in `limit`. |
+| 429 | `quota_exceeded` | Includes a `dimension` naming what ran out. |
+
+A failure **inside** your handler comes back with the error kind and a message
+from the runtime, so a crash is distinguishable from a function that is missing.

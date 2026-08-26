@@ -4,6 +4,7 @@
 /public/llms.txt
 /public/llms-full.txt
 /src/content/docs/reference/
+/src/content/docs/_catalog.md
 
 node_modules/
 dist/

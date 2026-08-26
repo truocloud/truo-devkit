@@ -1,0 +1,64 @@
+---
+title: Serverless
+description: KV, SQL, functions and cron — four primitives with their own endpoints.
+sidebar:
+  order: 1
+---
+
+import { Card, CardGrid, Aside } from "@astrojs/starlight/components";
+
+Four primitives you can use independently or together. Each one is its own
+service, with its own endpoint and its own token.
+
+<CardGrid>
+  <Card title="KV" icon="document">
+    Key/value with prefix listing, TTL and metadata. **[KV](/serverless/kv/)**
+  </Card>
+  <Card title="DB" icon="seti:db">
+    SQL over HTTP: prepared statements, batches, migrations. **[DB](/serverless/db/)**
+  </Card>
+  <Card title="Functions" icon="rocket">
+    A `fetch` handler on a public URL, with KV and DB already bound.
+    **[Functions](/serverless/functions/)**
+  </Card>
+  <Card title="Cron" icon="seti:clock">
+    Scheduled signed webhooks to a URL of yours. **[Cron](/serverless/cron/)**
+  </Card>
+</CardGrid>
+
+## Two planes, two credentials
+
+This is the part that trips people up on the first request.
+
+| | Endpoint | Credential |
+|---|---|---|
+| **Read and write data** | `kv` · `db` · `fn` · `cron``.truo.cloud` | Per-service token: `kvt_` `dbt_` `fnt_` `crt_` |
+| **Provision, set quotas, rotate tokens** | [`/v1/serverless`](/reference/serverless/) | Your account API key, `tc_live_` |
+
+A `tc_live_` key will not authenticate a data-plane request, and a `kvt_` token
+does nothing outside KV. You get the service tokens by
+[minting them through the public API](/reference/serverless/) or from your
+panel, and each is shown once.
+
+## Compatible on purpose
+
+KV, DB, Functions and Cron mirror the shape of Workers KV, D1, Workers and Cron
+Triggers. That is deliberate: code written against those APIs should move here
+without its queries or handlers being rewritten.
+
+So these pages do not re-teach the model — they document the endpoint, the
+token, and the places where we differ. If something is not mentioned as a
+difference, assume it behaves as you would expect.
+
+<Aside type="note" title="Errors are per service">
+Each primitive returns errors in its own shape, and it is not the shape the
+[public API](/reference/) uses. Each page below documents what its service
+actually returns. Do not write one error handler and reuse it across all four.
+</Aside>
+
+## Quotas
+
+Every plan has monthly quotas. On the free tier reaching one is a hard stop:
+requests get `429` with `quota_exceeded`, and the response names the dimension
+that ran out — reads, writes, storage — so you know which one to raise. On paid
+plans, going over is billed rather than blocked.

@@ -1,0 +1,166 @@
+---
+title: Sending over HTTP
+description: POST a JSON message to the Mail Gateway API.
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+```
+POST https://mg.truo.cloud/v1/emails
+Authorization: Bearer mg_live_...
+Content-Type: application/json
+```
+
+<Tabs syncKey="lang">
+<TabItem label="curl">
+
+```bash
+curl https://mg.truo.cloud/v1/emails \
+  -X POST \
+  -H "Authorization: Bearer $MG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "Acme <no-reply@acme.com>",
+    "to": "customer@example.com",
+    "subject": "Your receipt",
+    "html": "<p>Thanks for your order.</p>"
+  }'
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js
+const res = await fetch("https://mg.truo.cloud/v1/emails", {
+  method: "POST",
+  headers: {
+    authorization: `Bearer ${process.env.MG_API_KEY}`,
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({
+    from: "Acme <no-reply@acme.com>",
+    to: "customer@example.com",
+    subject: "Your receipt",
+    html: "<p>Thanks for your order.</p>",
+  }),
+});
+
+if (!res.ok) {
+  const { error } = await res.json();
+  throw new Error(error.code);
+}
+const { id } = await res.json();
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+import os, requests
+
+res = requests.post(
+    "https://mg.truo.cloud/v1/emails",
+    headers={"Authorization": f"Bearer {os.environ['MG_API_KEY']}"},
+    json={
+        "from": "Acme <no-reply@acme.com>",
+        "to": "customer@example.com",
+        "subject": "Your receipt",
+        "html": "<p>Thanks for your order.</p>",
+    },
+    timeout=30,
+)
+res.raise_for_status()
+message_id = res.json()["id"]
+```
+
+</TabItem>
+</Tabs>
+
+A successful call returns `200` and the message id:
+
+```json
+{ "id": "0100019..." }
+```
+
+That id identifies the message in your delivery stats. It means the message was
+**accepted for delivery**, not that it reached an inbox. Nothing in this API can
+tell you that synchronously.
+
+## The message
+
+| Field | Type | |
+|---|---|---|
+| `from` | string | **Required.** `user@domain.com` or `Name <user@domain.com>`. The domain must be [verified](/mail-gateway/domains/). |
+| `to` | string or array | **Required.** At least one recipient. |
+| `subject` | string | **Required.** Cannot be empty. |
+| `html` | string | HTML body. **Required unless `text` is present.** |
+| `text` | string | Plain-text body. **Required unless `html` is present.** Send both when you can: not every client renders HTML. |
+| `cc` | string or array | |
+| `bcc` | string or array | |
+| `reply_to` | string or array | Also accepted as `replyTo`. |
+| `category` | string | A label of your own, for grouping in stats: `receipts`, `password-reset`. Characters outside `A-Z a-z 0-9 _ -` become `-`, and it is cut at 64 characters. Messages sent without one are grouped under `transaccional`. |
+| `attachments` | array | See below. |
+
+Every address is validated before anything is sent. One malformed address in
+`bcc` rejects the whole message — nothing is partially delivered.
+
+## Attachments
+
+```json
+{
+  "attachments": [
+    { "filename": "invoice.pdf", "content": "JVBERi0xLjQK..." }
+  ]
+}
+```
+
+`content` is base64. Executable types are refused with `attachment_rejected`.
+Remember that base64 inflates a file by roughly a third, and the size limit
+below applies to the encoded request, not to the original file.
+
+## Errors
+
+Failures come back as JSON, in the same shape the public API uses:
+
+```json
+{ "error": { "code": "domain_not_verified", "message": "..." } }
+```
+
+**Branch on `code`, never on `message`.** The codes are part of the contract;
+the message is prose for a human reading a log, and it is not stable.
+
+| Status | `code` | What happened |
+|---|---|---|
+| 400 | `validation_error` | A required field is missing, or an address is malformed. |
+| 400 | `invalid_recipient` | The address parses but cannot be delivered to. |
+| 400 | `attachment_rejected` | An attachment is of a type that is not allowed. |
+| 401 | `unauthorized` | Missing, malformed, revoked, or suspended key. |
+| 403 | `domain_not_verified` | The domain in `from` is not verified on your account. [Fix](/mail-gateway/domains/) |
+| 413 | `too_large` | The request body is over the size limit. |
+| 429 | `rate_limited` | Too many requests. Honour `Retry-After`. |
+| 429 | `quota_exceeded` | You reached your plan's monthly cap. Honour `Retry-After`. |
+| 502 | `send_failed` | Delivery could not be attempted. |
+
+## Retries are not idempotent
+
+This endpoint takes no idempotency key. **A retry sends a second message.**
+
+That matters most on a timeout, where you cannot tell whether the first attempt
+was accepted. `429` and `502` are safe to retry with backoff, because in both
+cases nothing was accepted. A timeout is not — deduplicate on your side before
+retrying one.
+
+## Limits
+
+| | |
+|---|---|
+| Request body | 10 MB, including base64-encoded attachments |
+| Recipients | 50 per message, counting `to` + `cc` + `bcc` together |
+| Attachments | 20 per message |
+| Requests | 300 per minute, per API key |
+
+Exceeding the body limit returns `413`; exceeding recipients or attachments
+returns `400`. The monthly cap comes from your plan rather than from this
+endpoint, and surfaces as `quota_exceeded`.

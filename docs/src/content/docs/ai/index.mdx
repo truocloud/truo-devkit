@@ -1,0 +1,85 @@
+---
+title: Truo AI
+description: An OpenAI-compatible endpoint for text, images, speech and video.
+sidebar:
+  order: 1
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+```
+https://ai.truo.cloud/v1
+Authorization: Bearer sk-...
+```
+
+**OpenAI-compatible.** Point the official OpenAI SDK at this base URL and your
+existing code works unchanged — the only two things you change are `base_url`
+and the key.
+
+<Tabs syncKey="lang">
+<TabItem label="Python">
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=TRUO_AI_KEY,
+    base_url="https://ai.truo.cloud/v1",
+)
+
+res = client.chat.completions.create(
+    model="...",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+```
+
+</TabItem>
+<TabItem label="JavaScript">
+
+```js
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.TRUO_AI_KEY,
+  baseURL: "https://ai.truo.cloud/v1",
+});
+
+const res = await client.chat.completions.create({
+  model: "...",
+  messages: [{ role: "user", content: "Hello" }],
+});
+```
+
+</TabItem>
+<TabItem label="curl">
+
+```bash
+curl https://ai.truo.cloud/v1/chat/completions \
+  -H "Authorization: Bearer $TRUO_AI_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"...","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+</TabItem>
+</Tabs>
+
+## Endpoints
+
+| | |
+|---|---|
+| `POST /v1/chat/completions` | Text, streaming supported |
+| `POST /v1/images/generations` | Images |
+| `POST /v1/audio/speech` | Text to speech |
+| `POST /v1/videos` | Video |
+| `GET /v1/models` | What your key can reach — call this rather than hard-coding a list |
+
+One budget covers all four. There is no separate quota per modality.
+
+## Full documentation
+
+Model catalogue, pricing, limits and an interactive playground live on the
+product site: **[truo.ai/docs](https://truo.ai/docs)**.
+
+Truo AI is not part of [`api.truo.cloud/v1`](/reference/): it is its own
+endpoint with its own credential, and an account API key (`tc_live_`) does not
+authenticate against it.
