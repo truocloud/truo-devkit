@@ -46,6 +46,13 @@
     "url": "https://docs.truo.cloud"
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "TruoCloud API key: `Authorization: Bearer tc_live_...`. The `/v1/api-keys` endpoints require a panel session — no API key can manage API keys, not even with the `*` scope."
+      }
+    },
     "schemas": {
       "Capabilities": {
         "type": "object",
