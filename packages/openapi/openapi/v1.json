@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.2.0",
-    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
+    "version": "1.3.0",
+    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
       "url": "https://www.truocloud.com"
@@ -66,7 +66,7 @@
     },
     {
       "name": "WordPress",
-      "description": "Managed WordPress sites: plugins, themes, backups, staging, domains, security, WP-CLI, and one-time admin login."
+      "description": "Managed WordPress sites: plugins, themes, backups, staging, domains, security, WP-CLI, one-time admin login, and recipes (declarative stacks applied over WP-CLI)."
     },
     {
       "name": "Orders",
@@ -5922,6 +5922,342 @@
           "overage",
           "total_usd",
           "series"
+        ]
+      },
+      "RecipeSummary": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "recipe"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "haztap-golden"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "latest_version": {
+            "type": "string",
+            "example": "1.2.0"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "All published versions, oldest first."
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "description",
+          "latest_version",
+          "versions",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "RecipeList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeSummary"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "RecipeManifest": {
+        "type": "object",
+        "properties": {
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "recipe/v1"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Slug, unique per account. Lowercase letters, digits and hyphens.",
+            "example": "haztap-golden"
+          },
+          "version": {
+            "type": "string",
+            "description": "Semver. Published versions are immutable.",
+            "example": "1.2.0"
+          },
+          "description": {
+            "type": "string"
+          },
+          "requires": {
+            "type": "object",
+            "properties": {
+              "php": {
+                "type": "string",
+                "example": ">=8.3"
+              },
+              "wp": {
+                "type": "string",
+                "example": ">=6.8"
+              },
+              "memory_mb": {
+                "type": "integer",
+                "description": "Rejected with `recipe_requirements_unmet` if the plan has less.",
+                "example": 512
+              }
+            }
+          },
+          "plugins": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "description": "Directory slug on wordpress.org, or the directory the zip in `url` creates.",
+                  "example": "wp-graphql"
+                },
+                "version": {
+                  "type": "string",
+                  "description": "Pinned version. Without `url`, this exact version is installed; with `url`, it is what the site is expected to report.",
+                  "example": "2.15.1"
+                },
+                "url": {
+                  "type": "string",
+                  "description": "`https://` zip. Requires `sha256`; verified before anything is installed. Max 20 MB.",
+                  "example": "https://releases.example.com/plugins/my-plugin-1.2.0.zip"
+                },
+                "sha256": {
+                  "type": "string",
+                  "description": "Hex sha256 of the zip. Required with `url`."
+                },
+                "activate": {
+                  "type": "boolean",
+                  "description": "Default `true`."
+                }
+              },
+              "required": [
+                "slug"
+              ]
+            },
+            "description": "Installed in order. Max 40."
+          },
+          "constants": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "description": "`wp config set … --type=constant`. Platform constants (`DB_*`, `WP_HOME`, `WP_SITEURL`, paths) are refused.",
+            "example": {
+              "WP_MEMORY_LIMIT": "512M"
+            }
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "`wp option update … --format=json`. Any JSON value; no single quotes, semicolons or backslashes. Max 200.",
+            "example": {
+              "haztap_golden_version": "1.2.0",
+              "graphql_general_settings": {
+                "public_introspection_enabled": "off"
+              }
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "example": "store_owner"
+                },
+                "display": {
+                  "type": "string",
+                  "example": "Store Owner"
+                },
+                "caps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "read",
+                    "upload_files"
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Constant names whose values **we** generate when applying (never in the manifest). Retrieve them once with `wordpress.recipes.secrets.claim` after the operation succeeds.",
+            "example": [
+              "GRAPHQL_JWT_AUTH_SECRET_KEY"
+            ]
+          },
+          "verify": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "wp": {
+                  "type": "string",
+                  "description": "A WP-CLI line (same allowlist as `wordpress.wpcli.run`). Exit code 0 = green.",
+                  "example": "plugin is-active wp-graphql"
+                },
+                "http": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "example": "/graphql"
+                    },
+                    "method": {
+                      "type": "string",
+                      "enum": [
+                        "GET",
+                        "POST",
+                        "HEAD"
+                      ]
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "expect": {
+                      "type": "integer",
+                      "description": "Expected HTTP status. Default 200."
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ]
+                }
+              }
+            },
+            "description": "Gate. Any red check fails the operation with `recipe_verify_failed`. Max 10."
+          }
+        },
+        "required": [
+          "apiVersion",
+          "name",
+          "version"
+        ]
+      },
+      "Recipe": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RecipeSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "description": "The version whose manifest is returned."
+              },
+              "manifest": {
+                "$ref": "#/components/schemas/RecipeManifest"
+              }
+            },
+            "required": [
+              "version",
+              "manifest"
+            ]
+          }
+        ]
+      },
+      "RecipeSecrets": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "recipe_secrets"
+            ]
+          },
+          "operation": {
+            "type": "string"
+          },
+          "recipe": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "secrets": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Constant name → generated value. **Shown once**: this response deletes them server-side."
+          }
+        },
+        "required": [
+          "object",
+          "operation",
+          "recipe",
+          "version",
+          "secrets"
         ]
       },
       "Wordpress": {
@@ -25863,6 +26199,930 @@
           },
           "409": {
             "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wordpress/recipes": {
+      "get": {
+        "operationId": "wordpress.recipes.list",
+        "summary": "List the recipes of this account",
+        "description": "Recipes belong to the account, not to a site. Manifests are not included; use `wordpress.recipes.get`.",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "wordpress recipes list"
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_list",
+          "readonly": true
+        },
+        "responses": {
+          "200": {
+            "description": "The recipes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "wordpress.recipes.create",
+        "summary": "Register a recipe",
+        "description": "The body is a `recipe/v1` manifest. It is validated in full before it is stored — limits, allowed constants, and every WP-CLI line it would run — and a problem comes back as `recipe_invalid` with `param` pointing at the field. Zips in `url` are **not** downloaded here; their checksum is verified when the recipe is applied. Max 20 recipes per account.",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "wordpress recipes create"
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_create",
+          "readonly": false
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeManifest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wordpress/recipes/{name}": {
+      "get": {
+        "operationId": "wordpress.recipes.get",
+        "summary": "Get a recipe and its manifest",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "wordpress recipes get",
+          "positional": [
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "haztap-golden"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Default: the latest.",
+              "example": "1.2.0"
+            },
+            "required": false,
+            "name": "version",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The recipe with the requested (or latest) manifest.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "wordpress.recipes.update",
+        "summary": "Publish a new version of a recipe",
+        "description": "The body is a full manifest whose `name` matches the URL and whose `version` is greater than every version already published. Published versions are immutable: a site that reports `truo_recipe = name@1.2.0` always points at the manifest that was applied.",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "wordpress recipes update",
+          "positional": [
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_update",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "haztap-golden"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeManifest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The recipe with the new version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "wordpress.recipes.delete",
+        "summary": "Delete a recipe and all its versions",
+        "description": "Sites that already have it applied are not touched.",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "wordpress recipes delete",
+          "positional": [
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "haztap-golden"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wordpress/{id}/recipes/apply": {
+      "post": {
+        "operationId": "wordpress.recipes.apply",
+        "summary": "Apply a recipe to a site",
+        "description": "Runs the manifest against the site over WP-CLI, in order: requirements → zip checksums → backup → plugins → constants → options → roles → secrets → verify → register. `requires` is checked in this request (`recipe_requirements_unmet`, 412, nothing touched); everything else runs in the background and the operation `result` shows each step. A checksum mismatch fails before the backup with `recipe_checksum_mismatch`; a red `verify` fails with `recipe_verify_failed` and leaves the site as it is — the backup is the way back. On success the site stores `truo_recipe = {name, version, applied_at}` and, if the recipe declares `secrets`, `result.secrets.claim` says where to fetch them once.",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "wordpress recipes apply",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_apply",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "haztap-golden"
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "Default: the latest published version."
+                  },
+                  "backup": {
+                    "type": "boolean",
+                    "description": "Take a backup before changing anything. Default `true`. It counts against the daily manual-backup allowance."
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted; follow the operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "The `If-Match` precondition failed. Someone else modified the resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/wordpress/{id}/recipes/secrets": {
+      "post": {
+        "operationId": "wordpress.recipes.secrets.claim",
+        "summary": "Claim the secrets a recipe generated (once)",
+        "description": "Returns the values of the `secrets` a `wordpress.recipes.apply` operation generated for this site, **exactly once**: this response deletes them. They are kept encrypted for 24 hours after the operation succeeds; after that, or after a first claim, this is `not_found`. Store them on your side.",
+        "tags": [
+          "WordPress"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "wordpress:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "wordpress recipes claim-secrets",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "wordpress",
+          "action": "recipes_claim_secrets",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operation": {
+                    "type": "string",
+                    "description": "The `wordpress.recipes.apply` operation.",
+                    "example": "op_01JQ8XKM4N7P2R9TAB12CD34EF"
+                  }
+                },
+                "required": [
+                  "operation"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The secrets. They are gone after this.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeSecrets"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
             "content": {
               "application/json": {
                 "schema": {

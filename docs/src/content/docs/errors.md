@@ -57,6 +57,9 @@ A service that doesn't exist and one your credential can't see both return
 | `product_not_orderable` | 400 | The `product` slug doesn't exist or is not for sale. `GET /v1/orders/products` lists what is |
 | `invalid_promocode` | 400 | The promo code doesn't exist, expired, is used up, or doesn't apply to that product or cycle. Decided **before** the order exists: you never get an order at an unexpected price |
 | `hostname_taken` | 409 | The WordPress site name is already in use. Pick another; the API never auto-suffixes it |
+| `recipe_invalid` | 400 | A `recipe/v1` manifest doesn't validate. `param` is the field (`plugins[1].sha256`). See [recipes](/wordpress-recipes/) |
+| `recipe_requirements_unmet` | 412 | The site doesn't meet the recipe's `requires` (PHP, WordPress, plan memory). Decided before the operation exists; nothing was changed |
+| `recipe_checksum_mismatch` | — | Inside a failed `wordpress.recipes.apply` operation: a plugin zip didn't match its `sha256`. Checked before the backup, so nothing was changed |
 
 ## `rate_limit_error` — 429
 

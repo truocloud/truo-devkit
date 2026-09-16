@@ -213,6 +213,7 @@ const GUIDE: Record<string, { label: string; href: string }> = {
   Serverless: { label: "Using the primitives", href: "/serverless/" },
   "Object Storage": { label: "Using the S3 endpoint", href: "/object-storage/" },
   "Image Services": { label: "Delivering images", href: "/images/" },
+  WordPress: { label: "Recipes: your stack on a fresh site", href: "/wordpress-recipes/" },
   Orders: { label: "Buying and cancelling", href: "/orders/" },
   Webhooks: { label: "Receiving and verifying events", href: "/webhooks/" },
 };

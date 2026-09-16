@@ -113,6 +113,7 @@ export default defineConfig({
               ],
             },
             { label: "Truo AI", slug: "ai" },
+            { label: "WordPress recipes", slug: "wordpress-recipes" },
             { label: "Orders", slug: "orders" },
             { label: "Webhooks", slug: "webhooks" },
           ],

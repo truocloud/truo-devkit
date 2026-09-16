@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 204 commands derived from the spec. */
+/** The 211 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -6014,6 +6014,384 @@ export const COMMANDS: CommandSpec[] = [
       }
     ],
     "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "apply"
+    ],
+    "operationId": "wordpress.recipes.apply",
+    "summary": "Apply a recipe to a site",
+    "description": "Runs the manifest against the site over WP-CLI, in order: requirements → zip checksums → backup → plugins → constants → options → roles → secrets → verify → register. `requires` is checked in this request (`recipe_requirements_unmet`, 412, nothing touched); everything else runs in the background and the operation `result` shows each step. A checksum mismatch fails before the backup with `recipe_checksum_mismatch`; a red `verify` fails with `recipe_verify_failed` and leaves the site as it is — the backup is the way back. On success the site stores `truo_recipe = {name, version, applied_at}` and, if the recipe declares `secrets`, `result.secrets.claim` says where to fetch them once.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "name",
+        "key": "name",
+        "in": "body",
+        "type": "string",
+        "required": true
+      },
+      {
+        "flag": "version",
+        "key": "version",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Default: the latest published version."
+      },
+      {
+        "flag": "backup",
+        "key": "backup",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Take a backup before changing anything. Default `true`. It counts against the daily manual-backup allowance."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "create"
+    ],
+    "operationId": "wordpress.recipes.create",
+    "summary": "Register a recipe",
+    "description": "The body is a `recipe/v1` manifest. It is validated in full before it is stored — limits, allowed constants, and every WP-CLI line it would run — and a problem comes back as `recipe_invalid` with `param` pointing at the field. Zips in `url` are **not** downloaded here; their checksum is verified when the recipe is applied. Max 20 recipes per account.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "api-version",
+        "key": "apiVersion",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "values": [
+          "recipe/v1"
+        ]
+      },
+      {
+        "flag": "name",
+        "key": "name",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Slug, unique per account. Lowercase letters, digits and hyphens."
+      },
+      {
+        "flag": "version",
+        "key": "version",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Semver. Published versions are immutable."
+      },
+      {
+        "flag": "description",
+        "key": "description",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "requires",
+        "key": "requires",
+        "in": "body",
+        "type": "json",
+        "required": false
+      },
+      {
+        "flag": "plugins",
+        "key": "plugins",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Installed in order. Max 40."
+      },
+      {
+        "flag": "constants",
+        "key": "constants",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "`wp config set … --type=constant`. Platform constants (`DB_*`, `WP_HOME`, `WP_SITEURL`, paths) are refused."
+      },
+      {
+        "flag": "options",
+        "key": "options",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "`wp option update … --format=json`. Any JSON value; no single quotes, semicolons or backslashes. Max 200."
+      },
+      {
+        "flag": "roles",
+        "key": "roles",
+        "in": "body",
+        "type": "json",
+        "required": false
+      },
+      {
+        "flag": "secrets",
+        "key": "secrets",
+        "in": "body",
+        "type": "string[]",
+        "required": false,
+        "description": "Constant names whose values **we** generate when applying (never in the manifest). Retrieve them once with `wordpress.recipes.secrets.claim` after the operation succeeds."
+      },
+      {
+        "flag": "verify",
+        "key": "verify",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Gate. Any red check fails the operation with `recipe_verify_failed`. Max 10."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "delete"
+    ],
+    "operationId": "wordpress.recipes.delete",
+    "summary": "Delete a recipe and all its versions",
+    "description": "Sites that already have it applied are not touched.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "get"
+    ],
+    "operationId": "wordpress.recipes.get",
+    "summary": "Get a recipe and its manifest",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "version",
+        "key": "version",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "list"
+    ],
+    "operationId": "wordpress.recipes.list",
+    "summary": "List the recipes of this account",
+    "description": "Recipes belong to the account, not to a site. Manifests are not included; use `wordpress.recipes.get`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "claim-secrets"
+    ],
+    "operationId": "wordpress.recipes.secrets.claim",
+    "summary": "Claim the secrets a recipe generated (once)",
+    "description": "Returns the values of the `secrets` a `wordpress.recipes.apply` operation generated for this site, **exactly once**: this response deletes them. They are kept encrypted for 24 hours after the operation succeeds; after that, or after a first claim, this is `not_found`. Store them on your side.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "operation",
+        "key": "operation",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "The `wordpress.recipes.apply` operation."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "recipes",
+      "update"
+    ],
+    "operationId": "wordpress.recipes.update",
+    "summary": "Publish a new version of a recipe",
+    "description": "The body is a full manifest whose `name` matches the URL and whose `version` is greater than every version already published. Published versions are immutable: a site that reports `truo_recipe = name@1.2.0` always points at the manifest that was applied.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "api-version",
+        "key": "apiVersion",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "values": [
+          "recipe/v1"
+        ]
+      },
+      {
+        "flag": "name",
+        "key": "name",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Slug, unique per account. Lowercase letters, digits and hyphens."
+      },
+      {
+        "flag": "version",
+        "key": "version",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Semver. Published versions are immutable."
+      },
+      {
+        "flag": "description",
+        "key": "description",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "requires",
+        "key": "requires",
+        "in": "body",
+        "type": "json",
+        "required": false
+      },
+      {
+        "flag": "plugins",
+        "key": "plugins",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Installed in order. Max 40."
+      },
+      {
+        "flag": "constants",
+        "key": "constants",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "`wp config set … --type=constant`. Platform constants (`DB_*`, `WP_HOME`, `WP_SITEURL`, paths) are refused."
+      },
+      {
+        "flag": "options",
+        "key": "options",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "`wp option update … --format=json`. Any JSON value; no single quotes, semicolons or backslashes. Max 200."
+      },
+      {
+        "flag": "roles",
+        "key": "roles",
+        "in": "body",
+        "type": "json",
+        "required": false
+      },
+      {
+        "flag": "secrets",
+        "key": "secrets",
+        "in": "body",
+        "type": "string[]",
+        "required": false,
+        "description": "Constant names whose values **we** generate when applying (never in the manifest). Retrieve them once with `wordpress.recipes.secrets.claim` after the operation succeeds."
+      },
+      {
+        "flag": "verify",
+        "key": "verify",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Gate. Any red check fails the operation with `recipe_verify_failed`. Max 10."
+      }
+    ]
   },
   {
     "path": [

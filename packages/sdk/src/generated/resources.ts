@@ -2094,6 +2094,75 @@ export function createResources(call: Call, paginate: Paginate) {
         updateAll: (id: string, params?: RequestOptions) =>
           call<T.Operation>("wordpress.plugins.update_all", { path: { id }, body: undefined, queryKeys: undefined, params }),
       },
+      recipes: {
+        /**
+         * Apply a recipe to a site
+         * Runs the manifest against the site over WP-CLI, in order: requirements → zip checksums → backup → plugins → constants → options → roles → secrets → verify → register. `requires` is checked in this request (`recipe_requirements_unmet`, 412, nothing touched); everything else runs in the background and the operation `result` shows each step. A checksum mismatch fails before the backup with `recipe_checksum_mismatch`; a red `verify` fails with `recipe_verify_failed` and leaves the site as it is — the backup is the way back. On success the site stores `truo_recipe = {name, version, applied_at}` and, if the recipe declares `secrets`, `result.secrets.claim` says where to fetch them once.
+         * 
+         * Scope: `wordpress:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        apply: (id: string, body: T.WordpressRecipesApplyBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.recipes.apply", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Register a recipe
+         * The body is a `recipe/v1` manifest. It is validated in full before it is stored — limits, allowed constants, and every WP-CLI line it would run — and a problem comes back as `recipe_invalid` with `param` pointing at the field. Zips in `url` are **not** downloaded here; their checksum is verified when the recipe is applied. Max 20 recipes per account.
+         * 
+         * Scope: `wordpress:write`
+         */
+        create: (body: T.RecipeManifest, params?: RequestOptions) =>
+          call<T.Recipe>("wordpress.recipes.create", { path: undefined, body: body, queryKeys: undefined, params }),
+        /**
+         * Delete a recipe and all its versions
+         * Sites that already have it applied are not touched.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (name: string, params?: RequestOptions) =>
+          call<void>("wordpress.recipes.delete", { path: { name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a recipe and its manifest
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (name: string, params?: T.WordpressRecipesGetQuery & RequestOptions) =>
+          call<T.Recipe>("wordpress.recipes.get", { path: { name }, body: undefined, queryKeys: ["version"], params }),
+        /**
+         * List the recipes of this account
+         * Recipes belong to the account, not to a site. Manifests are not included; use `wordpress.recipes.get`.
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (params?: RequestOptions) =>
+          call<T.RecipeList>("wordpress.recipes.list", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `wordpress.recipes.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (params?: RequestOptions) =>
+          paginate<T.RecipeSummary>(
+            "wordpress.recipes.list", { path: undefined, queryKeys: undefined, params },
+          ),
+        secrets: {
+          /**
+           * Claim the secrets a recipe generated (once)
+           * Returns the values of the `secrets` a `wordpress.recipes.apply` operation generated for this site, **exactly once**: this response deletes them. They are kept encrypted for 24 hours after the operation succeeds; after that, or after a first claim, this is `not_found`. Store them on your side.
+           * 
+           * Scope: `wordpress:write`
+           */
+          claim: (id: string, body: T.WordpressRecipesSecretsClaimBody, params?: RequestOptions) =>
+            call<T.RecipeSecrets>("wordpress.recipes.secrets.claim", { path: { id }, body: body, queryKeys: undefined, params }),
+        },
+        /**
+         * Publish a new version of a recipe
+         * The body is a full manifest whose `name` matches the URL and whose `version` is greater than every version already published. Published versions are immutable: a site that reports `truo_recipe = name@1.2.0` always points at the manifest that was applied.
+         * 
+         * Scope: `wordpress:write`
+         */
+        update: (name: string, body: T.RecipeManifest, params?: RequestOptions) =>
+          call<T.Recipe>("wordpress.recipes.update", { path: { name }, body: body, queryKeys: undefined, params }),
+      },
       /**
        * Restart the site
        * Restarts the whole site (web server, PHP, database, cache): ~30 s of downtime. To reload PHP alone without downtime use `POST /v1/wordpress/{id}/php/restart`.

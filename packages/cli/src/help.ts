@@ -26,7 +26,7 @@ ${color.bold("Global flags")}
   -y, --yes               Do not ask on destructive operations
   -q, --quiet             No progress or courtesy messages
       --no-wait           Do not wait for an asynchronous operation to finish
-      --body-json '{…}'   Raw body, for what the flags do not cover
+      --body-json '{…}'   Raw body, for what the flags do not cover (@file or @- for stdin)
   -h, --help              This help
   -v, --version           CLI and contract version`;
 

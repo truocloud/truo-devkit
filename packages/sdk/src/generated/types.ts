@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.2.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.3.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -1537,6 +1537,101 @@ export type ServerlessFunctionsUsage = {
   })[];
 };
 
+export type RecipeSummary = {
+  object: "recipe";
+  name: string;
+  description: string | null;
+  latest_version: string;
+  /** All published versions, oldest first. */
+  versions: string[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type RecipeList = {
+  object: "list";
+  data: RecipeSummary[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type RecipeManifest = {
+  apiVersion: "recipe/v1";
+  /** Slug, unique per account. Lowercase letters, digits and hyphens. */
+  name: string;
+  /** Semver. Published versions are immutable. */
+  version: string;
+  description?: string;
+  requires?: {
+    php?: string;
+    wp?: string;
+    /** Rejected with `recipe_requirements_unmet` if the plan has less. */
+    memory_mb?: number;
+  };
+  /** Installed in order. Max 40. */
+  plugins?: ({
+    /** Directory slug on wordpress.org, or the directory the zip in `url` creates. */
+    slug: string;
+    /**
+     * Pinned version. Without `url`, this exact version is installed; with `url`, it is what the site is expected to report.
+     */
+    version?: string;
+    /** `https://` zip. Requires `sha256`; verified before anything is installed. Max 20 MB. */
+    url?: string;
+    /** Hex sha256 of the zip. Required with `url`. */
+    sha256?: string;
+    /** Default `true`. */
+    activate?: boolean;
+  })[];
+  /**
+   * `wp config set … --type=constant`. Platform constants (`DB_*`, `WP_HOME`, `WP_SITEURL`, paths) are refused.
+   */
+  constants?: Record<string, string | number | boolean>;
+  /**
+   * `wp option update … --format=json`. Any JSON value; no single quotes, semicolons or backslashes. Max 200.
+   */
+  options?: Record<string, unknown>;
+  roles?: ({
+    name: string;
+    display?: string;
+    caps?: string[];
+  })[];
+  /**
+   * Constant names whose values **we** generate when applying (never in the manifest). Retrieve them once with `wordpress.recipes.secrets.claim` after the operation succeeds.
+   */
+  secrets?: string[];
+  /** Gate. Any red check fails the operation with `recipe_verify_failed`. Max 10. */
+  verify?: ({
+    /** A WP-CLI line (same allowlist as `wordpress.wpcli.run`). Exit code 0 = green. */
+    wp?: string;
+    http?: {
+      path: string;
+      method?: "GET" | "POST" | "HEAD";
+      body?: string;
+      /** Expected HTTP status. Default 200. */
+      expect?: number;
+    };
+  })[];
+};
+
+export type Recipe = RecipeSummary & {
+  /** The version whose manifest is returned. */
+  version: string;
+  manifest: RecipeManifest;
+};
+
+export type RecipeSecrets = {
+  object: "recipe_secrets";
+  operation: string;
+  recipe: string;
+  version: string;
+  /** Constant name → generated value. **Shown once**: this response deletes them server-side. */
+  secrets: Record<string, string>;
+};
+
 export type Wordpress = {
   object: "wordpress";
   id: string;
@@ -2835,6 +2930,28 @@ export type WordpressPluginsListQuery = {
 /** Query parameters of `GET /v1/wordpress/{id}/plugins/search`. */
 export type WordpressPluginsSearchQuery = {
   q: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/recipes/apply`. */
+export type WordpressRecipesApplyBody = {
+  name: string;
+  /** Default: the latest published version. */
+  version?: string;
+  /**
+   * Take a backup before changing anything. Default `true`. It counts against the daily manual-backup allowance.
+   */
+  backup?: boolean;
+};
+
+/** Query parameters of `GET /v1/wordpress/recipes/{name}`. */
+export type WordpressRecipesGetQuery = {
+  version?: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/recipes/secrets`. */
+export type WordpressRecipesSecretsClaimBody = {
+  /** The `wordpress.recipes.apply` operation. */
+  operation: string;
 };
 
 /** Body of `POST /v1/wordpress/{id}/staging`. */

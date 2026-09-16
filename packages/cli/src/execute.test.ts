@@ -77,6 +77,25 @@ describe("argument mapping", () => {
     expect(await promise).toBe(EXIT.OK);
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ hostname: "b" });
   });
+
+  test("--body-json @file reads a manifest from disk (a recipe is a document, not a flag)", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const file = join(mkdtempSync(join(tmpdir(), "truo-")), "recipe.json");
+    const manifest = { apiVersion: "recipe/v1", name: "golden", version: "1.0.0", plugins: [{ slug: "wp-graphql" }] };
+    writeFileSync(file, JSON.stringify(manifest));
+    const { calls, promise } = run("wordpress recipes create", ["--body-json", `@${file}`], [
+      json({ object: "recipe", name: "golden" }, 201),
+    ]);
+    expect(await promise).toBe(EXIT.OK);
+    expect(JSON.parse(String(calls[0]!.init.body))).toEqual(manifest);
+
+    const missing = run("wordpress recipes create", ["--body-json", "@/no/such/file.json"], []);
+    const err = (await missing.promise.catch((e) => e)) as CliError;
+    expect(err.code).toBe(EXIT.USAGE);
+    expect(err.message).toContain("Could not read");
+  });
 });
 
 describe("destructive operations", () => {

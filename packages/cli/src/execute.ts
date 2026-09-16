@@ -6,6 +6,7 @@
  * travels in the `CommandSpec` that came out of the spec. Adding an endpoint does not
  * touch this code.
  */
+import { readFileSync } from "node:fs";
 import { TruoClient, TruoError, OperationTimeoutError, OperationFailedError } from "../../sdk/src/index.ts";
 import type { Operation } from "../../sdk/src/generated/types.ts";
 import type { CommandSpec, Flag, Positional } from "./generated/commands.ts";
@@ -86,11 +87,18 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
     else query[p.key] = value;
   });
 
+  // `--body-json` is always available: it is the escape valve for a body the flags do not
+  // cover (or that the spec declares free-form) without waiting for a new release.
+  // `@file` reads the JSON from a file and `@-` from stdin: a recipe manifest is a
+  // document, not something to type between quotes. With it, a required body flag may
+  // come inside the document, so the "Missing --flag" check is left to the API.
+  const bodyJson = readBodyJson(flagString(args.flags, "body-json"));
+
   // ── Flags ────────────────────────────────────────────────────────────────
   for (const f of spec.flags) {
     const raw = args.flags.get(f.flag);
     if (raw === undefined) {
-      if (f.required && f.in === "body") {
+      if (f.required && f.in === "body" && bodyJson === undefined) {
         throw new CliError(`Missing --${f.flag}.`, EXIT.USAGE, f.description);
       }
       continue;
@@ -113,9 +121,6 @@ export async function executeCommand(spec: CommandSpec, ctx: ExecContext): Promi
     else path[f.key] = value as string;
   }
 
-  // `--body-json` is always available: it is the escape valve for a body the flags do not
-  // cover (or that the spec declares free-form) without waiting for a new release.
-  const bodyJson = flagString(args.flags, "body-json");
   let finalBody: unknown = Object.keys(body).length ? body : undefined;
   if (bodyJson !== undefined) {
     let parsed: unknown;
@@ -233,4 +238,19 @@ export function toCliError(err: unknown): CliError {
   }
   if (err instanceof Error) return new CliError(err.message, EXIT.INTERNAL);
   return new CliError(String(err), EXIT.INTERNAL);
+}
+
+/** `--body-json '{…}'` as is; `--body-json @path` reads the file; `--body-json @-` reads stdin. */
+export function readBodyJson(raw: string | undefined): string | undefined {
+  if (raw === undefined || !raw.startsWith("@")) return raw;
+  const source = raw.slice(1);
+  try {
+    return readFileSync(source === "-" ? 0 : source, "utf8");
+  } catch (err) {
+    throw new CliError(
+      source === "-" ? "Could not read the body from stdin." : `Could not read --body-json file '${source}'.`,
+      EXIT.USAGE,
+      (err as Error).message,
+    );
+  }
 }
