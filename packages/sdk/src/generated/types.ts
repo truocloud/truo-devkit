@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.0.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.1.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -130,7 +130,7 @@ export type Service = {
   /**
    * The service's family. It determines which resource manages it. `other` is a real product in the account that has no dedicated resource in v1 yet.
    */
-  family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "serverless" | "other";
+  family: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "serverless" | "wordpress" | "other";
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
   /** The product's name in the catalog. */
   name: string | null;
@@ -1537,6 +1537,499 @@ export type ServerlessFunctionsUsage = {
   })[];
 };
 
+export type Wordpress = {
+  object: "wordpress";
+  id: string;
+  status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
+  /**
+   * The site's actual state. Distinct from `status`, which is the **contract** state in billing: an `active` service can be `creating` for a few minutes after purchase.
+   */
+  state: "creating" | "running" | "stopped" | "suspended" | "terminated" | "unknown";
+  /** The platform hostname the site was born with. Custom domains live under `/domains`. */
+  hostname: string | null;
+  /** What WordPress reports as `siteurl`. */
+  site_url: string | null;
+  admin_url: string | null;
+  wordpress_version: string | null;
+  php_version: string | null;
+  /** Resources of the purchased plan. `null` until the site is provisioned. */
+  plan: ({
+    memory_mb: number | null;
+    storage_gb: number | null;
+    cpu_cores: number | null;
+    php_workers: number | null;
+    php_memory_limit_mb: number | null;
+    monthly_visit_limit: number | null;
+  }) | null;
+  ssl_enabled: boolean | null;
+  auto_update: ({
+    /** `minor`, `major`, `none`, as configured. */
+    core: string | null;
+    plugins: boolean;
+    themes: boolean;
+  }) | null;
+  cdn_enabled: boolean | null;
+  backups: ({
+    enabled: boolean;
+    frequency: string | null;
+    retention_days: number | null;
+    last_backup_at: string | null;
+  }) | null;
+  /**
+   * Read from the node. Only on `GET /v1/wordpress/{id}`; `null` in the list and when the node did not answer.
+   */
+  live: ({
+    active_theme: string | null;
+    database_version: string | null;
+    debug_mode: boolean | null;
+    uptime_seconds: number | null;
+    cpu: {
+      cores: number | null;
+      usage_percent: number | null;
+    };
+    memory: {
+      used_bytes: number | null;
+      total_bytes: number | null;
+    };
+    disk: {
+      used_bytes: number | null;
+      total_bytes: number | null;
+    };
+  }) | null;
+  created_at: string | null;
+  /**
+   * Which `/v1` endpoints respond for THIS site. A capability set to `false` returns `400 unsupported_for_product`; it is not a transient error and retrying does not help. `cloudflare` and `cdn` depend on the node the site lives on.
+   */
+  capabilities: Record<string, boolean>;
+};
+
+export type WordpressList = {
+  object: "list";
+  data: Wordpress[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressStatus = {
+  object: "wordpress_status";
+  /** The site's runtime state. */
+  state: "running" | "stopped" | "unknown";
+  /** WordPress finished its installation. */
+  installed: boolean | null;
+  database_ok: boolean | null;
+  core_update_available: boolean | null;
+  plugin_updates: number | null;
+  theme_updates: number | null;
+  /** When the health fields were measured. `null` = measured for this request. */
+  checked_at: string | null;
+  uptime_seconds: number | null;
+  cpu: {
+    cores: number | null;
+    usage_percent: number | null;
+  };
+  memory: {
+    used_bytes: number | null;
+    total_bytes: number | null;
+  };
+  disk: {
+    used_bytes: number | null;
+    total_bytes: number | null;
+  };
+};
+
+export type WordpressLogs = {
+  object: "wordpress_logs";
+  /**
+   * `runtime` = the runtime log of the site (with timestamps). `error`/`access` = the web server logs, `server` = the web server's own log, `php` = the PHP error log.
+   */
+  type: "runtime" | "error" | "access" | "server" | "php";
+  /** Oldest to newest. */
+  lines: string[];
+};
+
+export type WordpressExtension = {
+  object: "wordpress_extension";
+  /** The slug, as WP-CLI names it. */
+  name: string;
+  /** `active`, `inactive`, `must-use`, `dropin`, `parent`… */
+  status: string | null;
+  version: string | null;
+  update_available: boolean;
+  update_version: string | null;
+  auto_update: boolean | null;
+};
+
+export type WordpressExtensionList = {
+  object: "list";
+  data: WordpressExtension[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressExtensionSearchResult = {
+  object: "wordpress_extension_search_result";
+  slug: string;
+  name: string;
+  /** 0–100, as wordpress.org publishes it. */
+  rating: number | null;
+  ratings: number | null;
+  active_installs: number | null;
+  description: string | null;
+  screenshot_url: string | null;
+};
+
+export type WordpressExtensionSearchList = {
+  object: "list";
+  data: WordpressExtensionSearchResult[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressCoreUpdates = {
+  object: "wordpress_core_updates";
+  available: boolean;
+  versions: ({
+    version: string;
+    type: string | null;
+  })[];
+};
+
+export type WordpressPhp = {
+  object: "wordpress_php";
+  version: string | null;
+  memory_limit: string | null;
+  upload_max_filesize: string | null;
+  post_max_size: string | null;
+  max_execution_time: string | null;
+  max_input_vars: string | null;
+  opcache_enabled: boolean | null;
+};
+
+export type WordpressBackup = {
+  object: "wordpress_backup";
+  id: string;
+  /** `manual`, `daily`, `weekly`, `monthly`, `pre_upgrade`… */
+  type: string | null;
+  size_bytes: number | null;
+  created_at: string | null;
+  encrypted: boolean | null;
+};
+
+export type WordpressBackupList = {
+  object: "list";
+  data: WordpressBackup[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressBackupSettings = {
+  object: "wordpress_backup_settings";
+  enabled: boolean;
+  frequency: string | null;
+  retention_days: number | null;
+  last_backup_at: string | null;
+  /** What this site may be configured to. `null` if the node did not answer. */
+  policy: ({
+    allowed_frequencies: string[];
+    min_retention_days: number | null;
+    max_retention_days: number | null;
+    max_manual_per_day: number | null;
+  }) | null;
+};
+
+export type WordpressBackupDownload = {
+  object: "wordpress_backup_download";
+  /** A signed, temporary URL. Treat it as a secret. */
+  url: string;
+  expires_in_seconds: number | null;
+};
+
+export type WordpressStaging = {
+  object: "wordpress_staging";
+  /** Identifies the clone in `push` and `delete`. */
+  name: string;
+  url: string | null;
+  state: "running" | "stopped" | "unknown";
+};
+
+export type WordpressStagingList = {
+  object: "list";
+  data: WordpressStaging[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressDomain = {
+  object: "wordpress_domain";
+  id: string;
+  domain: string;
+  primary: boolean;
+  /** `letsencrypt` or `cf_origin_ca`. */
+  ssl_type: string | null;
+  verified: boolean | null;
+  cloudflare: ({
+    /** `pending`, `active`… as Cloudflare reports it. */
+    status: string | null;
+    ssl_status: string | null;
+  }) | null;
+  /** The apex points an A record at the node and redirects to www. */
+  apex_direct: boolean;
+  created_at: string | null;
+};
+
+export type WordpressDomainList = {
+  object: "list";
+  data: WordpressDomain[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressDomainAdded = {
+  object: "wordpress_domain_added";
+  domain: WordpressDomain;
+  /** What to publish at your DNS provider. Empty when nothing is needed. */
+  dns_records: ({
+    type: string;
+    name: string;
+    value: string;
+    /** `routing` or `verification`, when known. */
+    purpose: string | null;
+  })[];
+  /**
+   * The domain already resolves to your own Cloudflare zone. Cloudflare for SaaS cannot verify a hostname proxied by another Cloudflare zone: disable the proxy (grey cloud) for it.
+   */
+  cloudflare_fronted: boolean;
+  /**
+   * For providers that cannot CNAME the apex: point a single A record here and the apex redirects to www.
+   */
+  node_ip: string | null;
+  message: string | null;
+};
+
+export type WordpressDomainVerification = {
+  object: "wordpress_domain_verification";
+  domain: string;
+  verified: boolean;
+  /** Why it does not verify, in prose. */
+  reason: string | null;
+  cloudflare: ({
+    /** `pending`, `active`… as Cloudflare reports it. */
+    status: string | null;
+    ssl_status: string | null;
+  }) | null;
+};
+
+export type WordpressCloudflare = {
+  object: "wordpress_cloudflare";
+  /** At least one of your own domains goes through Cloudflare for SaaS. */
+  active: boolean;
+  domains: ({
+    id: string;
+    domain: string;
+    primary: boolean;
+    ssl_type: string | null;
+    status: string | null;
+    ssl_status: string | null;
+    /** The hostname we manage for you; its DNS is ours. */
+    platform_hostname: boolean;
+  })[];
+};
+
+export type WordpressCloudflareRecords = {
+  object: "wordpress_cloudflare_records";
+  domain: string;
+  status: string | null;
+  ssl_status: string | null;
+  dns_records: ({
+    type: string;
+    name: string;
+    value: string;
+    /** `routing` or `verification`, when known. */
+    purpose: string | null;
+  })[];
+  /** The `www.` companion of an apex domain. */
+  www: ({
+    status: string | null;
+    ssl_status: string | null;
+    dns_records: ({
+      type: string;
+      name: string;
+      value: string;
+      /** `routing` or `verification`, when known. */
+      purpose: string | null;
+    })[];
+  }) | null;
+  node_ip: string | null;
+};
+
+export type WordpressSecurity = {
+  object: "wordpress_security";
+  score: "green" | "yellow" | "red" | "unknown";
+  /** `off`, `jetpack` or `on`. */
+  xmlrpc_mode: string | null;
+  login_protection: ({
+    enabled: boolean;
+    max_attempts: number | null;
+    lockout_seconds: number | null;
+    blocked_last_24h: number | null;
+    active_lockouts: number | null;
+  }) | null;
+  /** `null` = never scanned. */
+  malware_scan: ({
+    last_scan_at: string | null;
+    /** `null` = the last scan could not run. */
+    clean: boolean | null;
+    findings: ({
+      /** `core` or `plugin:<slug>`. */
+      target: string;
+      /** `modified`, `missing`… */
+      type: string;
+      file: string;
+      message: string | null;
+    })[];
+  }) | null;
+};
+
+export type WordpressBlockedIp = {
+  object: "wordpress_blocked_ip";
+  /** A hash of the IP: what `DELETE` takes. */
+  id: string;
+  ip: string | null;
+  attempts: number | null;
+  last_attempt_at: string | null;
+};
+
+export type WordpressBlockedIpList = {
+  object: "list";
+  data: WordpressBlockedIp[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressPagespeed = {
+  object: "wordpress_pagespeed";
+  mobile: ({
+    /** 0–100 performance score. */
+    score: number | null;
+    lcp_ms: number | null;
+    inp_ms: number | null;
+    cls: number | null;
+    error: string | null;
+  }) | null;
+  desktop: ({
+    /** 0–100 performance score. */
+    score: number | null;
+    lcp_ms: number | null;
+    inp_ms: number | null;
+    cls: number | null;
+    error: string | null;
+  }) | null;
+};
+
+export type WordpressRecovery = {
+  object: "wordpress_recovery";
+  /** Current escalation level of auto-recovery. 0 = healthy. */
+  level: number;
+  consecutive_failures: number;
+  /** Auto-recovery gave up and needs a human. */
+  halted: boolean;
+  halted_at: string | null;
+  last_action_at: string | null;
+  interventions: ({
+    level: number | null;
+    action: string | null;
+    reason: string | null;
+    success: boolean | null;
+    at: string | null;
+  })[];
+};
+
+export type WordpressCdn = {
+  object: "wordpress_cdn";
+  enabled: boolean;
+  /** Base URL your media is served from when enabled. */
+  url: string | null;
+};
+
+export type WordpressCronEvent = {
+  object: "wordpress_cron_event";
+  hook: string;
+  next_run_at: string | null;
+  /** `hourly`, `twicedaily`, `daily`… or `null` for one-off. */
+  schedule: string | null;
+  recurrence: string | null;
+};
+
+export type WordpressCronEventList = {
+  object: "list";
+  data: WordpressCronEvent[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressEmail = {
+  object: "wordpress_email";
+  /** How the site sends mail: `smtp`, `php_mail`, a plugin… */
+  method: string | null;
+  from: string | null;
+  from_name: string | null;
+  last_test: ({
+    to: string | null;
+    success: boolean | null;
+    at: string | null;
+  }) | null;
+};
+
+export type WordpressEmailLogEntry = {
+  object: "wordpress_email_log_entry";
+  to: string | null;
+  subject: string | null;
+  status: string | null;
+  method: string | null;
+  at: string | null;
+};
+
+export type WordpressEmailLogList = {
+  object: "list";
+  data: WordpressEmailLogEntry[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WordpressAutologin = {
+  object: "wordpress_autologin";
+  /** Open it once. It logs you into wp-admin as the first administrator. */
+  url: string;
+  expires_in_seconds: number | null;
+};
+
 /** Query parameters of `GET /v1/api-keys`. */
 export type ApiKeysListQuery = {
   limit?: string;
@@ -1921,7 +2414,7 @@ export type ServerlessKvUsageGetQuery = {
 export type ServicesListQuery = {
   limit?: string;
   cursor?: string;
-  family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "serverless" | "other";
+  family?: "vps" | "dns" | "dbaas" | "caas" | "lb" | "objectstorage" | "mailgateway" | "images" | "serverless" | "wordpress" | "other";
 };
 
 /** Body of `POST /v1/vps/{id}/backups`. */
@@ -1988,4 +2481,142 @@ export type VpsTemplatesListQuery = {
 export type VpsUpdateBody = {
   /** A plain label or an FQDN. The backend validates the format. */
   hostname: string;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/backups`. */
+export type WordpressBackupsListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Body of `PUT /v1/wordpress/{id}/backups/settings`. */
+export type WordpressBackupsSettingsUpdateBody = {
+  enabled: boolean;
+  frequency: "daily" | "weekly" | "monthly";
+  /** Clamped by the node to its allowed range (see `policy`). */
+  retention_days: number;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/cloudflare/records`. */
+export type WordpressCloudflareRecordsGetQuery = {
+  domain: string;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/cron`. */
+export type WordpressCronListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/domains`. */
+export type WordpressDomainsAddBody = {
+  domain: string;
+  /**
+   * Skip the DNS pre-flight. By default the request fails with `validation_failed` if the domain does not point here yet; with `force` it is added and you configure DNS afterwards.
+   */
+  force?: boolean;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/email/log`. */
+export type WordpressEmailLogQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/email/test`. */
+export type WordpressEmailTestBody = {
+  to: string;
+};
+
+/** Query parameters of `GET /v1/wordpress`. */
+export type WordpressListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/logs`. */
+export type WordpressLogsGetQuery = {
+  type?: "runtime" | "error" | "access" | "server" | "php";
+  lines?: string;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/monitoring/recovery`. */
+export type WordpressMonitoringRecoveryQuery = {
+  days?: string;
+};
+
+/** Body of `PATCH /v1/wordpress/{id}/php`. */
+export type WordpressPhpUpdateBody = {
+  memory_limit?: string;
+  upload_max_filesize?: string;
+  post_max_size?: string;
+  max_execution_time?: string;
+  max_input_vars?: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/php/version`. */
+export type WordpressPhpVersionSetBody = {
+  version: "8.1" | "8.2" | "8.3";
+};
+
+/** Body of `POST /v1/wordpress/{id}/plugins`. */
+export type WordpressPluginsInstallBody = {
+  /** A wordpress.org slug, or an `https://` URL to a zip. */
+  slug: string;
+  /** Plugins default to `true`; themes to `false`. */
+  activate?: boolean;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/plugins`. */
+export type WordpressPluginsListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/plugins/search`. */
+export type WordpressPluginsSearchQuery = {
+  q: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/staging`. */
+export type WordpressStagingCreateBody = {
+  /** Defaults to `staging`. A site can have several clones. */
+  name?: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/staging/{name}/push`. */
+export type WordpressStagingPushBody = {
+  /** Copy the database. Defaults to `true`. */
+  database?: boolean;
+  /** Copy the files. Defaults to `true`. */
+  files?: boolean;
+};
+
+/** Body of `POST /v1/wordpress/{id}/themes`. */
+export type WordpressThemesInstallBody = {
+  /** A wordpress.org slug, or an `https://` URL to a zip. */
+  slug: string;
+  /** Plugins default to `true`; themes to `false`. */
+  activate?: boolean;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/themes`. */
+export type WordpressThemesListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Query parameters of `GET /v1/wordpress/{id}/themes/search`. */
+export type WordpressThemesSearchQuery = {
+  q: string;
+};
+
+/** Body of `POST /v1/wordpress/{id}/wp-cli`. */
+export type WordpressWpcliRunBody = {
+  /**
+   * The WP-CLI subcommand, without the leading `wp`. Allowed: cache, cap, comment, config, core, cron, db, language, maintenance-mode, media, menu, option, plugin, post, redis, rewrite, role, search-replace, sidebar, taxonomy, term, theme, transient, user, widget.
+   */
+  command: string;
+  /** Extra arguments, one per element. Quoted for you. */
+  args?: string[];
 };

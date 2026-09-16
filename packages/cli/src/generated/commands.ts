@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 122 commands derived from the spec. */
+/** The 188 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -3455,6 +3455,7 @@ export const COMMANDS: CommandSpec[] = [
           "mailgateway",
           "images",
           "serverless",
+          "wordpress",
           "other"
         ]
       }
@@ -3965,6 +3966,2072 @@ export const COMMANDS: CommandSpec[] = [
         "type": "string",
         "required": true,
         "description": "A plain label or an FQDN. The backend validates the format."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "autologin"
+    ],
+    "operationId": "wordpress.autologin",
+    "summary": "Get a one-time login URL to wp-admin",
+    "description": "Logs in as the first administrator without a password. **Single use, short-lived** (`expires_in_seconds`). It is a POST because the URL is a credential: it is not cached, not replayed by `Idempotency-Key`, and it enters the audit log. Requires `wordpress:console`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:console",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "create"
+    ],
+    "operationId": "wordpress.backups.create",
+    "summary": "Create a backup now",
+    "description": "Database and files. Counts against the daily manual-backup allowance of the plan (`429 rate_limited` when exceeded) and its storage quota (`429 quota_exceeded`). One at a time per site (`409`). The operation carries the `backup_id` in `result`.",
+    "danger": "none",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "delete"
+    ],
+    "operationId": "wordpress.backups.delete",
+    "summary": "Delete a backup",
+    "description": "**Irreversible.** Scheduled backups are also pruned by the retention policy; you rarely need this.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "backup_id",
+        "in": "path",
+        "key": "backup_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "download"
+    ],
+    "operationId": "wordpress.backups.download",
+    "summary": "Get a temporary download URL for a backup",
+    "description": "The archive may have to be rebuilt from cold storage first, which can take a minute. It is a POST because the URL is a credential: it is not cached and it enters the audit log.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "backup_id",
+        "in": "path",
+        "key": "backup_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "list"
+    ],
+    "operationId": "wordpress.backups.list",
+    "summary": "List the site's backups",
+    "description": "Newest first. Scheduled and manual ones, wherever they are stored.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "restore"
+    ],
+    "operationId": "wordpress.backups.restore",
+    "summary": "Restore a backup",
+    "description": "**Destructive**: overwrites the database and the files with the backup. Everything changed since it was taken is lost. Take a fresh backup first if in doubt.",
+    "danger": "destructive",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "backup_id",
+        "in": "path",
+        "key": "backup_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "settings",
+      "get"
+    ],
+    "operationId": "wordpress.backups.settings.get",
+    "summary": "Get the backup schedule",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "backup",
+      "settings",
+      "set"
+    ],
+    "operationId": "wordpress.backups.settings.update",
+    "summary": "Change the backup schedule",
+    "description": "`retention_days` is clamped to the range the plan allows; the response shows what was applied.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "enabled",
+        "key": "enabled",
+        "in": "body",
+        "type": "boolean",
+        "required": true
+      },
+      {
+        "flag": "frequency",
+        "key": "frequency",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "values": [
+          "daily",
+          "weekly",
+          "monthly"
+        ]
+      },
+      {
+        "flag": "retention-days",
+        "key": "retention_days",
+        "in": "body",
+        "type": "number",
+        "required": true,
+        "description": "Clamped by the node to its allowed range (see `policy`)."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "cache",
+      "flush"
+    ],
+    "operationId": "wordpress.cache.flush",
+    "summary": "Flush every cache",
+    "description": "Object cache (Redis), page cache and the CDN edge if enabled. Harmless: the caches rebuild on the next visits.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cdn",
+      "disable"
+    ],
+    "operationId": "wordpress.cdn.disable",
+    "summary": "Disable the media CDN",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cdn",
+      "enable"
+    ],
+    "operationId": "wordpress.cdn.enable",
+    "summary": "Enable the media CDN",
+    "description": "Serves uploads from the edge with on-the-fly image optimization. Media URLs are rewritten on the frontend only.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cdn",
+      "get"
+    ],
+    "operationId": "wordpress.cdn.get",
+    "summary": "Get the CDN state",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cdn",
+      "purge"
+    ],
+    "operationId": "wordpress.cdn.purge",
+    "summary": "Purge the CDN cache",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cloudflare",
+      "disable"
+    ],
+    "operationId": "wordpress.cloudflare.disable",
+    "summary": "Take your custom domains off Cloudflare",
+    "description": "Removes the Cloudflare hostnames and goes back to per-domain certificates. Point your DNS at the site again.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cloudflare",
+      "enable"
+    ],
+    "operationId": "wordpress.cloudflare.enable",
+    "summary": "Put your custom domains behind Cloudflare",
+    "description": "Registers each custom domain with Cloudflare and switches its certificate. The operation `result` lists, per domain, the DNS records to publish. Until they resolve, the domain keeps working as before.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cloudflare",
+      "get"
+    ],
+    "operationId": "wordpress.cloudflare.get",
+    "summary": "Get the Cloudflare state of every domain",
+    "description": "Whether your custom domains go through Cloudflare (edge cache, DDoS protection, managed certificates) and the per-domain status. Only on sites whose `capabilities.cloudflare` is true.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cloudflare",
+      "records"
+    ],
+    "operationId": "wordpress.cloudflare.records.get",
+    "summary": "Get the DNS records a Cloudflare-enabled domain needs",
+    "description": "Re-fetches the records and the current verification status from Cloudflare. Use it to check progress after publishing them.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "domain",
+        "key": "domain",
+        "in": "query",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "core",
+      "update"
+    ],
+    "operationId": "wordpress.core.updates.apply",
+    "summary": "Update WordPress core",
+    "description": "Updates to the latest version WordPress offers and runs the database upgrade. Take a backup first.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "core",
+      "updates"
+    ],
+    "operationId": "wordpress.core.updates.list",
+    "summary": "Check for WordPress core updates",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cron",
+      "delete"
+    ],
+    "operationId": "wordpress.cron.delete",
+    "summary": "Unschedule a WP-Cron event",
+    "description": "Removes every scheduled occurrence of the hook. A plugin may schedule it again.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "hook",
+        "in": "path",
+        "key": "hook",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "cron",
+      "list"
+    ],
+    "operationId": "wordpress.cron.list",
+    "summary": "List scheduled WP-Cron events",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "cron",
+      "run"
+    ],
+    "operationId": "wordpress.cron.run",
+    "summary": "Run a WP-Cron event now",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "hook",
+        "in": "path",
+        "key": "hook",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "domain",
+      "add"
+    ],
+    "operationId": "wordpress.domains.add",
+    "summary": "Add a custom domain",
+    "description": "Registers the domain, requests its certificate and — if it is the first custom domain — makes it the primary and rewrites the site URLs. The response says which DNS records to publish. By default the request fails if the domain does not point here yet; pass `force` to add it first and configure DNS afterwards.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "domain",
+        "key": "domain",
+        "in": "body",
+        "type": "string",
+        "required": true
+      },
+      {
+        "flag": "force",
+        "key": "force",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Skip the DNS pre-flight. By default the request fails with `validation_failed` if the domain does not point here yet; with `force` it is added and you configure DNS afterwards."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "domain",
+      "delete"
+    ],
+    "operationId": "wordpress.domains.delete",
+    "summary": "Remove a custom domain",
+    "description": "The site stops answering on it. Its certificate is dropped. The platform hostname cannot be removed.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "domain_id",
+        "in": "path",
+        "key": "domain_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "domain",
+      "list"
+    ],
+    "operationId": "wordpress.domains.list",
+    "summary": "List the site's domains",
+    "description": "Includes the platform hostname the site was born with and every custom domain you added.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "domain",
+      "set-primary"
+    ],
+    "operationId": "wordpress.domains.set_primary",
+    "summary": "Make a domain the primary",
+    "description": "Rewrites `siteurl`/`home` and every URL in the database. An apex becomes `www.`: that is the canonical form.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "domain_id",
+        "in": "path",
+        "key": "domain_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "domain",
+      "retry-ssl"
+    ],
+    "operationId": "wordpress.domains.ssl.retry",
+    "summary": "Retry certificate issuance for every domain",
+    "description": "Clears failed certificate attempts and asks for them again. Use it after fixing DNS. Let's Encrypt allows 5 failures per hour per domain: do not loop on this.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "domain",
+      "verify"
+    ],
+    "operationId": "wordpress.domains.verify",
+    "summary": "Check a domain's DNS",
+    "description": "Resolves the domain (and `www.` for an apex) and says whether it points here, or why not.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "domain_id",
+        "in": "path",
+        "key": "domain_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "email",
+      "get"
+    ],
+    "operationId": "wordpress.email.get",
+    "summary": "Get how the site sends email",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "email",
+      "log"
+    ],
+    "operationId": "wordpress.email.log",
+    "summary": "List recently sent emails",
+    "description": "What `wp_mail()` sent in the last 7 days: recipient, subject and method. No bodies.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "email",
+      "test"
+    ],
+    "operationId": "wordpress.email.test",
+    "summary": "Send a test email",
+    "description": "Sends through the site's own mailer. `result.sent` says whether `wp_mail()` succeeded; a `false` is the diagnosis, not an error.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "to",
+        "key": "to",
+        "in": "body",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "get"
+    ],
+    "operationId": "wordpress.get",
+    "summary": "Get a WordPress site with its live state",
+    "description": "Queries the node. If it does not respond, `live` comes back `null` instead of failing: a node hiccup should not stop you from reading the rest of the resource or its `capabilities`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "list"
+    ],
+    "operationId": "wordpress.list",
+    "summary": "List WordPress sites",
+    "description": "Served from the database, without querying the node: `live` comes back `null`. Fetching it would cost one backend call per page item. For the live state of one site, use `GET /v1/wordpress/{id}`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "logs"
+    ],
+    "operationId": "wordpress.logs.get",
+    "summary": "Get a log's last lines",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "type",
+        "key": "type",
+        "in": "query",
+        "type": "string",
+        "required": false,
+        "values": [
+          "runtime",
+          "error",
+          "access",
+          "server",
+          "php"
+        ]
+      },
+      {
+        "flag": "lines",
+        "key": "lines",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "pagespeed"
+    ],
+    "operationId": "wordpress.monitoring.pagespeed",
+    "summary": "Run PageSpeed Insights",
+    "description": "Runs Google PageSpeed Insights live for mobile and desktop: 10–30 s. Core Web Vitals included.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "recovery"
+    ],
+    "operationId": "wordpress.monitoring.recovery",
+    "summary": "Get the auto-recovery state and history",
+    "description": "The platform watches every site and repairs the common failures on its own (plugin fatals, stuck services). This is what it did to yours, and whether it gave up (`halted`).",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "days",
+        "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "php",
+      "get"
+    ],
+    "operationId": "wordpress.php.get",
+    "summary": "Get PHP version and settings",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "php",
+      "restart"
+    ],
+    "operationId": "wordpress.php.restart",
+    "summary": "Restart PHP",
+    "description": "Recycles the PHP workers and reloads the web server. No downtime; in-flight requests finish.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "php",
+      "set"
+    ],
+    "operationId": "wordpress.php.update",
+    "summary": "Change PHP settings",
+    "description": "Only the provided keys change. PHP reloads gracefully: no downtime.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "memory-limit",
+        "key": "memory_limit",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "upload-max-filesize",
+        "key": "upload_max_filesize",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "post-max-size",
+        "key": "post_max_size",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "max-execution-time",
+        "key": "max_execution_time",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "max-input-vars",
+        "key": "max_input_vars",
+        "in": "body",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "php",
+      "version"
+    ],
+    "operationId": "wordpress.php.version.set",
+    "summary": "Change the PHP version",
+    "description": "Switches the interpreter and restarts PHP: a few seconds of errors while it comes back. Custom settings carry over.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "version",
+        "key": "version",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "values": [
+          "8.1",
+          "8.2",
+          "8.3"
+        ]
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "activate"
+    ],
+    "operationId": "wordpress.plugins.activate",
+    "summary": "Activate a plugin",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "deactivate"
+    ],
+    "operationId": "wordpress.plugins.deactivate",
+    "summary": "Deactivate a plugin",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "delete"
+    ],
+    "operationId": "wordpress.plugins.delete",
+    "summary": "Delete a plugin",
+    "description": "Removes its files. Its settings stay in the database, as WordPress does.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "install"
+    ],
+    "operationId": "wordpress.plugins.install",
+    "summary": "Install a plugin",
+    "description": "From wordpress.org by slug, or from an `https://` zip. Activates it unless `activate` is `false`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "slug",
+        "key": "slug",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "A wordpress.org slug, or an `https://` URL to a zip."
+      },
+      {
+        "flag": "activate",
+        "key": "activate",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Plugins default to `true`; themes to `false`."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "list"
+    ],
+    "operationId": "wordpress.plugins.list",
+    "summary": "List installed plugins",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "search"
+    ],
+    "operationId": "wordpress.plugins.search",
+    "summary": "Search wordpress.org for plugins",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "q",
+        "key": "q",
+        "in": "query",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "update"
+    ],
+    "operationId": "wordpress.plugins.update",
+    "summary": "Update a plugin",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "plugin",
+      "update-all"
+    ],
+    "operationId": "wordpress.plugins.update_all",
+    "summary": "Update every plugin with an update available",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "restart"
+    ],
+    "operationId": "wordpress.restart",
+    "summary": "Restart the site",
+    "description": "Restarts the whole site (web server, PHP, database, cache): ~30 s of downtime. To reload PHP alone without downtime use `POST /v1/wordpress/{id}/php/restart`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "security",
+      "unblock"
+    ],
+    "operationId": "wordpress.security.blocked_ips.delete",
+    "summary": "Lift a lockout",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "ip_id",
+        "in": "path",
+        "key": "ip_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "security",
+      "blocked-ips"
+    ],
+    "operationId": "wordpress.security.blocked_ips.list",
+    "summary": "List IPs locked out for failed logins",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "security",
+      "get"
+    ],
+    "operationId": "wordpress.security.get",
+    "summary": "Get the security status",
+    "description": "Login protection counters and the result of the last integrity scan (core and wordpress.org plugins against official checksums).",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "security",
+      "scan"
+    ],
+    "operationId": "wordpress.security.scan",
+    "summary": "Run an integrity scan now",
+    "description": "Verifies core and wordpress.org plugins against their official checksums. The findings come in the operation `result`.",
+    "danger": "none",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "staging",
+      "create"
+    ],
+    "operationId": "wordpress.staging.create",
+    "summary": "Create a staging environment",
+    "description": "A full copy of the site (database and files) on its own URL, with fixed resources. Takes a minute or two. The operation carries the clone in `result`.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "name",
+        "key": "name",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Defaults to `staging`. A site can have several clones."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "staging",
+      "delete"
+    ],
+    "operationId": "wordpress.staging.delete",
+    "summary": "Delete a staging environment",
+    "description": "**Irreversible**: the clone and its data are removed. Production is not touched.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "staging",
+      "list"
+    ],
+    "operationId": "wordpress.staging.list",
+    "summary": "List staging environments",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "staging",
+      "push"
+    ],
+    "operationId": "wordpress.staging.push",
+    "summary": "Push a staging environment to production",
+    "description": "**Destructive**: copies the database and/or the files of the clone OVER the live site. Take a backup of production first.",
+    "danger": "destructive",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "database",
+        "key": "database",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Copy the database. Defaults to `true`."
+      },
+      {
+        "flag": "files",
+        "key": "files",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Copy the files. Defaults to `true`."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "status"
+    ],
+    "operationId": "wordpress.status",
+    "summary": "Get runtime state, health and resource usage",
+    "description": "Health (installed, database reachable, pending updates) comes from a check the node runs every 15 minutes: `checked_at` says when. Resource usage is measured for this request.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "activate"
+    ],
+    "operationId": "wordpress.themes.activate",
+    "summary": "Activate a theme",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "delete"
+    ],
+    "operationId": "wordpress.themes.delete",
+    "summary": "Delete a theme",
+    "description": "The active theme cannot be deleted: activate another one first.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "install"
+    ],
+    "operationId": "wordpress.themes.install",
+    "summary": "Install a theme",
+    "description": "From wordpress.org by slug, or from an `https://` zip. Does not activate it unless `activate` is `true`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "slug",
+        "key": "slug",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "A wordpress.org slug, or an `https://` URL to a zip."
+      },
+      {
+        "flag": "activate",
+        "key": "activate",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Plugins default to `true`; themes to `false`."
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "list"
+    ],
+    "operationId": "wordpress.themes.list",
+    "summary": "List installed themes",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "search"
+    ],
+    "operationId": "wordpress.themes.search",
+    "summary": "Search wordpress.org for themes",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "q",
+        "key": "q",
+        "in": "query",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "update"
+    ],
+    "operationId": "wordpress.themes.update",
+    "summary": "Update a theme",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "slug",
+        "in": "path",
+        "key": "slug",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "theme",
+      "update-all"
+    ],
+    "operationId": "wordpress.themes.update_all",
+    "summary": "Update every theme with an update available",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "wordpress",
+      "wp-cli"
+    ],
+    "operationId": "wordpress.wpcli.run",
+    "summary": "Run a WP-CLI command",
+    "description": "Runs `wp <command> <args…>` inside the site and returns `exit_code`, `output` and `error` in the operation `result` (output capped at 64 KB, `truncated: true` past it). A non-zero exit code is the command's result, not an API error. Only an allowlist of subcommands runs: no `eval`, no `shell`, no free-form `db query`, no global flags that change where it runs. Requires `wordpress:console`: WP-CLI is full access to the site and its database.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "wordpress:console",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "command",
+        "key": "command",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "The WP-CLI subcommand, without the leading `wp`. Allowed: cache, cap, comment, config, core, cron, db, language, maintenance-mode, media, menu, option, plugin, post, redis, rewrite, role, search-replace, sidebar, taxonomy, term, theme, transient, user, widget."
+      },
+      {
+        "flag": "args",
+        "key": "args",
+        "in": "body",
+        "type": "string[]",
+        "required": false,
+        "description": "Extra arguments, one per element. Quoted for you."
       }
     ]
   }

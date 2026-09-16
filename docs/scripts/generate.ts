@@ -175,6 +175,7 @@ const TAG_ORDER = [
   "Mail Gateway",
   "Image Services",
   "Serverless",
+  "WordPress",
   "Operations",
   "API Keys",
   "Audit",
@@ -222,6 +223,7 @@ const FAMILY_LABEL: Record<string, string> = {
   "Mail Gateway": "Mail Gateway",
   "Image Services": "Image Services",
   Serverless: "serverless primitives",
+  WordPress: "managed WordPress",
 };
 
 const tags = [...byTag.keys()].sort((a, b) => {

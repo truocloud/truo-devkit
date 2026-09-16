@@ -1464,6 +1464,634 @@ export function createResources(call: Call, paginate: Paginate) {
       update: (id: string, body: T.VpsUpdateBody, params?: RequestOptions) =>
         call<T.Vps>("vps.update", { path: { id }, body: body, queryKeys: undefined, params }),
     },
+    wordpress: {
+      /**
+       * Get a one-time login URL to wp-admin
+       * Logs in as the first administrator without a password. **Single use, short-lived** (`expires_in_seconds`). It is a POST because the URL is a credential: it is not cached, not replayed by `Idempotency-Key`, and it enters the audit log. Requires `wordpress:console`.
+       * 
+       * Scope: `wordpress:console`
+       */
+      autologin: (id: string, params?: RequestOptions) =>
+        call<T.WordpressAutologin>("wordpress.autologin", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      backups: {
+        /**
+         * Create a backup now
+         * Database and files. Counts against the daily manual-backup allowance of the plan (`429 rate_limited` when exceeded) and its storage quota (`429 quota_exceeded`). One at a time per site (`409`). The operation carries the `backup_id` in `result`.
+         * 
+         * Scope: `wordpress:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        create: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.backups.create", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Delete a backup
+         * **Irreversible.** Scheduled backups are also pruned by the retention policy; you rarely need this.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, backupId: string, params?: RequestOptions) =>
+          call<void>("wordpress.backups.delete", { path: { id, backup_id: backupId }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a temporary download URL for a backup
+         * The archive may have to be rebuilt from cold storage first, which can take a minute. It is a POST because the URL is a credential: it is not cached and it enters the audit log.
+         * 
+         * Scope: `wordpress:write`
+         */
+        download: (id: string, backupId: string, params?: RequestOptions) =>
+          call<T.WordpressBackupDownload>("wordpress.backups.download", { path: { id, backup_id: backupId }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List the site's backups
+         * Newest first. Scheduled and manual ones, wherever they are stored.
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (id: string, params?: T.WordpressBackupsListQuery & RequestOptions) =>
+          call<T.WordpressBackupList>("wordpress.backups.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `wordpress.backups.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.WordpressBackupsListQuery & RequestOptions) =>
+          paginate<T.WordpressBackup>(
+            "wordpress.backups.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+          ),
+        /**
+         * Restore a backup
+         * **Destructive**: overwrites the database and the files with the backup. Everything changed since it was taken is lost. Take a fresh backup first if in doubt.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        restore: (id: string, backupId: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.backups.restore", { path: { id, backup_id: backupId }, body: undefined, queryKeys: undefined, params }),
+        settings: {
+          /**
+           * Get the backup schedule
+           * 
+           * Scope: `wordpress:read`
+           */
+          get: (id: string, params?: RequestOptions) =>
+            call<T.WordpressBackupSettings>("wordpress.backups.settings.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+          /**
+           * Change the backup schedule
+           * `retention_days` is clamped to the range the plan allows; the response shows what was applied.
+           * 
+           * Scope: `wordpress:write`
+           */
+          update: (id: string, body: T.WordpressBackupsSettingsUpdateBody, params?: RequestOptions) =>
+            call<T.WordpressBackupSettings>("wordpress.backups.settings.update", { path: { id }, body: body, queryKeys: undefined, params }),
+        },
+      },
+      cache: {
+        /**
+         * Flush every cache
+         * Object cache (Redis), page cache and the CDN edge if enabled. Harmless: the caches rebuild on the next visits.
+         * 
+         * Scope: `wordpress:write`
+         */
+        flush: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cache.flush", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
+      cdn: {
+        /**
+         * Disable the media CDN
+         * 
+         * Scope: `wordpress:write`
+         */
+        disable: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cdn.disable", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Enable the media CDN
+         * Serves uploads from the edge with on-the-fly image optimization. Media URLs are rewritten on the frontend only.
+         * 
+         * Scope: `wordpress:write`
+         */
+        enable: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cdn.enable", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get the CDN state
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (id: string, params?: RequestOptions) =>
+          call<T.WordpressCdn>("wordpress.cdn.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Purge the CDN cache
+         * 
+         * Scope: `wordpress:write`
+         */
+        purge: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cdn.purge", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
+      cloudflare: {
+        /**
+         * Take your custom domains off Cloudflare
+         * Removes the Cloudflare hostnames and goes back to per-domain certificates. Point your DNS at the site again.
+         * 
+         * Scope: `wordpress:write`
+         */
+        disable: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cloudflare.disable", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Put your custom domains behind Cloudflare
+         * Registers each custom domain with Cloudflare and switches its certificate. The operation `result` lists, per domain, the DNS records to publish. Until they resolve, the domain keeps working as before.
+         * 
+         * Scope: `wordpress:write`
+         */
+        enable: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cloudflare.enable", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get the Cloudflare state of every domain
+         * Whether your custom domains go through Cloudflare (edge cache, DDoS protection, managed certificates) and the per-domain status. Only on sites whose `capabilities.cloudflare` is true.
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (id: string, params?: RequestOptions) =>
+          call<T.WordpressCloudflare>("wordpress.cloudflare.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        records: {
+          /**
+           * Get the DNS records a Cloudflare-enabled domain needs
+           * Re-fetches the records and the current verification status from Cloudflare. Use it to check progress after publishing them.
+           * 
+           * Scope: `wordpress:read`
+           */
+          get: (id: string, params?: T.WordpressCloudflareRecordsGetQuery & RequestOptions) =>
+            call<T.WordpressCloudflareRecords>("wordpress.cloudflare.records.get", { path: { id }, body: undefined, queryKeys: ["domain"], params }),
+        },
+      },
+      core: {
+        updates: {
+          /**
+           * Update WordPress core
+           * Updates to the latest version WordPress offers and runs the database upgrade. Take a backup first.
+           * 
+           * Scope: `wordpress:write`
+           */
+          apply: (id: string, params?: RequestOptions) =>
+            call<T.Operation>("wordpress.core.updates.apply", { path: { id }, body: undefined, queryKeys: undefined, params }),
+          /**
+           * Check for WordPress core updates
+           * 
+           * Scope: `wordpress:read`
+           */
+          list: (id: string, params?: RequestOptions) =>
+            call<T.WordpressCoreUpdates>("wordpress.core.updates.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        },
+      },
+      cron: {
+        /**
+         * Unschedule a WP-Cron event
+         * Removes every scheduled occurrence of the hook. A plugin may schedule it again.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, hook: string, params?: RequestOptions) =>
+          call<void>("wordpress.cron.delete", { path: { id, hook }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List scheduled WP-Cron events
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (id: string, params?: T.WordpressCronListQuery & RequestOptions) =>
+          call<T.WordpressCronEventList>("wordpress.cron.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `wordpress.cron.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.WordpressCronListQuery & RequestOptions) =>
+          paginate<T.WordpressCronEvent>(
+            "wordpress.cron.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+          ),
+        /**
+         * Run a WP-Cron event now
+         * 
+         * Scope: `wordpress:write`
+         */
+        run: (id: string, hook: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.cron.run", { path: { id, hook }, body: undefined, queryKeys: undefined, params }),
+      },
+      domains: {
+        /**
+         * Add a custom domain
+         * Registers the domain, requests its certificate and — if it is the first custom domain — makes it the primary and rewrites the site URLs. The response says which DNS records to publish. By default the request fails if the domain does not point here yet; pass `force` to add it first and configure DNS afterwards.
+         * 
+         * Scope: `wordpress:write`
+         */
+        add: (id: string, body: T.WordpressDomainsAddBody, params?: RequestOptions) =>
+          call<T.WordpressDomainAdded>("wordpress.domains.add", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Remove a custom domain
+         * The site stops answering on it. Its certificate is dropped. The platform hostname cannot be removed.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, domainId: string, params?: RequestOptions) =>
+          call<void>("wordpress.domains.delete", { path: { id, domain_id: domainId }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List the site's domains
+         * Includes the platform hostname the site was born with and every custom domain you added.
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.WordpressDomainList>("wordpress.domains.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `wordpress.domains.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.WordpressDomain>(
+            "wordpress.domains.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Make a domain the primary
+         * Rewrites `siteurl`/`home` and every URL in the database. An apex becomes `www.`: that is the canonical form.
+         * 
+         * Scope: `wordpress:write`
+         */
+        setPrimary: (id: string, domainId: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.domains.set_primary", { path: { id, domain_id: domainId }, body: undefined, queryKeys: undefined, params }),
+        ssl: {
+          /**
+           * Retry certificate issuance for every domain
+           * Clears failed certificate attempts and asks for them again. Use it after fixing DNS. Let's Encrypt allows 5 failures per hour per domain: do not loop on this.
+           * 
+           * Scope: `wordpress:write`
+           */
+          retry: (id: string, params?: RequestOptions) =>
+            call<T.Operation>("wordpress.domains.ssl.retry", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        },
+        /**
+         * Check a domain's DNS
+         * Resolves the domain (and `www.` for an apex) and says whether it points here, or why not.
+         * 
+         * Scope: `wordpress:read`
+         */
+        verify: (id: string, domainId: string, params?: RequestOptions) =>
+          call<T.WordpressDomainVerification>("wordpress.domains.verify", { path: { id, domain_id: domainId }, body: undefined, queryKeys: undefined, params }),
+      },
+      email: {
+        /**
+         * Get how the site sends email
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (id: string, params?: RequestOptions) =>
+          call<T.WordpressEmail>("wordpress.email.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List recently sent emails
+         * What `wp_mail()` sent in the last 7 days: recipient, subject and method. No bodies.
+         * 
+         * Scope: `wordpress:read`
+         */
+        log: (id: string, params?: T.WordpressEmailLogQuery & RequestOptions) =>
+          call<T.WordpressEmailLogList>("wordpress.email.log", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Send a test email
+         * Sends through the site's own mailer. `result.sent` says whether `wp_mail()` succeeded; a `false` is the diagnosis, not an error.
+         * 
+         * Scope: `wordpress:write`
+         */
+        test: (id: string, body: T.WordpressEmailTestBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.email.test", { path: { id }, body: body, queryKeys: undefined, params }),
+      },
+      /**
+       * Get a WordPress site with its live state
+       * Queries the node. If it does not respond, `live` comes back `null` instead of failing: a node hiccup should not stop you from reading the rest of the resource or its `capabilities`.
+       * 
+       * Scope: `wordpress:read`
+       */
+      get: (id: string, params?: RequestOptions) =>
+        call<T.Wordpress>("wordpress.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      /**
+       * List WordPress sites
+       * Served from the database, without querying the node: `live` comes back `null`. Fetching it would cost one backend call per page item. For the live state of one site, use `GET /v1/wordpress/{id}`.
+       * 
+       * Scope: `wordpress:read`
+       */
+      list: (params?: T.WordpressListQuery & RequestOptions) =>
+        call<T.WordpressList>("wordpress.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor"], params }),
+      /**
+       * Iterates **all** pages of `wordpress.list`, following the cursor on its own.
+       * A `for await` over this never drops results by forgetting `next_cursor`.
+       */
+      listAll: (params?: T.WordpressListQuery & RequestOptions) =>
+        paginate<T.Wordpress>(
+          "wordpress.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
+        ),
+      logs: {
+        /**
+         * Get a log's last lines
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (id: string, params?: T.WordpressLogsGetQuery & RequestOptions) =>
+          call<T.WordpressLogs>("wordpress.logs.get", { path: { id }, body: undefined, queryKeys: ["type", "lines"], params }),
+      },
+      monitoring: {
+        /**
+         * Run PageSpeed Insights
+         * Runs Google PageSpeed Insights live for mobile and desktop: 10–30 s. Core Web Vitals included.
+         * 
+         * Scope: `wordpress:read`
+         */
+        pagespeed: (id: string, params?: RequestOptions) =>
+          call<T.WordpressPagespeed>("wordpress.monitoring.pagespeed", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get the auto-recovery state and history
+         * The platform watches every site and repairs the common failures on its own (plugin fatals, stuck services). This is what it did to yours, and whether it gave up (`halted`).
+         * 
+         * Scope: `wordpress:read`
+         */
+        recovery: (id: string, params?: T.WordpressMonitoringRecoveryQuery & RequestOptions) =>
+          call<T.WordpressRecovery>("wordpress.monitoring.recovery", { path: { id }, body: undefined, queryKeys: ["days"], params }),
+      },
+      php: {
+        /**
+         * Get PHP version and settings
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (id: string, params?: RequestOptions) =>
+          call<T.WordpressPhp>("wordpress.php.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Restart PHP
+         * Recycles the PHP workers and reloads the web server. No downtime; in-flight requests finish.
+         * 
+         * Scope: `wordpress:write`
+         */
+        restart: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.php.restart", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Change PHP settings
+         * Only the provided keys change. PHP reloads gracefully: no downtime.
+         * 
+         * Scope: `wordpress:write`
+         */
+        update: (id: string, body: T.WordpressPhpUpdateBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.php.update", { path: { id }, body: body, queryKeys: undefined, params }),
+        version: {
+          /**
+           * Change the PHP version
+           * Switches the interpreter and restarts PHP: a few seconds of errors while it comes back. Custom settings carry over.
+           * 
+           * Scope: `wordpress:write`
+           */
+          set: (id: string, body: T.WordpressPhpVersionSetBody, params?: RequestOptions) =>
+            call<T.Operation>("wordpress.php.version.set", { path: { id }, body: body, queryKeys: undefined, params }),
+        },
+      },
+      plugins: {
+        /**
+         * Activate a plugin
+         * 
+         * Scope: `wordpress:write`
+         */
+        activate: (id: string, slug: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.activate", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Deactivate a plugin
+         * 
+         * Scope: `wordpress:write`
+         */
+        deactivate: (id: string, slug: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.deactivate", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Delete a plugin
+         * Removes its files. Its settings stay in the database, as WordPress does.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, slug: string, params?: RequestOptions) =>
+          call<void>("wordpress.plugins.delete", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Install a plugin
+         * From wordpress.org by slug, or from an `https://` zip. Activates it unless `activate` is `false`.
+         * 
+         * Scope: `wordpress:write`
+         */
+        install: (id: string, body: T.WordpressPluginsInstallBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.install", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * List installed plugins
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (id: string, params?: T.WordpressPluginsListQuery & RequestOptions) =>
+          call<T.WordpressExtensionList>("wordpress.plugins.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `wordpress.plugins.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.WordpressPluginsListQuery & RequestOptions) =>
+          paginate<T.WordpressExtension>(
+            "wordpress.plugins.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+          ),
+        /**
+         * Search wordpress.org for plugins
+         * 
+         * Scope: `wordpress:read`
+         */
+        search: (id: string, params?: T.WordpressPluginsSearchQuery & RequestOptions) =>
+          call<T.WordpressExtensionSearchList>("wordpress.plugins.search", { path: { id }, body: undefined, queryKeys: ["q"], params }),
+        /**
+         * Update a plugin
+         * 
+         * Scope: `wordpress:write`
+         */
+        update: (id: string, slug: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.update", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Update every plugin with an update available
+         * 
+         * Scope: `wordpress:write`
+         */
+        updateAll: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.update_all", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
+      /**
+       * Restart the site
+       * Restarts the whole site (web server, PHP, database, cache): ~30 s of downtime. To reload PHP alone without downtime use `POST /v1/wordpress/{id}/php/restart`.
+       * 
+       * Scope: `wordpress:write`
+       */
+      restart: (id: string, params?: RequestOptions) =>
+        call<T.Operation>("wordpress.restart", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      security: {
+        blockedIps: {
+          /**
+           * Lift a lockout
+           * 
+           * Scope: `wordpress:write`
+           */
+          delete: (id: string, ipId: string, params?: RequestOptions) =>
+            call<void>("wordpress.security.blocked_ips.delete", { path: { id, ip_id: ipId }, body: undefined, queryKeys: undefined, params }),
+          /**
+           * List IPs locked out for failed logins
+           * 
+           * Scope: `wordpress:read`
+           */
+          list: (id: string, params?: RequestOptions) =>
+            call<T.WordpressBlockedIpList>("wordpress.security.blocked_ips.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+          /**
+           * Iterates **all** pages of `wordpress.security.blocked_ips.list`, following the cursor on its own.
+           * A `for await` over this never drops results by forgetting `next_cursor`.
+           */
+          listAll: (id: string, params?: RequestOptions) =>
+            paginate<T.WordpressBlockedIp>(
+              "wordpress.security.blocked_ips.list", { path: { id }, queryKeys: undefined, params },
+            ),
+        },
+        /**
+         * Get the security status
+         * Login protection counters and the result of the last integrity scan (core and wordpress.org plugins against official checksums).
+         * 
+         * Scope: `wordpress:read`
+         */
+        get: (id: string, params?: RequestOptions) =>
+          call<T.WordpressSecurity>("wordpress.security.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Run an integrity scan now
+         * Verifies core and wordpress.org plugins against their official checksums. The findings come in the operation `result`.
+         * 
+         * Scope: `wordpress:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        scan: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.security.scan", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
+      staging: {
+        /**
+         * Create a staging environment
+         * A full copy of the site (database and files) on its own URL, with fixed resources. Takes a minute or two. The operation carries the clone in `result`.
+         * 
+         * Scope: `wordpress:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        create: (id: string, body?: T.WordpressStagingCreateBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.staging.create", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Delete a staging environment
+         * **Irreversible**: the clone and its data are removed. Production is not touched.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, name: string, params?: RequestOptions) =>
+          call<void>("wordpress.staging.delete", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List staging environments
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.WordpressStagingList>("wordpress.staging.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `wordpress.staging.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.WordpressStaging>(
+            "wordpress.staging.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Push a staging environment to production
+         * **Destructive**: copies the database and/or the files of the clone OVER the live site. Take a backup of production first.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        push: (id: string, name: string, body?: T.WordpressStagingPushBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.staging.push", { path: { id, name }, body: body, queryKeys: undefined, params }),
+      },
+      /**
+       * Get runtime state, health and resource usage
+       * Health (installed, database reachable, pending updates) comes from a check the node runs every 15 minutes: `checked_at` says when. Resource usage is measured for this request.
+       * 
+       * Scope: `wordpress:read`
+       */
+      status: (id: string, params?: RequestOptions) =>
+        call<T.WordpressStatus>("wordpress.status", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      themes: {
+        /**
+         * Activate a theme
+         * 
+         * Scope: `wordpress:write`
+         */
+        activate: (id: string, slug: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.themes.activate", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Delete a theme
+         * The active theme cannot be deleted: activate another one first.
+         * 
+         * Scope: `wordpress:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, slug: string, params?: RequestOptions) =>
+          call<void>("wordpress.themes.delete", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Install a theme
+         * From wordpress.org by slug, or from an `https://` zip. Does not activate it unless `activate` is `true`.
+         * 
+         * Scope: `wordpress:write`
+         */
+        install: (id: string, body: T.WordpressThemesInstallBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.themes.install", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * List installed themes
+         * 
+         * Scope: `wordpress:read`
+         */
+        list: (id: string, params?: T.WordpressThemesListQuery & RequestOptions) =>
+          call<T.WordpressExtensionList>("wordpress.themes.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `wordpress.themes.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.WordpressThemesListQuery & RequestOptions) =>
+          paginate<T.WordpressExtension>(
+            "wordpress.themes.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+          ),
+        /**
+         * Search wordpress.org for themes
+         * 
+         * Scope: `wordpress:read`
+         */
+        search: (id: string, params?: T.WordpressThemesSearchQuery & RequestOptions) =>
+          call<T.WordpressExtensionSearchList>("wordpress.themes.search", { path: { id }, body: undefined, queryKeys: ["q"], params }),
+        /**
+         * Update a theme
+         * 
+         * Scope: `wordpress:write`
+         */
+        update: (id: string, slug: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.themes.update", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Update every theme with an update available
+         * 
+         * Scope: `wordpress:write`
+         */
+        updateAll: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.themes.update_all", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
+      wpcli: {
+        /**
+         * Run a WP-CLI command
+         * Runs `wp <command> <args…>` inside the site and returns `exit_code`, `output` and `error` in the operation `result` (output capped at 64 KB, `truncated: true` past it). A non-zero exit code is the command's result, not an API error. Only an allowlist of subcommands runs: no `eval`, no `shell`, no free-form `db query`, no global flags that change where it runs. Requires `wordpress:console`: WP-CLI is full access to the site and its database.
+         * 
+         * Scope: `wordpress:console`
+         * **Destructive: there is no undo.**
+         */
+        run: (id: string, body: T.WordpressWpcliRunBody, params?: RequestOptions) =>
+          call<T.Operation>("wordpress.wpcli.run", { path: { id }, body: body, queryKeys: undefined, params }),
+      },
+    },
   };
 }
 
