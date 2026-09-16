@@ -113,6 +113,8 @@ export default defineConfig({
               ],
             },
             { label: "Truo AI", slug: "ai" },
+            { label: "Orders", slug: "orders" },
+            { label: "Webhooks", slug: "webhooks" },
           ],
         },
         {

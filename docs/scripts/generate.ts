@@ -176,7 +176,9 @@ const TAG_ORDER = [
   "Image Services",
   "Serverless",
   "WordPress",
+  "Orders",
   "Operations",
+  "Webhooks",
   "API Keys",
   "Audit",
 ];
@@ -211,6 +213,8 @@ const GUIDE: Record<string, { label: string; href: string }> = {
   Serverless: { label: "Using the primitives", href: "/serverless/" },
   "Object Storage": { label: "Using the S3 endpoint", href: "/object-storage/" },
   "Image Services": { label: "Delivering images", href: "/images/" },
+  Orders: { label: "Buying and cancelling", href: "/orders/" },
+  Webhooks: { label: "Receiving and verifying events", href: "/webhooks/" },
 };
 
 const FAMILY_LABEL: Record<string, string> = {

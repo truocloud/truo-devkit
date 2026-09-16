@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 188 commands derived from the spec. */
+/** The 204 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -3052,6 +3052,231 @@ export const COMMANDS: CommandSpec[] = [
   },
   {
     "path": [
+      "orders",
+      "cancel"
+    ],
+    "operationId": "orders.cancel",
+    "summary": "Cancel an order or request the cancellation of its services",
+    "description": "A `pending` order (unpaid) is voided at once. An `active` order gets a cancellation request per service, which WHMCS executes `immediate`ly or at the `end_of_cycle`. **This call destroys nothing by itself**; backups are kept according to the product policy.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "orders:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "order_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "when",
+        "key": "when",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "values": [
+          "immediate",
+          "end_of_cycle"
+        ],
+        "description": "`end_of_cycle` (default) keeps the service until the paid period ends. `immediate` asks for termination now. Nothing is destroyed by this call itself: WHMCS runs it on its schedule."
+      },
+      {
+        "flag": "reason",
+        "key": "reason",
+        "in": "body",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "orders",
+      "create"
+    ],
+    "operationId": "orders.create",
+    "summary": "Order a product",
+    "description": "Creates the order in WHMCS and returns an **operation** to follow (`202` + `Location`). If the invoice is settled at once (free, 100 % promo code, or account credit), the order is accepted and provisioning starts: the operation goes `running` → `succeeded` with `result.service` when the service is active (for WordPress, when the site is up). If the invoice needs a payment, the operation stays `pending` with `result.invoice.payment_url` until it is paid; there is no timeout on that. An accepted order that is not active after 30 minutes fails with `provisioning_timeout`.\n\nEverything that can be rejected without touching WHMCS is rejected first: unknown product or cycle, invalid promo code (`invalid_promocode`), taken WordPress site name (`hostname_taken`), bad options.\n\n**`Idempotency-Key` is required**: a retry without it would be a second purchase.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "orders:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "product",
+        "key": "product",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Slug from `GET /v1/orders/products`."
+      },
+      {
+        "flag": "cycle",
+        "key": "cycle",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "values": [
+          "monthly",
+          "quarterly",
+          "semiannually",
+          "annually",
+          "biennially",
+          "triennially",
+          "onetime",
+          "free"
+        ],
+        "description": "`free` and `onetime` are not recurring. Check `prices` in the product for what is sold."
+      },
+      {
+        "flag": "hostname",
+        "key": "hostname",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "For WordPress: the site name (becomes the subdomain). See `hostname` in the product."
+      },
+      {
+        "flag": "promocode",
+        "key": "promocode",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Validated **before** the order is created: an invalid code is `invalid_promocode`, never an unexpected price."
+      },
+      {
+        "flag": "payment-method",
+        "key": "payment_method",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "From `GET /v1/orders/payment-methods`. Defaults to the account default."
+      },
+      {
+        "flag": "options",
+        "key": "options",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Configurable options: `{ \"<option id>\": <choice id | quantity | 1/0> }`. See `options` in the product."
+      }
+    ]
+  },
+  {
+    "path": [
+      "orders",
+      "get"
+    ],
+    "operationId": "orders.get",
+    "summary": "Get an order",
+    "description": "The order, its invoice (if any) and the services it created. An order of another account is a 404.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "orders:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "order_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "orders",
+      "list"
+    ],
+    "operationId": "orders.list",
+    "summary": "List the account's orders",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "orders:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "orders",
+      "payment-methods"
+    ],
+    "operationId": "orders.payment_methods.list",
+    "summary": "List the payment methods available to this account",
+    "description": "What `payment_method` accepts when ordering. The one flagged `default` is used when omitted. An order whose invoice cannot be settled with account credit stays `pending` until it is paid through the panel with one of these.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "orders:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": []
+  },
+  {
+    "path": [
+      "orders",
+      "products"
+    ],
+    "operationId": "orders.products.list",
+    "summary": "List the products this account can order",
+    "description": "The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "orders:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
       "serverless",
       "cron",
       "get"
@@ -3966,6 +4191,327 @@ export const COMMANDS: CommandSpec[] = [
         "type": "string",
         "required": true,
         "description": "A plain label or an FQDN. The backend validates the format."
+      }
+    ]
+  },
+  {
+    "path": [
+      "webhooks",
+      "create"
+    ],
+    "operationId": "webhooks.create",
+    "summary": "Register a webhook",
+    "description": "The response includes `secret` **once**. Verify every delivery with it: `Truo-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, \"<t>.<raw body>\")>`, and reject timestamps older than 5 minutes. The URL must be `https` and publicly reachable. Up to 10 webhooks per account.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "url",
+        "key": "url",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Must be `https` and reachable from the public internet (no private or loopback addresses)."
+      },
+      {
+        "flag": "events",
+        "key": "events",
+        "in": "body",
+        "type": "string[]",
+        "required": true
+      },
+      {
+        "flag": "description",
+        "key": "description",
+        "in": "body",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "webhooks",
+      "delete"
+    ],
+    "operationId": "webhooks.delete",
+    "summary": "Delete a webhook",
+    "description": "Pending deliveries to it are dropped.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "webhooks",
+      "delivery"
+    ],
+    "operationId": "webhooks.deliveries.get",
+    "summary": "Get a delivery",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "delivery_id",
+        "in": "path",
+        "key": "delivery_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "webhooks",
+      "deliveries"
+    ],
+    "operationId": "webhooks.deliveries.list",
+    "summary": "List a webhook's deliveries",
+    "description": "Newest first, with the exact signed body of each. This is where to look when a receiver disagrees.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "webhooks",
+      "redeliver"
+    ],
+    "operationId": "webhooks.deliveries.redeliver",
+    "summary": "Send a delivery again",
+    "description": "Re-queues a `delivered` or `failed` delivery with the same body (and a fresh signature).",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "delivery_id",
+        "in": "path",
+        "key": "delivery_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "webhooks",
+      "get"
+    ],
+    "operationId": "webhooks.get",
+    "summary": "Get a webhook",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "webhooks",
+      "list"
+    ],
+    "operationId": "webhooks.list",
+    "summary": "List the account's webhooks",
+    "description": "",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "cursor",
+        "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "webhooks",
+      "ping"
+    ],
+    "operationId": "webhooks.ping",
+    "summary": "Send a test event",
+    "description": "Queues a `webhook.ping` delivery to this webhook only, regardless of its subscriptions. Follow it in `GET /v1/webhooks/{id}/deliveries`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "webhooks",
+      "rotate-secret"
+    ],
+    "operationId": "webhooks.rotate_secret",
+    "summary": "Rotate a webhook's signing secret",
+    "description": "The old secret stops working immediately. Deliveries already in flight were signed with it.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "webhooks",
+      "update"
+    ],
+    "operationId": "webhooks.update",
+    "summary": "Update a webhook",
+    "description": "",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "account:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "webhook_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "url",
+        "key": "url",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "events",
+        "key": "events",
+        "in": "body",
+        "type": "string[]",
+        "required": false
+      },
+      {
+        "flag": "description",
+        "key": "description",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "enabled",
+        "key": "enabled",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Re-enabling resets `consecutive_failures`."
       }
     ]
   },

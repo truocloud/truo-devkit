@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.1.0",
-    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
+    "version": "1.2.0",
+    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
       "url": "https://www.truocloud.com"
@@ -69,8 +69,16 @@
       "description": "Managed WordPress sites: plugins, themes, backups, staging, domains, security, WP-CLI, and one-time admin login."
     },
     {
+      "name": "Orders",
+      "description": "Buying and cancelling: the orderable catalog priced in the account currency, orders that return a followable operation, and cancellation requests. A key needs `orders:write` to spend."
+    },
+    {
       "name": "Operations",
       "description": "Asynchronous work."
+    },
+    {
+      "name": "Webhooks",
+      "description": "Signed HTTP notifications instead of polling: `operation.completed` and service lifecycle events, with retries and a delivery log."
     },
     {
       "name": "API Keys",
@@ -8110,6 +8118,951 @@
           "object",
           "url",
           "expires_in_seconds"
+        ]
+      },
+      "OrderableProduct": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "product"
+            ]
+          },
+          "product": {
+            "type": "string",
+            "description": "Stable slug. This is what `POST /v1/orders` takes; it never changes for a given product.",
+            "example": "wp-25k"
+          },
+          "name": {
+            "type": "string",
+            "example": "WP 25k"
+          },
+          "group": {
+            "type": "string",
+            "example": "WordPress Hosting"
+          },
+          "family": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Which `/v1` resource manages the service once active (`wordpress`, `vps`, `dbaas`, `dns`). `null` when it is only known once the service exists (see `family` in `GET /v1/services`).",
+            "example": "wordpress"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "prices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cycle": {
+                  "type": "string",
+                  "enum": [
+                    "monthly",
+                    "quarterly",
+                    "semiannually",
+                    "annually",
+                    "biennially",
+                    "triennially",
+                    "onetime",
+                    "free"
+                  ],
+                  "description": "`free` and `onetime` are not recurring. Check `prices` in the product for what is sold."
+                },
+                "price": {
+                  "type": "number",
+                  "description": "Recurring price for the cycle, in `currency`."
+                },
+                "setup_fee": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "cycle",
+                "price",
+                "setup_fee"
+              ]
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Use it as the key in `options` when ordering."
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "dropdown",
+                    "radio",
+                    "yesno",
+                    "quantity"
+                  ]
+                },
+                "min": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Only for `quantity`."
+                },
+                "max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "Only for `quantity`. `null` = no cap."
+                },
+                "choices": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "prices": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "number"
+                        },
+                        "description": "Additional price per cycle, in `currency`. Cycles not listed are not sold with this choice."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "prices"
+                    ]
+                  },
+                  "description": "For `dropdown`/`radio`: pass the chosen `id`. For `yesno`: pass 1 or 0. For `quantity`: pass the amount."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "type",
+                "min",
+                "max",
+                "choices"
+              ]
+            }
+          },
+          "hostname": {
+            "type": "object",
+            "properties": {
+              "accepted": {
+                "type": "boolean"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "accepted",
+              "description"
+            ],
+            "description": "Whether `hostname` means something for this product, and what."
+          }
+        },
+        "required": [
+          "object",
+          "product",
+          "name",
+          "group",
+          "family",
+          "description",
+          "currency",
+          "prices",
+          "options",
+          "hostname"
+        ]
+      },
+      "OrderableProductList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderableProduct"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "PaymentMethod": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "payment_method"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "description": "Pass it as `payment_method` when ordering.",
+            "example": "truo"
+          },
+          "name": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean",
+            "description": "Used when `payment_method` is omitted."
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "name",
+          "default"
+        ]
+      },
+      "PaymentMethodList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethod"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "order"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "example": "ord_245"
+          },
+          "number": {
+            "type": "string",
+            "description": "WHMCS's human order number."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "cancelled",
+              "fraud"
+            ],
+            "description": "`pending` = waiting for payment; `active` = accepted (services are provisioning or live); `cancelled`/`fraud` = it will never provision."
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "promocode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payment_method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invoice": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "inv_147"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unpaid",
+                  "paid",
+                  "cancelled",
+                  "refunded",
+                  "collections",
+                  "draft",
+                  "other"
+                ]
+              },
+              "total": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string"
+              },
+              "payment_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Where a human can pay it. Only while `status` is `unpaid`."
+              }
+            },
+            "required": [
+              "id",
+              "status",
+              "total",
+              "currency",
+              "payment_url"
+            ],
+            "description": "`null` when the order generated no invoice (free)."
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "example": "svc_1241"
+                },
+                "product": {
+                  "type": "string",
+                  "example": "wp-10k"
+                },
+                "product_name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "example": "active"
+                },
+                "hostname": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cycle": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "amount": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "product",
+                "product_name",
+                "status",
+                "hostname",
+                "cycle",
+                "amount"
+              ]
+            }
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "number",
+          "status",
+          "amount",
+          "currency",
+          "promocode",
+          "payment_method",
+          "invoice",
+          "services",
+          "created_at"
+        ]
+      },
+      "OrderList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Slug from `GET /v1/orders/products`.",
+            "example": "wp-25k"
+          },
+          "cycle": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "quarterly",
+              "semiannually",
+              "annually",
+              "biennially",
+              "triennially",
+              "onetime",
+              "free"
+            ],
+            "description": "`free` and `onetime` are not recurring. Check `prices` in the product for what is sold."
+          },
+          "hostname": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "description": "For WordPress: the site name (becomes the subdomain). See `hostname` in the product.",
+            "example": "mystore"
+          },
+          "promocode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Validated **before** the order is created: an invalid code is `invalid_promocode`, never an unexpected price.",
+            "example": "HAZTAP2026"
+          },
+          "payment_method": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "From `GET /v1/orders/payment-methods`. Defaults to the account default."
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Configurable options: `{ \"<option id>\": <choice id | quantity | 1/0> }`. See `options` in the product.",
+            "example": {
+              "12": 45
+            }
+          }
+        },
+        "required": [
+          "product",
+          "cycle"
+        ]
+      },
+      "OrderCancellation": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "order_cancellation"
+            ]
+          },
+          "order": {
+            "type": "string",
+            "example": "ord_245"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "order_cancelled",
+              "cancellation_requested"
+            ],
+            "description": "`order_cancelled`: it was still pending and is now void. `cancellation_requested`: WHMCS will terminate the services when `when` says so."
+          },
+          "when": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "end_of_cycle"
+            ]
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "svc_1241"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "order",
+          "mode",
+          "when",
+          "services"
+        ]
+      },
+      "CancelOrderRequest": {
+        "type": "object",
+        "properties": {
+          "when": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "end_of_cycle"
+            ],
+            "default": "end_of_cycle",
+            "description": "`end_of_cycle` (default) keeps the service until the paid period ends. `immediate` asks for termination now. Nothing is destroyed by this call itself: WHMCS runs it on its schedule."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "webhook"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "example": "whk_12"
+          },
+          "url": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "operation.completed",
+              "service.active"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "last_delivery_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "HTTP status of the last attempt, if any."
+          },
+          "consecutive_failures": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "url",
+          "events",
+          "description",
+          "enabled",
+          "last_delivery_at",
+          "last_status",
+          "consecutive_failures",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "WebhookList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Webhook"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "WebhookWithSecret": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Webhook"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "secret": {
+                "type": "string",
+                "description": "Shown **only here**. Store it: it is what verifies `Truo-Signature`.",
+                "example": "whsec_…"
+              }
+            },
+            "required": [
+              "secret"
+            ]
+          }
+        ]
+      },
+      "CreateWebhookRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri",
+            "description": "Must be `https` and reachable from the public internet (no private or loopback addresses).",
+            "example": "https://example.com/hooks/truo"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "operation.completed",
+                "service.active",
+                "service.suspended",
+                "service.terminated",
+                "webhook.ping",
+                "*"
+              ],
+              "description": "`operation.completed`: any operation ended (`succeeded` or `failed`), with the operation as `data`. `service.active` / `service.suspended` / `service.terminated`: lifecycle from billing, with a service summary. `webhook.ping`: sent by `POST /v1/webhooks/{id}/ping`. `*` subscribes to everything, including future types."
+            },
+            "minItems": 1,
+            "example": [
+              "operation.completed"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "url",
+          "events"
+        ]
+      },
+      "UpdateWebhookRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048,
+            "format": "uri"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "operation.completed",
+                "service.active",
+                "service.suspended",
+                "service.terminated",
+                "webhook.ping",
+                "*"
+              ],
+              "description": "`operation.completed`: any operation ended (`succeeded` or `failed`), with the operation as `data`. `service.active` / `service.suspended` / `service.terminated`: lifecycle from billing, with a service summary. `webhook.ping`: sent by `POST /v1/webhooks/{id}/ping`. `*` subscribes to everything, including future types."
+            },
+            "minItems": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Re-enabling resets `consecutive_failures`."
+          }
+        }
+      },
+      "WebhookSecret": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "webhook_secret"
+            ]
+          },
+          "webhook": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "object",
+          "webhook",
+          "secret"
+        ]
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "webhook_delivery"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "example": "dlv_01JQ8X…"
+          },
+          "webhook": {
+            "type": "string",
+            "example": "whk_12"
+          },
+          "event_id": {
+            "type": "string",
+            "example": "evt_01JQ8X…"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sending",
+              "delivered",
+              "failed"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "next_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payload": {
+            "description": "The exact body that was signed and sent: `{ id, object: \"event\", type, created_at, data }`."
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "delivered_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "id",
+          "webhook",
+          "event_id",
+          "event_type",
+          "status",
+          "attempts",
+          "next_attempt_at",
+          "last_status",
+          "last_error",
+          "last_attempt_at",
+          "created_at",
+          "delivered_at"
+        ]
+      },
+      "WebhookDeliveryList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookDelivery"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
         ]
       }
     },
@@ -33871,6 +34824,2001 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WordpressAutologin"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/products": {
+      "get": {
+        "operationId": "orders.products.list",
+        "summary": "List the products this account can order",
+        "description": "The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered.",
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "orders:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "orders products"
+        },
+        "x-truo-mcp": {
+          "toolset": "orders",
+          "action": "products_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "1–100. Defaults to 25.",
+              "example": "25"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor from `next_cursor`."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orderable products.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderableProductList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/payment-methods": {
+      "get": {
+        "operationId": "orders.payment_methods.list",
+        "summary": "List the payment methods available to this account",
+        "description": "What `payment_method` accepts when ordering. The one flagged `default` is used when omitted. An order whose invoice cannot be settled with account credit stays `pending` until it is paid through the panel with one of these.",
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "orders:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "orders payment-methods"
+        },
+        "x-truo-mcp": {
+          "toolset": "orders",
+          "action": "payment_methods_list",
+          "readonly": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment methods.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders": {
+      "get": {
+        "operationId": "orders.list",
+        "summary": "List the account's orders",
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "orders:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "orders list"
+        },
+        "x-truo-mcp": {
+          "toolset": "orders",
+          "action": "list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "1–100. Defaults to 25.",
+              "example": "25"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor from `next_cursor`."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders, newest first.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "orders.create",
+        "summary": "Order a product",
+        "description": "Creates the order in WHMCS and returns an **operation** to follow (`202` + `Location`). If the invoice is settled at once (free, 100 % promo code, or account credit), the order is accepted and provisioning starts: the operation goes `running` → `succeeded` with `result.service` when the service is active (for WordPress, when the site is up). If the invoice needs a payment, the operation stays `pending` with `result.invoice.payment_url` until it is paid; there is no timeout on that. An accepted order that is not active after 30 minutes fails with `provisioning_timeout`.\n\nEverything that can be rejected without touching WHMCS is rejected first: unknown product or cycle, invalid promo code (`invalid_promocode`), taken WordPress site name (`hostname_taken`), bad options.\n\n**`Idempotency-Key` is required**: a retry without it would be a second purchase.",
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "orders:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "orders create"
+        },
+        "x-truo-mcp": {
+          "toolset": "orders",
+          "action": "create",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "**Required.** Retrying with the same key and body returns the original operation (`Idempotent-Replay: true`); a different body is a 409. Stored for 24 h."
+            },
+            "required": true,
+            "name": "idempotency-key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The operation that follows the order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{id}": {
+      "get": {
+        "operationId": "orders.get",
+        "summary": "Get an order",
+        "description": "The order, its invoice (if any) and the services it created. An order of another account is a 404.",
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "orders:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "orders get",
+          "positional": [
+            "order_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "orders",
+          "action": "get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "ord_245"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The order.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orders/{id}/cancel": {
+      "post": {
+        "operationId": "orders.cancel",
+        "summary": "Cancel an order or request the cancellation of its services",
+        "description": "A `pending` order (unpaid) is voided at once. An `active` order gets a cancellation request per service, which WHMCS executes `immediate`ly or at the `end_of_cycle`. **This call destroys nothing by itself**; backups are kept according to the product policy.",
+        "tags": [
+          "Orders"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "orders:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "orders cancel",
+          "positional": [
+            "order_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "orders",
+          "action": "cancel",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "ord_245"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What was done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderCancellation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks": {
+      "get": {
+        "operationId": "webhooks.list",
+        "summary": "List the account's webhooks",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "webhooks list"
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "1–100. Defaults to 25.",
+              "example": "25"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor from `next_cursor`."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhooks. The secret is never included.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "webhooks.create",
+        "summary": "Register a webhook",
+        "description": "The response includes `secret` **once**. Verify every delivery with it: `Truo-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, \"<t>.<raw body>\")>`, and reject timestamps older than 5 minutes. The URL must be `https` and publicly reachable. Up to 10 webhooks per account.",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "webhooks create"
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "create",
+          "readonly": false
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWebhookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The webhook, with its secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookWithSecret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}": {
+      "get": {
+        "operationId": "webhooks.get",
+        "summary": "Get a webhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "webhooks get",
+          "positional": [
+            "webhook_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The webhook, without its secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Webhook"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "webhooks.update",
+        "summary": "Update a webhook",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "webhooks update",
+          "positional": [
+            "webhook_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "update",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWebhookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated webhook.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Webhook"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "webhooks.delete",
+        "summary": "Delete a webhook",
+        "description": "Pending deliveries to it are dropped.",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "webhooks delete",
+          "positional": [
+            "webhook_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/rotate-secret": {
+      "post": {
+        "operationId": "webhooks.rotate_secret",
+        "summary": "Rotate a webhook's signing secret",
+        "description": "The old secret stops working immediately. Deliveries already in flight were signed with it.",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-cli": {
+          "command": "webhooks rotate-secret",
+          "positional": [
+            "webhook_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "rotate_secret",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new secret, shown once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSecret"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/ping": {
+      "post": {
+        "operationId": "webhooks.ping",
+        "summary": "Send a test event",
+        "description": "Queues a `webhook.ping` delivery to this webhook only, regardless of its subscriptions. Follow it in `GET /v1/webhooks/{id}/deliveries`.",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-cli": {
+          "command": "webhooks ping",
+          "positional": [
+            "webhook_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "ping",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The queued delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDelivery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/deliveries": {
+      "get": {
+        "operationId": "webhooks.deliveries.list",
+        "summary": "List a webhook's deliveries",
+        "description": "Newest first, with the exact signed body of each. This is where to look when a receiver disagrees.",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "webhooks deliveries",
+          "positional": [
+            "webhook_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "deliveries_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "1–100. Defaults to 25.",
+              "example": "25"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor from `next_cursor`."
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deliveries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeliveryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/deliveries/{delivery_id}": {
+      "get": {
+        "operationId": "webhooks.deliveries.get",
+        "summary": "Get a delivery",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "webhooks delivery",
+          "positional": [
+            "webhook_id",
+            "delivery_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "deliveries_get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "dlv_01JQ8X…"
+            },
+            "required": true,
+            "name": "delivery_id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDelivery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{id}/deliveries/{delivery_id}/redeliver": {
+      "post": {
+        "operationId": "webhooks.deliveries.redeliver",
+        "summary": "Send a delivery again",
+        "description": "Re-queues a `delivered` or `failed` delivery with the same body (and a fresh signature).",
+        "tags": [
+          "Webhooks"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "account:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-cli": {
+          "command": "webhooks redeliver",
+          "positional": [
+            "webhook_id",
+            "delivery_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "webhooks",
+          "action": "deliveries_redeliver",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "whk_12"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "dlv_01JQ8X…"
+            },
+            "required": true,
+            "name": "delivery_id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The re-queued delivery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDelivery"
                 }
               }
             }

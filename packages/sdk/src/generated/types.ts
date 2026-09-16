@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.1.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.2.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -2030,6 +2030,241 @@ export type WordpressAutologin = {
   expires_in_seconds: number | null;
 };
 
+export type OrderableProduct = {
+  object: "product";
+  /** Stable slug. This is what `POST /v1/orders` takes; it never changes for a given product. */
+  product: string;
+  name: string;
+  group: string;
+  /**
+   * Which `/v1` resource manages the service once active (`wordpress`, `vps`, `dbaas`, `dns`). `null` when it is only known once the service exists (see `family` in `GET /v1/services`).
+   */
+  family: string | null;
+  description: string | null;
+  currency: string;
+  prices: ({
+    /** `free` and `onetime` are not recurring. Check `prices` in the product for what is sold. */
+    cycle: "monthly" | "quarterly" | "semiannually" | "annually" | "biennially" | "triennially" | "onetime" | "free";
+    /** Recurring price for the cycle, in `currency`. */
+    price: number;
+    setup_fee: number;
+  })[];
+  options: ({
+    /** Use it as the key in `options` when ordering. */
+    id: number;
+    name: string;
+    type: "dropdown" | "radio" | "yesno" | "quantity";
+    /** Only for `quantity`. */
+    min: number | null;
+    /** Only for `quantity`. `null` = no cap. */
+    max: number | null;
+    /**
+     * For `dropdown`/`radio`: pass the chosen `id`. For `yesno`: pass 1 or 0. For `quantity`: pass the amount.
+     */
+    choices: ({
+      id: number;
+      name: string;
+      /** Additional price per cycle, in `currency`. Cycles not listed are not sold with this choice. */
+      prices: Record<string, number>;
+    })[];
+  })[];
+  /** Whether `hostname` means something for this product, and what. */
+  hostname: {
+    accepted: boolean;
+    description: string | null;
+  };
+};
+
+export type OrderableProductList = {
+  object: "list";
+  data: OrderableProduct[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type PaymentMethod = {
+  object: "payment_method";
+  /** Pass it as `payment_method` when ordering. */
+  id: string;
+  name: string;
+  /** Used when `payment_method` is omitted. */
+  default: boolean;
+};
+
+export type PaymentMethodList = {
+  object: "list";
+  data: PaymentMethod[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type Order = {
+  object: "order";
+  id: string;
+  /** WHMCS's human order number. */
+  number: string;
+  /**
+   * `pending` = waiting for payment; `active` = accepted (services are provisioning or live); `cancelled`/`fraud` = it will never provision.
+   */
+  status: "pending" | "active" | "cancelled" | "fraud";
+  amount: number;
+  currency: string;
+  promocode: string | null;
+  payment_method: string | null;
+  /** `null` when the order generated no invoice (free). */
+  invoice: ({
+    id: string;
+    status: "unpaid" | "paid" | "cancelled" | "refunded" | "collections" | "draft" | "other";
+    total: number;
+    currency: string;
+    /** Where a human can pay it. Only while `status` is `unpaid`. */
+    payment_url: string | null;
+  }) | null;
+  services: ({
+    id: string;
+    product: string;
+    product_name: string;
+    status: string;
+    hostname: string | null;
+    cycle: string | null;
+    amount: number;
+  })[];
+  created_at: string | null;
+};
+
+export type OrderList = {
+  object: "list";
+  data: Order[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CreateOrderRequest = {
+  /** Slug from `GET /v1/orders/products`. */
+  product: string;
+  /** `free` and `onetime` are not recurring. Check `prices` in the product for what is sold. */
+  cycle: "monthly" | "quarterly" | "semiannually" | "annually" | "biennially" | "triennially" | "onetime" | "free";
+  /** For WordPress: the site name (becomes the subdomain). See `hostname` in the product. */
+  hostname?: string;
+  /**
+   * Validated **before** the order is created: an invalid code is `invalid_promocode`, never an unexpected price.
+   */
+  promocode?: string;
+  /** From `GET /v1/orders/payment-methods`. Defaults to the account default. */
+  payment_method?: string;
+  /**
+   * Configurable options: `{ "<option id>": <choice id | quantity | 1/0> }`. See `options` in the product.
+   */
+  options?: Record<string, number>;
+};
+
+export type OrderCancellation = {
+  object: "order_cancellation";
+  order: string;
+  /**
+   * `order_cancelled`: it was still pending and is now void. `cancellation_requested`: WHMCS will terminate the services when `when` says so.
+   */
+  mode: "order_cancelled" | "cancellation_requested";
+  when: "immediate" | "end_of_cycle";
+  services: string[];
+};
+
+export type CancelOrderRequest = {
+  /**
+   * `end_of_cycle` (default) keeps the service until the paid period ends. `immediate` asks for termination now. Nothing is destroyed by this call itself: WHMCS runs it on its schedule.
+   */
+  when?: "immediate" | "end_of_cycle";
+  reason?: string;
+};
+
+export type Webhook = {
+  object: "webhook";
+  id: string;
+  url: string;
+  events: string[];
+  description: string | null;
+  enabled: boolean;
+  last_delivery_at: string | null;
+  /** HTTP status of the last attempt, if any. */
+  last_status: number | null;
+  consecutive_failures: number;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type WebhookList = {
+  object: "list";
+  data: Webhook[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type WebhookWithSecret = Webhook & {
+  /** Shown **only here**. Store it: it is what verifies `Truo-Signature`. */
+  secret: string;
+};
+
+export type CreateWebhookRequest = {
+  /** Must be `https` and reachable from the public internet (no private or loopback addresses). */
+  url: string;
+  events: ("operation.completed" | "service.active" | "service.suspended" | "service.terminated" | "webhook.ping" | "*")[];
+  description?: string;
+};
+
+export type UpdateWebhookRequest = {
+  url?: string;
+  events?: ("operation.completed" | "service.active" | "service.suspended" | "service.terminated" | "webhook.ping" | "*")[];
+  description?: string | null;
+  /** Re-enabling resets `consecutive_failures`. */
+  enabled?: boolean;
+};
+
+export type WebhookSecret = {
+  object: "webhook_secret";
+  webhook: string;
+  secret: string;
+};
+
+export type WebhookDelivery = {
+  object: "webhook_delivery";
+  id: string;
+  webhook: string;
+  event_id: string;
+  event_type: string;
+  status: "pending" | "sending" | "delivered" | "failed";
+  attempts: number;
+  next_attempt_at: string | null;
+  last_status: number | null;
+  last_error: string | null;
+  last_attempt_at: string | null;
+  /** The exact body that was signed and sent: `{ id, object: "event", type, created_at, data }`. */
+  payload?: unknown;
+  created_at: string | null;
+  delivered_at: string | null;
+};
+
+export type WebhookDeliveryList = {
+  object: "list";
+  data: WebhookDelivery[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
 /** Query parameters of `GET /v1/api-keys`. */
 export type ApiKeysListQuery = {
   limit?: string;
@@ -2386,6 +2621,18 @@ export type OperationsListQuery = {
   cursor?: string;
 };
 
+/** Query parameters of `GET /v1/orders`. */
+export type OrdersListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Query parameters of `GET /v1/orders/products`. */
+export type OrdersProductsListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
 /** Query parameters of `GET /v1/serverless/cron/usage`. */
 export type ServerlessCronUsageGetQuery = {
   period?: string;
@@ -2481,6 +2728,18 @@ export type VpsTemplatesListQuery = {
 export type VpsUpdateBody = {
   /** A plain label or an FQDN. The backend validates the format. */
   hostname: string;
+};
+
+/** Query parameters of `GET /v1/webhooks/{id}/deliveries`. */
+export type WebhooksDeliveriesListQuery = {
+  limit?: string;
+  cursor?: string;
+};
+
+/** Query parameters of `GET /v1/webhooks`. */
+export type WebhooksListQuery = {
+  limit?: string;
+  cursor?: string;
 };
 
 /** Query parameters of `GET /v1/wordpress/{id}/backups`. */

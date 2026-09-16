@@ -1141,6 +1141,89 @@ export function createResources(call: Call, paginate: Paginate) {
           "operations.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
         ),
     },
+    orders: {
+      /**
+       * Cancel an order or request the cancellation of its services
+       * A `pending` order (unpaid) is voided at once. An `active` order gets a cancellation request per service, which WHMCS executes `immediate`ly or at the `end_of_cycle`. **This call destroys nothing by itself**; backups are kept according to the product policy.
+       * 
+       * Scope: `orders:write`
+       * **Destructive: there is no undo.**
+       */
+      cancel: (id: string, body?: T.CancelOrderRequest, params?: RequestOptions) =>
+        call<T.OrderCancellation>("orders.cancel", { path: { id }, body: body, queryKeys: undefined, params }),
+      /**
+       * Order a product
+       * Creates the order in WHMCS and returns an **operation** to follow (`202` + `Location`). If the invoice is settled at once (free, 100 % promo code, or account credit), the order is accepted and provisioning starts: the operation goes `running` → `succeeded` with `result.service` when the service is active (for WordPress, when the site is up). If the invoice needs a payment, the operation stays `pending` with `result.invoice.payment_url` until it is paid; there is no timeout on that. An accepted order that is not active after 30 minutes fails with `provisioning_timeout`.
+       * 
+       * Everything that can be rejected without touching WHMCS is rejected first: unknown product or cycle, invalid promo code (`invalid_promocode`), taken WordPress site name (`hostname_taken`), bad options.
+       * 
+       * **`Idempotency-Key` is required**: a retry without it would be a second purchase.
+       * 
+       * Scope: `orders:write`
+       * Returns an asynchronous operation; await it with `operations.wait()`.
+       */
+      create: (body?: T.CreateOrderRequest, params?: RequestOptions) =>
+        call<T.Operation>("orders.create", { path: undefined, body: body, queryKeys: undefined, params }),
+      /**
+       * Get an order
+       * The order, its invoice (if any) and the services it created. An order of another account is a 404.
+       * 
+       * Scope: `orders:read`
+       */
+      get: (id: string, params?: RequestOptions) =>
+        call<T.Order>("orders.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      /**
+       * List the account's orders
+       * 
+       * Scope: `orders:read`
+       */
+      list: (params?: T.OrdersListQuery & RequestOptions) =>
+        call<T.OrderList>("orders.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor"], params }),
+      /**
+       * Iterates **all** pages of `orders.list`, following the cursor on its own.
+       * A `for await` over this never drops results by forgetting `next_cursor`.
+       */
+      listAll: (params?: T.OrdersListQuery & RequestOptions) =>
+        paginate<T.Order>(
+          "orders.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
+        ),
+      paymentMethods: {
+        /**
+         * List the payment methods available to this account
+         * What `payment_method` accepts when ordering. The one flagged `default` is used when omitted. An order whose invoice cannot be settled with account credit stays `pending` until it is paid through the panel with one of these.
+         * 
+         * Scope: `orders:read`
+         */
+        list: (params?: RequestOptions) =>
+          call<T.PaymentMethodList>("orders.payment_methods.list", { path: undefined, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `orders.payment_methods.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (params?: RequestOptions) =>
+          paginate<T.PaymentMethod>(
+            "orders.payment_methods.list", { path: undefined, queryKeys: undefined, params },
+          ),
+      },
+      products: {
+        /**
+         * List the products this account can order
+         * The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered.
+         * 
+         * Scope: `orders:read`
+         */
+        list: (params?: T.OrdersProductsListQuery & RequestOptions) =>
+          call<T.OrderableProductList>("orders.products.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `orders.products.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (params?: T.OrdersProductsListQuery & RequestOptions) =>
+          paginate<T.OrderableProduct>(
+            "orders.products.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
+          ),
+      },
+    },
     serverless: {
       cron: {
         /**
@@ -1463,6 +1546,103 @@ export function createResources(call: Call, paginate: Paginate) {
        */
       update: (id: string, body: T.VpsUpdateBody, params?: RequestOptions) =>
         call<T.Vps>("vps.update", { path: { id }, body: body, queryKeys: undefined, params }),
+    },
+    webhooks: {
+      /**
+       * Register a webhook
+       * The response includes `secret` **once**. Verify every delivery with it: `Truo-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>`, and reject timestamps older than 5 minutes. The URL must be `https` and publicly reachable. Up to 10 webhooks per account.
+       * 
+       * Scope: `account:write`
+       */
+      create: (body?: T.CreateWebhookRequest, params?: RequestOptions) =>
+        call<T.WebhookWithSecret>("webhooks.create", { path: undefined, body: body, queryKeys: undefined, params }),
+      /**
+       * Delete a webhook
+       * Pending deliveries to it are dropped.
+       * 
+       * Scope: `account:write`
+       * **Destructive: there is no undo.**
+       */
+      delete: (id: string, params?: RequestOptions) =>
+        call<void>("webhooks.delete", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      deliveries: {
+        /**
+         * Get a delivery
+         * 
+         * Scope: `account:read`
+         */
+        get: (id: string, deliveryId: string, params?: RequestOptions) =>
+          call<T.WebhookDelivery>("webhooks.deliveries.get", { path: { id, delivery_id: deliveryId }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List a webhook's deliveries
+         * Newest first, with the exact signed body of each. This is where to look when a receiver disagrees.
+         * 
+         * Scope: `account:read`
+         */
+        list: (id: string, params?: T.WebhooksDeliveriesListQuery & RequestOptions) =>
+          call<T.WebhookDeliveryList>("webhooks.deliveries.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+        /**
+         * Iterates **all** pages of `webhooks.deliveries.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.WebhooksDeliveriesListQuery & RequestOptions) =>
+          paginate<T.WebhookDelivery>(
+            "webhooks.deliveries.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+          ),
+        /**
+         * Send a delivery again
+         * Re-queues a `delivered` or `failed` delivery with the same body (and a fresh signature).
+         * 
+         * Scope: `account:write`
+         */
+        redeliver: (id: string, deliveryId: string, params?: RequestOptions) =>
+          call<T.WebhookDelivery>("webhooks.deliveries.redeliver", { path: { id, delivery_id: deliveryId }, body: undefined, queryKeys: undefined, params }),
+      },
+      /**
+       * Get a webhook
+       * 
+       * Scope: `account:read`
+       */
+      get: (id: string, params?: RequestOptions) =>
+        call<T.Webhook>("webhooks.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      /**
+       * List the account's webhooks
+       * 
+       * Scope: `account:read`
+       */
+      list: (params?: T.WebhooksListQuery & RequestOptions) =>
+        call<T.WebhookList>("webhooks.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor"], params }),
+      /**
+       * Iterates **all** pages of `webhooks.list`, following the cursor on its own.
+       * A `for await` over this never drops results by forgetting `next_cursor`.
+       */
+      listAll: (params?: T.WebhooksListQuery & RequestOptions) =>
+        paginate<T.Webhook>(
+          "webhooks.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
+        ),
+      /**
+       * Send a test event
+       * Queues a `webhook.ping` delivery to this webhook only, regardless of its subscriptions. Follow it in `GET /v1/webhooks/{id}/deliveries`.
+       * 
+       * Scope: `account:write`
+       */
+      ping: (id: string, params?: RequestOptions) =>
+        call<T.WebhookDelivery>("webhooks.ping", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      /**
+       * Rotate a webhook's signing secret
+       * The old secret stops working immediately. Deliveries already in flight were signed with it.
+       * 
+       * Scope: `account:write`
+       */
+      rotateSecret: (id: string, params?: RequestOptions) =>
+        call<T.WebhookSecret>("webhooks.rotate_secret", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      /**
+       * Update a webhook
+       * 
+       * Scope: `account:write`
+       */
+      update: (id: string, body?: T.UpdateWebhookRequest, params?: RequestOptions) =>
+        call<T.Webhook>("webhooks.update", { path: { id }, body: body, queryKeys: undefined, params }),
     },
     wordpress: {
       /**

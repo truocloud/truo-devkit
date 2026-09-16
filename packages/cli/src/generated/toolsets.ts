@@ -152,6 +152,17 @@ export const TOOLSETS: Record<string, McpToolsetSpec> = {
       "object_presign": {"operationId":"objectstorage.objects.presign","summary":"Presign a temporary URL","danger":"reversible","readonly":false,"scope":"objectstorage:read","longRunning":false,"pathParams":["bucket"],"queryParams":[],"bodySchema":{"type":"object","properties":{"key":{"type":"string","minLength":1,"description":"The key, relative to the bucket.","example":"photos/logo.png"},"method":{"type":"string","enum":["GET","PUT"],"description":"What the URL enables: `GET` downloads, `PUT` uploads. Defaults to `GET`. Signing a `PUT` requires `objectstorage:write`."},"expires_in":{"type":"integer","minimum":1,"maximum":604800,"description":"Validity in seconds, 1–604800 (7 days). Defaults to 900."}},"required":["key"]},"bodyRequired":true},
     },
   },
+  "orders": {
+    tool: "truo_orders",
+    actions: {
+      "cancel": {"operationId":"orders.cancel","summary":"Cancel an order or request the cancellation of its services","danger":"destructive","readonly":false,"scope":"orders:write","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":{"$ref":"#/components/schemas/CancelOrderRequest"},"bodyRequired":false},
+      "create": {"operationId":"orders.create","summary":"Order a product","danger":"reversible","readonly":false,"scope":"orders:write","longRunning":true,"pathParams":[],"queryParams":[],"bodySchema":{"$ref":"#/components/schemas/CreateOrderRequest"},"bodyRequired":false},
+      "get": {"operationId":"orders.get","summary":"Get an order","danger":"none","readonly":true,"scope":"orders:read","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "list": {"operationId":"orders.list","summary":"List the account's orders","danger":"none","readonly":true,"scope":"orders:read","longRunning":false,"pathParams":[],"queryParams":[{"name":"limit","required":false,"schema":{"type":"string","description":"1–100. Defaults to 25.","example":"25"}},{"name":"cursor","required":false,"schema":{"type":"string","description":"Opaque cursor from `next_cursor`."}}],"bodySchema":null,"bodyRequired":false},
+      "payment_methods_list": {"operationId":"orders.payment_methods.list","summary":"List the payment methods available to this account","danger":"none","readonly":true,"scope":"orders:read","longRunning":false,"pathParams":[],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "products_list": {"operationId":"orders.products.list","summary":"List the products this account can order","danger":"none","readonly":true,"scope":"orders:read","longRunning":false,"pathParams":[],"queryParams":[{"name":"limit","required":false,"schema":{"type":"string","description":"1–100. Defaults to 25.","example":"25"}},{"name":"cursor","required":false,"schema":{"type":"string","description":"Opaque cursor from `next_cursor`."}}],"bodySchema":null,"bodyRequired":false},
+    },
+  },
   "serverless": {
     tool: "truo_serverless",
     actions: {
@@ -187,6 +198,21 @@ export const TOOLSETS: Record<string, McpToolsetSpec> = {
       "reinstall": {"operationId":"vps.reinstall","summary":"Reinstall the operating system","danger":"destructive","readonly":false,"scope":"vps:write","longRunning":true,"pathParams":["id"],"queryParams":[],"bodySchema":{"type":"object","properties":{"template":{"type":"string","minLength":1,"description":"An `id` from `GET /v1/vps/{id}/templates`."},"root_password":{"type":"string","minLength":8,"maxLength":128,"description":"The new system's root password. Never stored or returned: if it is lost, the only way out is another reinstall."}},"required":["template","root_password"]},"bodyRequired":true},
       "rename": {"operationId":"vps.update","summary":"Rename a VPS","danger":"reversible","readonly":false,"scope":"vps:write","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":{"type":"object","properties":{"hostname":{"type":"string","minLength":1,"maxLength":253,"description":"A plain label or an FQDN. The backend validates the format."}},"required":["hostname"]},"bodyRequired":true},
       "templates": {"operationId":"vps.templates.list","summary":"List the operating systems available for reinstall","danger":"none","readonly":true,"scope":"vps:read","longRunning":false,"pathParams":["id"],"queryParams":[{"name":"limit","required":false,"schema":{"type":"string","description":"1–100. Defaults to 25.","example":"25"}},{"name":"cursor","required":false,"schema":{"type":"string","description":"Opaque cursor from `next_cursor`."}}],"bodySchema":null,"bodyRequired":false},
+    },
+  },
+  "webhooks": {
+    tool: "truo_webhooks",
+    actions: {
+      "create": {"operationId":"webhooks.create","summary":"Register a webhook","danger":"reversible","readonly":false,"scope":"account:write","longRunning":false,"pathParams":[],"queryParams":[],"bodySchema":{"$ref":"#/components/schemas/CreateWebhookRequest"},"bodyRequired":false},
+      "delete": {"operationId":"webhooks.delete","summary":"Delete a webhook","danger":"destructive","readonly":false,"scope":"account:write","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "deliveries_get": {"operationId":"webhooks.deliveries.get","summary":"Get a delivery","danger":"none","readonly":true,"scope":"account:read","longRunning":false,"pathParams":["id","delivery_id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "deliveries_list": {"operationId":"webhooks.deliveries.list","summary":"List a webhook's deliveries","danger":"none","readonly":true,"scope":"account:read","longRunning":false,"pathParams":["id"],"queryParams":[{"name":"limit","required":false,"schema":{"type":"string","description":"1–100. Defaults to 25.","example":"25"}},{"name":"cursor","required":false,"schema":{"type":"string","description":"Opaque cursor from `next_cursor`."}}],"bodySchema":null,"bodyRequired":false},
+      "deliveries_redeliver": {"operationId":"webhooks.deliveries.redeliver","summary":"Send a delivery again","danger":"reversible","readonly":false,"scope":"account:write","longRunning":false,"pathParams":["id","delivery_id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "get": {"operationId":"webhooks.get","summary":"Get a webhook","danger":"none","readonly":true,"scope":"account:read","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "list": {"operationId":"webhooks.list","summary":"List the account's webhooks","danger":"none","readonly":true,"scope":"account:read","longRunning":false,"pathParams":[],"queryParams":[{"name":"limit","required":false,"schema":{"type":"string","description":"1–100. Defaults to 25.","example":"25"}},{"name":"cursor","required":false,"schema":{"type":"string","description":"Opaque cursor from `next_cursor`."}}],"bodySchema":null,"bodyRequired":false},
+      "ping": {"operationId":"webhooks.ping","summary":"Send a test event","danger":"reversible","readonly":false,"scope":"account:write","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "rotate_secret": {"operationId":"webhooks.rotate_secret","summary":"Rotate a webhook's signing secret","danger":"reversible","readonly":false,"scope":"account:write","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":null,"bodyRequired":false},
+      "update": {"operationId":"webhooks.update","summary":"Update a webhook","danger":"reversible","readonly":false,"scope":"account:write","longRunning":false,"pathParams":["id"],"queryParams":[],"bodySchema":{"$ref":"#/components/schemas/UpdateWebhookRequest"},"bodyRequired":false},
     },
   },
   "wordpress": {

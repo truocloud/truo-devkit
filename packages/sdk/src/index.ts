@@ -31,6 +31,9 @@ export type { ApiErrorBody, ErrorOpts } from "./errors.ts";
 
 export { Transport } from "./http.ts";
 
+export { verifyWebhookSignature, signWebhookPayload } from "./webhooks.ts";
+export type { VerifyWebhookOptions, WebhookEvent } from "./webhooks.ts";
+
 export { OPERATIONS, OPERATION_LIST, getOperation } from "./generated/operations.ts";
 export type { OperationId, OperationMeta } from "./generated/operations.ts";
 

@@ -54,6 +54,9 @@ A service that doesn't exist and one your credential can't see both return
 | `idempotency_conflict` | 409 | You reused an `Idempotency-Key` with a different body |
 | `invalid_cursor` | 400 | The cursor isn't one of ours, or is from a previous version. **Restart the listing**: cursors aren't durable |
 | `unsupported_for_product` | 400 | The operation doesn't apply to that product (for example, SPICE console on a legacy VPS). Check `capabilities` in the resource's `GET` |
+| `product_not_orderable` | 400 | The `product` slug doesn't exist or is not for sale. `GET /v1/orders/products` lists what is |
+| `invalid_promocode` | 400 | The promo code doesn't exist, expired, is used up, or doesn't apply to that product or cycle. Decided **before** the order exists: you never get an order at an unexpected price |
+| `hostname_taken` | 409 | The WordPress site name is already in use. Pick another; the API never auto-suffixes it |
 
 ## `rate_limit_error` — 429
 
