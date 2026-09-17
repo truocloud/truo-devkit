@@ -17,7 +17,8 @@ manage every site and cannot buy one.
 ## 1. What can I buy?
 
 ```bash
-truo orders products
+truo orders products                    # the whole catalog, one page
+truo orders products --family wordpress  # only the WordPress ladder
 ```
 
 ```jsonc
@@ -60,7 +61,10 @@ console.log(done.result.service.id); // svc_1241 → truo.wordpress.get(...)
 ```
 
 The response is an **operation** (`202` + `Location`), like every long
-action in the API, so `--wait` and `operations.wait()` work unchanged.
+action in the API, so `--wait` and `operations.wait()` work unchanged. Reading
+it needs no extra scope: any scope that mutates (`orders:write` included) implies
+`operations:read` — if a key could start something, it can follow it. Seeing the
+resulting service (`truo.wordpress.get`) does need `services:read` or `wordpress:read`.
 
 | The operation is | Because | What to do |
 |---|---|---|

@@ -1208,19 +1208,19 @@ export function createResources(call: Call, paginate: Paginate) {
       products: {
         /**
          * List the products this account can order
-         * The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered.
+         * The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered. The whole catalog fits in one page by default (`limit` defaults to 100 here); filter with `family` (e.g. `wordpress`, `vps`).
          * 
          * Scope: `orders:read`
          */
         list: (params?: T.OrdersProductsListQuery & RequestOptions) =>
-          call<T.OrderableProductList>("orders.products.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor"], params }),
+          call<T.OrderableProductList>("orders.products.list", { path: undefined, body: undefined, queryKeys: ["limit", "cursor", "family"], params }),
         /**
          * Iterates **all** pages of `orders.products.list`, following the cursor on its own.
          * A `for await` over this never drops results by forgetting `next_cursor`.
          */
         listAll: (params?: T.OrdersProductsListQuery & RequestOptions) =>
           paginate<T.OrderableProduct>(
-            "orders.products.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
+            "orders.products.list", { path: undefined, queryKeys: ["limit", "cursor", "family"], params },
           ),
       },
     },

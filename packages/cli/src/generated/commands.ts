@@ -3250,7 +3250,7 @@ export const COMMANDS: CommandSpec[] = [
     ],
     "operationId": "orders.products.list",
     "summary": "List the products this account can order",
-    "description": "The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered.",
+    "description": "The orderable catalog, priced in the account currency. `product` is the stable slug to pass to `POST /v1/orders`; `prices` lists the cycles actually sold; `options` the configurable choices. Hidden and retired products are not listed and cannot be ordered. The whole catalog fits in one page by default (`limit` defaults to 100 here); filter with `family` (e.g. `wordpress`, `vps`).",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -3269,6 +3269,13 @@ export const COMMANDS: CommandSpec[] = [
       {
         "flag": "cursor",
         "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "family",
+        "key": "family",
         "in": "query",
         "type": "string",
         "required": false

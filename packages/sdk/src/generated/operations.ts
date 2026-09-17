@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Contract version (the OpenAPI `info.version`). */
-export const API_VERSION = "1.3.0";
+export const API_VERSION = "1.3.1";
 
 /** Production base URL (the OpenAPI `servers[0].url`). */
 export const API_BASE_URL = "https://api.truo.cloud";
@@ -142,7 +142,7 @@ export const OPERATIONS = {
   "orders.get": {"id":"orders.get","method":"GET","path":"/v1/orders/{id}","tag":"Orders","summary":"Get an order","scope":"orders:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":false,"pathParams":["id"],"queryParams":[],"hasBody":false,"successStatus":200},
   "orders.list": {"id":"orders.list","method":"GET","path":"/v1/orders","tag":"Orders","summary":"List the account's orders","scope":"orders:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":true,"pathParams":[],"queryParams":["limit","cursor"],"hasBody":false,"successStatus":200},
   "orders.payment_methods.list": {"id":"orders.payment_methods.list","method":"GET","path":"/v1/orders/payment-methods","tag":"Orders","summary":"List the payment methods available to this account","scope":"orders:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":true,"pathParams":[],"queryParams":[],"hasBody":false,"successStatus":200},
-  "orders.products.list": {"id":"orders.products.list","method":"GET","path":"/v1/orders/products","tag":"Orders","summary":"List the products this account can order","scope":"orders:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":true,"pathParams":[],"queryParams":["limit","cursor"],"hasBody":false,"successStatus":200},
+  "orders.products.list": {"id":"orders.products.list","method":"GET","path":"/v1/orders/products","tag":"Orders","summary":"List the products this account can order","scope":"orders:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":true,"pathParams":[],"queryParams":["limit","cursor","family"],"hasBody":false,"successStatus":200},
   "serverless.cron.get": {"id":"serverless.cron.get","method":"GET","path":"/v1/serverless/cron","tag":"Serverless","summary":"Get the account's Cron Jobs","scope":"serverless:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":false,"pathParams":[],"queryParams":[],"hasBody":false,"successStatus":200},
   "serverless.cron.keys.rotate": {"id":"serverless.cron.keys.rotate","method":"POST","path":"/v1/serverless/cron/keys/rotate","tag":"Serverless","summary":"Rotate the Cron token","scope":"serverless:keys","danger":"destructive","longRunning":false,"idempotent":true,"rateBucket":"expensive","deprecated":false,"paginated":false,"pathParams":[],"queryParams":[],"hasBody":true,"successStatus":200},
   "serverless.cron.usage.get": {"id":"serverless.cron.usage.get","method":"GET","path":"/v1/serverless/cron/usage","tag":"Serverless","summary":"Get the Cron period's usage and billable line","scope":"serverless:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":false,"pathParams":[],"queryParams":["period","days"],"hasBody":false,"successStatus":200},

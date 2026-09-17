@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.3.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.3.1). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -2726,6 +2726,7 @@ export type OrdersListQuery = {
 export type OrdersProductsListQuery = {
   limit?: string;
   cursor?: string;
+  family?: string;
 };
 
 /** Query parameters of `GET /v1/serverless/cron/usage`. */
