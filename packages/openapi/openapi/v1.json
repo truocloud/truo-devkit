@@ -3505,6 +3505,44 @@
           "requests_30d"
         ]
       },
+      "StorageBucketCachePolicy": {
+        "type": "object",
+        "properties": {
+          "respect_origin_cache_control": {
+            "type": "boolean",
+            "description": "Use the `Cache-Control` each object was uploaded with. When `false`, the bucket's settings apply to every object."
+          },
+          "default_cache_control": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Applied to objects that have no `Cache-Control` of their own. `no-cache` for files that change under the same name (manifests); `public, max-age=31536000, immutable` for files with a version in the name. `null` = none.",
+            "example": "no-cache"
+          },
+          "edge_ttl_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 31536000,
+            "description": "How long the edge keeps a copy when neither the object nor `default_cache_control` set a lifetime. `0` = do not cache. `null` = the service default.",
+            "example": 3600
+          },
+          "purge_on_write": {
+            "type": "boolean",
+            "description": "On a public bucket, overwriting or deleting an object purges the old copy from every edge location within seconds."
+          }
+        },
+        "required": [
+          "respect_origin_cache_control",
+          "default_cache_control",
+          "edge_ttl_seconds",
+          "purge_on_write"
+        ]
+      },
       "StorageBucket": {
         "type": "object",
         "properties": {
@@ -3544,6 +3582,13 @@
             "description": "The anonymous read base URL. `null` while the bucket is private.",
             "example": "https://s3.truo.cloud/_public/k3m9xz4n/"
           },
+          "cdn": {
+            "type": "boolean",
+            "description": "Cache what `public_url` serves at the edge. On by default when the bucket is made public."
+          },
+          "cache_policy": {
+            "$ref": "#/components/schemas/StorageBucketCachePolicy"
+          },
           "created_at": {
             "type": [
               "string",
@@ -3560,6 +3605,8 @@
           "objects",
           "size_bytes",
           "public_url",
+          "cdn",
+          "cache_policy",
           "created_at"
         ]
       },
@@ -3594,6 +3641,25 @@
           "data",
           "has_more",
           "next_cursor"
+        ]
+      },
+      "StorageCachePurge": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "storage_cache_purge"
+            ]
+          },
+          "purged": {
+            "type": "integer",
+            "description": "Keys or prefixes accepted by the purge."
+          }
+        },
+        "required": [
+          "object",
+          "purged"
         ]
       },
       "StorageDeletion": {
@@ -20391,8 +20457,8 @@
       },
       "patch": {
         "operationId": "objectstorage.buckets.update",
-        "summary": "Change a bucket's visibility",
-        "description": "Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one.",
+        "summary": "Change a bucket's visibility or edge cache",
+        "description": "Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one. `cdn` and `cache_policy` control how `public_url` is cached at the edge: an object's own `Cache-Control` wins, then `cache_policy`, then the service default.",
         "tags": [
           "Object Storage"
         ],
@@ -20441,11 +20507,26 @@
                       "public"
                     ],
                     "description": "`public` publishes the bucket at a read-only URL (`public_url`). `private` withdraws it: objects remain accessible with a key or a presigned URL."
+                  },
+                  "cdn": {
+                    "type": "boolean",
+                    "description": "Cache what `public_url` serves at the edge."
+                  },
+                  "cache_policy": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/StorageBucketCachePolicy"
+                      },
+                      {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "description": "Replaces the whole cache policy: omitted fields go back to their default. `null` resets it. On a public bucket, saving it purges what the edge had cached under the old policy."
+                      }
+                    ]
                   }
-                },
-                "required": [
-                  "access"
-                ]
+                }
               }
             }
           }
@@ -20597,6 +20678,171 @@
         "responses": {
           "204": {
             "description": "Bucket deleted."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/object-storage/buckets/{bucket}/purge": {
+      "post": {
+        "operationId": "objectstorage.buckets.purge",
+        "summary": "Purge a bucket's edge cache",
+        "description": "Removes cached copies from every edge location, so the next request to `public_url` reads the current object. Overwrites and deletes already do this on their own when `cache_policy.purge_on_write` is on; use this after changing objects outside the API or to force it. Send `keys` for specific objects or `prefix` for a folder; send neither to purge the whole bucket. Only public buckets are cached at the edge.",
+        "tags": [
+          "Object Storage"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "objectstorage:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "object-storage bucket purge",
+          "positional": [
+            "bucket"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "objectstorage",
+          "action": "bucket_purge",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "backups"
+            },
+            "required": true,
+            "name": "bucket",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    },
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "description": "Object keys, relative to the bucket. Up to 500.",
+                    "example": [
+                      "releases/latest.json"
+                    ]
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "description": "Everything under this prefix. Empty or omitted (without `keys`) = the whole bucket.",
+                    "example": "releases/"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How many keys or prefixes the purge accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageCachePurge"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request.",

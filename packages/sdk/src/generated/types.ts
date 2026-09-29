@@ -844,6 +844,25 @@ export type ObjectStorage = {
   requests_30d: number;
 };
 
+export type StorageBucketCachePolicy = {
+  /**
+   * Use the `Cache-Control` each object was uploaded with. When `false`, the bucket's settings apply to every object.
+   */
+  respect_origin_cache_control: boolean;
+  /**
+   * Applied to objects that have no `Cache-Control` of their own. `no-cache` for files that change under the same name (manifests); `public, max-age=31536000, immutable` for files with a version in the name. `null` = none.
+   */
+  default_cache_control: string | null;
+  /**
+   * How long the edge keeps a copy when neither the object nor `default_cache_control` set a lifetime. `0` = do not cache. `null` = the service default.
+   */
+  edge_ttl_seconds: number | null;
+  /**
+   * On a public bucket, overwriting or deleting an object purges the old copy from every edge location within seconds.
+   */
+  purge_on_write: boolean;
+};
+
 export type StorageBucket = {
   object: "storage_bucket";
   id: string;
@@ -856,6 +875,9 @@ export type StorageBucket = {
   size_bytes: number;
   /** The anonymous read base URL. `null` while the bucket is private. */
   public_url: string | null;
+  /** Cache what `public_url` serves at the edge. On by default when the bucket is made public. */
+  cdn: boolean;
+  cache_policy: StorageBucketCachePolicy;
   /** Null for a bucket created by a direct S3 client, which has no registry row. */
   created_at: string | null;
 };
@@ -868,6 +890,12 @@ export type StorageBucketList = {
    * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
+};
+
+export type StorageCachePurge = {
+  object: "storage_cache_purge";
+  /** Keys or prefixes accepted by the purge. */
+  purged: number;
 };
 
 export type StorageDeletion = {
@@ -2660,12 +2688,23 @@ export type ObjectstorageBucketsMetricsQuery = {
   range?: "7d" | "30d" | "90d";
 };
 
+/** Body of `POST /v1/object-storage/buckets/{bucket}/purge`. */
+export type ObjectstorageBucketsPurgeBody = {
+  /** Object keys, relative to the bucket. Up to 500. */
+  keys?: string[];
+  /** Everything under this prefix. Empty or omitted (without `keys`) = the whole bucket. */
+  prefix?: string;
+};
+
 /** Body of `PATCH /v1/object-storage/buckets/{bucket}`. */
 export type ObjectstorageBucketsUpdateBody = {
   /**
    * `public` publishes the bucket at a read-only URL (`public_url`). `private` withdraws it: objects remain accessible with a key or a presigned URL.
    */
-  access: "private" | "public";
+  access?: "private" | "public";
+  /** Cache what `public_url` serves at the edge. */
+  cdn?: boolean;
+  cache_policy?: StorageBucketCachePolicy & Record<string, unknown> | null;
 };
 
 /** Body of `POST /v1/object-storage/keys`. */

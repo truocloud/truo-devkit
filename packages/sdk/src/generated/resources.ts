@@ -1027,8 +1027,16 @@ export function createResources(call: Call, paginate: Paginate) {
         metrics: (bucket: string, params?: T.ObjectstorageBucketsMetricsQuery & RequestOptions) =>
           call<T.StorageBucketMetrics>("objectstorage.buckets.metrics", { path: { bucket }, body: undefined, queryKeys: ["range"], params }),
         /**
-         * Change a bucket's visibility
-         * Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one.
+         * Purge a bucket's edge cache
+         * Removes cached copies from every edge location, so the next request to `public_url` reads the current object. Overwrites and deletes already do this on their own when `cache_policy.purge_on_write` is on; use this after changing objects outside the API or to force it. Send `keys` for specific objects or `prefix` for a folder; send neither to purge the whole bucket. Only public buckets are cached at the edge.
+         * 
+         * Scope: `objectstorage:write`
+         */
+        purge: (bucket: string, body: T.ObjectstorageBucketsPurgeBody, params?: RequestOptions) =>
+          call<T.StorageCachePurge>("objectstorage.buckets.purge", { path: { bucket }, body: body, queryKeys: undefined, params }),
+        /**
+         * Change a bucket's visibility or edge cache
+         * Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one. `cdn` and `cache_policy` control how `public_url` is cached at the edge: an object's own `Cache-Control` wins, then `cache_policy`, then the service default.
          * 
          * Scope: `objectstorage:write`
          */

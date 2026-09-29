@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 211 commands derived from the spec. */
+/** The 212 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -2708,11 +2708,53 @@ export const COMMANDS: CommandSpec[] = [
     "path": [
       "object-storage",
       "bucket",
+      "purge"
+    ],
+    "operationId": "objectstorage.buckets.purge",
+    "summary": "Purge a bucket's edge cache",
+    "description": "Removes cached copies from every edge location, so the next request to `public_url` reads the current object. Overwrites and deletes already do this on their own when `cache_policy.purge_on_write` is on; use this after changing objects outside the API or to force it. Send `keys` for specific objects or `prefix` for a folder; send neither to purge the whole bucket. Only public buckets are cached at the edge.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "objectstorage:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "bucket",
+        "in": "path",
+        "key": "bucket",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "keys",
+        "key": "keys",
+        "in": "body",
+        "type": "string[]",
+        "required": false,
+        "description": "Object keys, relative to the bucket. Up to 500."
+      },
+      {
+        "flag": "prefix",
+        "key": "prefix",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Everything under this prefix. Empty or omitted (without `keys`) = the whole bucket."
+      }
+    ]
+  },
+  {
+    "path": [
+      "object-storage",
+      "bucket",
       "update"
     ],
     "operationId": "objectstorage.buckets.update",
-    "summary": "Change a bucket's visibility",
-    "description": "Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one.",
+    "summary": "Change a bucket's visibility or edge cache",
+    "description": "Making the bucket public mints an anonymous read URL (`public_url`) and keeps it if the bucket later goes private: republishing returns the same URL, not a new one. `cdn` and `cache_policy` control how `public_url` is cached at the edge: an object's own `Cache-Control` wins, then `cache_policy`, then the service default.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -2733,12 +2775,27 @@ export const COMMANDS: CommandSpec[] = [
         "key": "access",
         "in": "body",
         "type": "string",
-        "required": true,
+        "required": false,
         "values": [
           "private",
           "public"
         ],
         "description": "`public` publishes the bucket at a read-only URL (`public_url`). `private` withdraws it: objects remain accessible with a key or a presigned URL."
+      },
+      {
+        "flag": "cdn",
+        "key": "cdn",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Cache what `public_url` serves at the edge."
+      },
+      {
+        "flag": "cache-policy",
+        "key": "cache_policy",
+        "in": "body",
+        "type": "string",
+        "required": false
       }
     ]
   },
