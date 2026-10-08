@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.3.1",
-    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
+    "version": "1.4.0",
+    "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation. Since v1.4, an Enterprise CaaS service —a three-node cluster— deploys docker-compose **stacks** with versions and rollback, secrets, private registries, and its own domains.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
       "url": "https://www.truocloud.com"
@@ -2480,6 +2480,67 @@
           "next_cursor"
         ]
       },
+      "CaasCluster": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cluster hostname. Point your domains at it with a CNAME.",
+            "example": "d-10432.deploy.truo.cloud"
+          },
+          "quorum": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Whether the control plane has quorum. `null` until the first health check (under a minute)."
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "description": "Node position, 0 to 2."
+                },
+                "healthy": {
+                  "type": "boolean"
+                },
+                "in_rotation": {
+                  "type": "boolean",
+                  "description": "Whether the cluster hostname currently sends traffic to this node."
+                }
+              },
+              "required": [
+                "index",
+                "healthy",
+                "in_rotation"
+              ]
+            },
+            "description": "Empty until the first health check."
+          },
+          "checked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "quorum",
+          "nodes",
+          "checked_at"
+        ],
+        "description": "`enterprise` only, and only in `GET /v1/caas/{id}`. `null` otherwise."
+      },
       "Caas": {
         "type": "object",
         "properties": {
@@ -2505,6 +2566,14 @@
               "unknown"
             ]
           },
+          "topology": {
+            "type": "string",
+            "enum": [
+              "discovery",
+              "enterprise"
+            ],
+            "description": "`discovery`: one machine, apps deployed from a repository or an image (`/v1/caas/{id}/apps`). `enterprise`: a three-node cluster that deploys docker-compose stacks (`/v1/caas/{id}/stacks`) and keeps serving when a node goes down. The two expose different endpoints; `capabilities` lists the ones that respond for this service."
+          },
           "label": {
             "type": [
               "string",
@@ -2516,7 +2585,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "`null` on `enterprise`: traffic enters through the cluster hostname, not one IP."
           },
           "provisioning_state": {
             "type": [
@@ -2559,7 +2629,10 @@
               "state",
               "uptime_seconds"
             ],
-            "description": "The machine running the service. `null` in the listing and also when it does not exist yet — a freshly purchased service has no machine until provisioning finishes."
+            "description": "The machine running the service. `null` in the listing and also when it does not exist yet — a freshly purchased service has no machine until provisioning finishes. Always `null` on `enterprise`: see `cluster`."
+          },
+          "cluster": {
+            "$ref": "#/components/schemas/CaasCluster"
           },
           "capabilities": {
             "type": "object",
@@ -2573,10 +2646,12 @@
           "object",
           "id",
           "status",
+          "topology",
           "label",
           "primary_ip",
           "provisioning_state",
           "machine",
+          "cluster",
           "capabilities"
         ]
       },
@@ -3004,6 +3079,669 @@
           "data",
           "has_more",
           "next_cursor"
+        ]
+      },
+      "CaasStackService": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "As in the compose file.",
+            "example": "web"
+          },
+          "image": {
+            "type": "string",
+            "example": "nginx:1.27"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "replicated",
+              "global",
+              "unknown"
+            ]
+          },
+          "replicas": {
+            "type": "object",
+            "properties": {
+              "running": {
+                "type": "integer"
+              },
+              "desired": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "running",
+              "desired"
+            ]
+          },
+          "update": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "state": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "message"
+            ],
+            "description": "The last rolling update, if there was one (`updating`, `completed`, `rollback_completed`…). A `rollback_completed` here means the cluster reverted a version whose healthcheck failed."
+          }
+        },
+        "required": [
+          "name",
+          "image",
+          "mode",
+          "replicas",
+          "update"
+        ]
+      },
+      "CaasStack": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_stack"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "web"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "deployed",
+              "failed",
+              "removed",
+              "unknown"
+            ],
+            "description": "The outcome of the stack's **latest version**. `failed` means that version was rejected; the previous `deployed` one keeps running (see `deployed_version`)."
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "deploy",
+              "rollback",
+              "scale",
+              "webhook",
+              "remove",
+              "restore",
+              "unknown"
+            ],
+            "description": "What created the version. `restore` = the platform redeployed it after rebuilding the cluster."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "services": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CaasStackService"
+            },
+            "description": "What is running now, read from the cluster. `null` when the cluster did not answer: the rest of the resource is still accurate."
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "version",
+          "status",
+          "origin",
+          "error",
+          "updated_at",
+          "services"
+        ]
+      },
+      "CaasStackList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaasStack"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "CaasStackVersion": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_stack_version"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "deployed",
+              "failed",
+              "removed",
+              "unknown"
+            ],
+            "description": "The outcome of the stack's **latest version**. `failed` means that version was rejected; the previous `deployed` one keeps running (see `deployed_version`)."
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "deploy",
+              "rollback",
+              "scale",
+              "webhook",
+              "remove",
+              "restore",
+              "unknown"
+            ],
+            "description": "What created the version. `restore` = the platform redeployed it after rebuilding the cluster."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "version",
+          "status",
+          "origin",
+          "error",
+          "created_at"
+        ]
+      },
+      "CaasStackTask": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "desired_state": {
+            "type": "string"
+          },
+          "current_state": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "desired_state",
+          "current_state",
+          "error"
+        ]
+      },
+      "CaasStackDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CaasStack"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "deployed_version": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "The version running now. `null` if none ever deployed successfully, or the stack was removed."
+              },
+              "source": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The compose file of `deployed_version`, exactly as it was sent."
+              },
+              "versions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CaasStackVersion"
+                },
+                "description": "Newest first. The last 20 are kept."
+              },
+              "tasks": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "$ref": "#/components/schemas/CaasStackTask"
+                },
+                "description": "Tasks that are not running, with their error. Empty when everything is healthy; `null` when the cluster did not answer."
+              }
+            },
+            "required": [
+              "deployed_version",
+              "source",
+              "versions",
+              "tasks"
+            ]
+          }
+        ]
+      },
+      "CaasStackVersionSource": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CaasStackVersion"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "stack": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string",
+                "description": "The compose file of that version, exactly as it was sent."
+              }
+            },
+            "required": [
+              "stack",
+              "source"
+            ]
+          }
+        ]
+      },
+      "CaasStackLogs": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_stack_logs"
+            ]
+          },
+          "stack": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every replica, interleaved, each line prefixed with its timestamp. A snapshot, not a stream: to follow a service, call again with `since`."
+          }
+        },
+        "required": [
+          "object",
+          "stack",
+          "service",
+          "lines"
+        ]
+      },
+      "CaasSecret": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_secret"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "updated_at"
+        ]
+      },
+      "CaasSecretList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaasSecret"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "CaasObjectWrite": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_object_write"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "`false` if the stored value was already this one."
+          },
+          "redeploy_needed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Stacks that use it. A running service keeps the value it started with: redeploy these (`PUT /v1/caas/{id}/stacks/{stack}` with the same compose) for them to pick up the new one."
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "changed",
+          "redeploy_needed"
+        ]
+      },
+      "CaasConfig": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_config"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "updated_at"
+        ]
+      },
+      "CaasConfigList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaasConfig"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "CaasRegistry": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_registry"
+            ]
+          },
+          "server": {
+            "type": "string",
+            "example": "ghcr.io"
+          },
+          "username": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "server",
+          "username",
+          "updated_at"
+        ]
+      },
+      "CaasRegistryList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaasRegistry"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "CaasClusterDomain": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_cluster_domain"
+            ]
+          },
+          "host": {
+            "type": "string",
+            "example": "app.example.com"
+          },
+          "primary": {
+            "type": "boolean",
+            "description": "The cluster hostname. It cannot be removed."
+          },
+          "dns_ok": {
+            "type": "boolean",
+            "description": "Whether the host resolves to the cluster right now."
+          },
+          "resolves_to": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The addresses the host resolves to right now."
+          },
+          "certificate_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` while the certificate is being issued, or if issuance failed."
+          }
+        },
+        "required": [
+          "object",
+          "host",
+          "primary",
+          "dns_ok",
+          "resolves_to",
+          "certificate_expires_at"
+        ]
+      },
+      "CaasClusterDomainList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaasClusterDomain"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions."
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor"
+        ]
+      },
+      "CaasDeployKey": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_deploy_key"
+            ]
+          },
+          "key": {
+            "type": "string",
+            "description": "Shown once. Send it as `Authorization: Bearer <key>` to the webhook."
+          },
+          "webhook_url": {
+            "type": "string",
+            "description": "Replace `{stack}` with the stack name. A `POST` redeploys the current version of that stack; with `{\"images\": {\"web\": \"ghcr.io/acme/app:sha\"}}` it swaps those images first."
+          }
+        },
+        "required": [
+          "object",
+          "key",
+          "webhook_url"
         ]
       },
       "LoadBalancer": {
@@ -18717,6 +19455,3330 @@
           },
           "409": {
             "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks": {
+      "get": {
+        "operationId": "caas.stacks.list",
+        "summary": "List an Enterprise service's stacks",
+        "description": "What is declared, with what is running now. If the cluster does not answer, `services` comes back `null` and the rest is still accurate.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas stack list",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stacks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasStackList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks/{stack}": {
+      "put": {
+        "operationId": "caas.stacks.deploy",
+        "summary": "Deploy a stack",
+        "description": "Creates the stack or deploys a new version of it from a docker-compose file. Every deploy is a numbered version you can roll back to.\n\nThe compose is validated before anything runs; a rule it breaks comes back as `400 validation_failed` with the reason, and nothing is changed. If the cluster rejects the deploy, the operation fails with `deploy_failed` and the previous version keeps running. A service whose healthcheck fails during the update is rolled back by the cluster on its own (`update.state` = `rollback_completed`).\n\nRequires `caas:deploy`: deploying runs whatever the images contain.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:deploy",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas stack deploy",
+          "positional": [
+            "service_id",
+            "stack"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_deploy",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "compose": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32768,
+                    "description": "The docker-compose file, as text. The rules, checked before anything runs:\n\n- Every service needs a `healthcheck`: it is what lets an update roll back on its own.\n- No bind mounts or local volumes. State goes to a database or to S3; a node can be replaced at any time.\n- Up to three replicas per service, at most one per node.\n- Secrets and configs are referenced by name and must exist first (`PUT /v1/caas/{id}/secrets/{name}`).\n- To publish a service, give it Traefik labels with a `Host()` rule on a domain of the cluster (`GET /v1/caas/{id}/domains`).\n\nThe platform adjusts some fields (placement, `start-first` updates) and lists what it changed in the operation `result.notes`."
+                  }
+                },
+                "required": [
+                  "compose"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Deploy accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "caas.stacks.get",
+        "summary": "Get a stack",
+        "description": "The version running now with its compose file, the version history, each service with its replicas, and the tasks that are not running with their error — the first place to look when a deploy does not come up.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas stack get",
+          "positional": [
+            "service_id",
+            "stack"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stack.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasStackDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "caas.stacks.delete",
+        "summary": "Remove a stack",
+        "description": "**Destructive.** Stops and removes every service of the stack. Its version history stays: deploying the same name again continues the numbering. Secrets, configs, and domains are not touched.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas stack delete",
+          "positional": [
+            "service_id",
+            "stack"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Removal accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks/{stack}/versions/{version}": {
+      "get": {
+        "operationId": "caas.stack_versions.get",
+        "summary": "Get a version of a stack",
+        "description": "With the compose file exactly as it was sent. The last 20 versions of each stack are kept.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas stack version",
+          "positional": [
+            "service_id",
+            "stack",
+            "version"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_version_get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 3
+            },
+            "required": true,
+            "name": "version",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasStackVersionSource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks/{stack}/rollback": {
+      "post": {
+        "operationId": "caas.stacks.rollback",
+        "summary": "Roll a stack back",
+        "description": "Deploys the compose file of an earlier version as a **new** version (`origin: rollback`), so the history only grows and rolling back a rollback works the same way. Secrets and configs are the current ones, not the ones the old version had.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:deploy",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas stack rollback",
+          "positional": [
+            "service_id",
+            "stack"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_rollback",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "The version to go back to. Without it, the most recent deployed version whose content differs from the current one."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Rollback accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks/{stack}/services/{service}/logs": {
+      "get": {
+        "operationId": "caas.stack_services.logs",
+        "summary": "Get a stack service's logs",
+        "description": "The latest lines from every replica, interleaved and timestamped. **A snapshot, not a stream**: to follow a service, call again with `since`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas stack logs",
+          "positional": [
+            "service_id",
+            "stack",
+            "service"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_logs",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+              "description": "The service name as written in the compose file (`web`), without the stack prefix.",
+              "example": "web"
+            },
+            "required": true,
+            "name": "service",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "description": "Lines per call, counting every replica. Defaults to 200."
+            },
+            "required": false,
+            "name": "tail",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^(\\d{1,5}[smh]|\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(\\.\\d{1,9})?Z)$",
+              "description": "Only lines after this point: `10m`, `2h`, or `2026-10-07T12:00:00Z`."
+            },
+            "required": false,
+            "name": "since",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The log lines.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasStackLogs"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks/{stack}/services/{service}/scale": {
+      "post": {
+        "operationId": "caas.stack_services.scale",
+        "summary": "Change a stack service's replicas",
+        "description": "Deploys the current version with the new replica count, as a new version (`origin: scale`): a later deploy of your compose file sets it back to what the file says.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas stack scale",
+          "positional": [
+            "service_id",
+            "stack",
+            "service"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_scale",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+              "description": "The service name as written in the compose file (`web`), without the stack prefix.",
+              "example": "web"
+            },
+            "required": true,
+            "name": "service",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "replicas": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3,
+                    "description": "0 stops the service without removing it. At most 3: one per node."
+                  }
+                },
+                "required": [
+                  "replicas"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Change accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/stacks/{stack}/services/{service}/restart": {
+      "post": {
+        "operationId": "caas.stack_services.restart",
+        "summary": "Restart a stack service",
+        "description": "Replaces its replicas one at a time, the same way an update does: with two or more replicas the service keeps answering. Same image and configuration — to change either, deploy.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas stack restart",
+          "positional": [
+            "service_id",
+            "stack",
+            "service"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "stack_restart",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,29}$",
+              "example": "web"
+            },
+            "required": true,
+            "name": "stack",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+              "description": "The service name as written in the compose file (`web`), without the stack prefix.",
+              "example": "web"
+            },
+            "required": true,
+            "name": "service",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Restart done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/secrets": {
+      "get": {
+        "operationId": "caas.secrets.list",
+        "summary": "List an Enterprise service's secrets",
+        "description": "Names and when they were last written. **Never the value**, by any endpoint.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas secret list",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "secret_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The secrets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasSecretList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/secrets/{name}": {
+      "put": {
+        "operationId": "caas.secrets.put",
+        "summary": "Create or replace a secret",
+        "description": "A secret is mounted as a file at `/run/secrets/<name>` in the services that list it under `secrets:`. Stored encrypted; the value is never returned.\n\nServices that already run keep the value they started with: `redeploy_needed` lists the stacks to deploy again for them to pick up the new one.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas secret set",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "secret_put",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,47}$",
+              "example": "db-url"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "maxLength": 32768,
+                    "description": "Text, up to 32 KB. Stored encrypted; never returned by any endpoint."
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasObjectWrite"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "caas.secrets.delete",
+        "summary": "Delete a secret",
+        "description": "Refused with `400 validation_failed` while a deployed stack uses it: remove it from the compose and deploy first.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas secret delete",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "secret_delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,47}$",
+              "example": "db-url"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/configs": {
+      "get": {
+        "operationId": "caas.configs.list",
+        "summary": "List an Enterprise service's configs",
+        "description": "Names and when they were last written. **Never the value**, by any endpoint.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas config list",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "config_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The configs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasConfigList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/configs/{name}": {
+      "put": {
+        "operationId": "caas.configs.put",
+        "summary": "Create or replace a config",
+        "description": "A config is mounted as a file wherever the services that list it under `configs:` say (`target:`). Stored encrypted; the value is never returned.\n\nServices that already run keep the value they started with: `redeploy_needed` lists the stacks to deploy again for them to pick up the new one.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas config set",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "config_put",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,47}$",
+              "example": "db-url"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "maxLength": 32768,
+                    "description": "Text, up to 32 KB. Stored encrypted; never returned by any endpoint."
+                  }
+                },
+                "required": [
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasObjectWrite"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "caas.configs.delete",
+        "summary": "Delete a config",
+        "description": "Refused with `400 validation_failed` while a deployed stack uses it: remove it from the compose and deploy first.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas config delete",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "config_delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9.-]{0,47}$",
+              "example": "db-url"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/registries": {
+      "get": {
+        "operationId": "caas.registries.list",
+        "summary": "List private registry credentials",
+        "description": "Server and username. **Never the password or token**, by any endpoint.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas registry list",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "registry_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The registries.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasRegistryList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/registries/{server}": {
+      "put": {
+        "operationId": "caas.registries.put",
+        "summary": "Store credentials for a private registry",
+        "description": "Every deploy pulls with them, for any image on that server (`ghcr.io`, `registry.gitlab.com`, `docker.io`…). Use a read-only token.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas registry set",
+          "positional": [
+            "service_id",
+            "server"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "registry_put",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9.-]{0,252})(:\\d{1,5})?$",
+              "example": "ghcr.io"
+            },
+            "required": true,
+            "name": "server",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._@+-]{1,128}$"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "description": "A password or, better, a read-only token. Stored encrypted; never returned."
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasObjectWrite"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "caas.registries.delete",
+        "summary": "Delete private registry credentials",
+        "description": "Services already running are not affected; the next deploy that pulls from that server fails.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas registry delete",
+          "positional": [
+            "service_id",
+            "server"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "registry_delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9.-]{0,252})(:\\d{1,5})?$",
+              "example": "ghcr.io"
+            },
+            "required": true,
+            "name": "server",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/domains": {
+      "get": {
+        "operationId": "caas.cluster_domains.list",
+        "summary": "List an Enterprise cluster's domains",
+        "description": "The cluster hostname first, then yours, each with whether its DNS points at the cluster right now and when its certificate expires. A stack serves a domain from this list by naming it in a `Host()` rule of its Traefik labels.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas cluster-domain list",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "cluster_domain_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The domains.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasClusterDomainList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "caas.cluster_domains.create",
+        "summary": "Add a domain to an Enterprise cluster",
+        "description": "First create a CNAME from your domain to the cluster hostname (`cluster.name`). The request checks it and fails with `400 validation_failed` if the domain does not resolve to the cluster yet — nothing is changed. Then the three nodes start routing it and the certificate is issued; the operation finishes when TLS answers on all three.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas cluster-domain add",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "cluster_domain_create",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 253,
+                    "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
+                    "description": "It must already have a CNAME to the cluster hostname (`cluster.name` in `GET /v1/caas/{id}`); otherwise the request fails with `validation_failed` and nothing changes.",
+                    "example": "app.example.com"
+                  }
+                },
+                "required": [
+                  "host"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Domain being set up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/domains/{host}": {
+      "delete": {
+        "operationId": "caas.cluster_domains.delete",
+        "summary": "Remove a domain from an Enterprise cluster",
+        "description": "Refused with `400 validation_failed` while a deployed stack routes it (remove it from the stack's labels and deploy first), and for the cluster hostname.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "destructive",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas cluster-domain remove",
+          "positional": [
+            "service_id",
+            "host"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "cluster_domain_delete",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "app.example.com"
+            },
+            "required": true,
+            "name": "host",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Domain being removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/restart": {
+      "post": {
+        "operationId": "caas.cluster.restart",
+        "summary": "Rolling restart of an Enterprise cluster",
+        "description": "Restarts the three nodes one at a time. Each one leaves the cluster hostname first, its replicas move to the other two, and it rejoins once it serves TLS again. Services with two or more replicas keep answering; one with a single replica is cut while its node restarts. Takes several minutes.\n\nRefused with `412 precondition_failed` if a node is already unhealthy, and with `409 operation_in_progress` while another cluster operation runs. Deploys are refused until it finishes.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas cluster restart",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "cluster_restart",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Restart started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "The `If-Match` precondition failed. Someone else modified the resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/deploy-key": {
+      "post": {
+        "operationId": "caas.deploy_key.rotate",
+        "summary": "Rotate the CI deploy key",
+        "description": "Generates the key your CI uses to redeploy a stack after building an image, and returns it **once**. The previous key stops working immediately.\n\nThe key only redeploys stacks that already exist, with their current compose file (optionally swapping images): it cannot create stacks, read anything, or touch secrets. That is why it is separate from your API keys.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:deploy",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-cli": {
+          "command": "caas deploy-key rotate",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "deploy_key_rotate",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new key, shown once.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasDeployKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
             "content": {
               "application/json": {
                 "schema": {

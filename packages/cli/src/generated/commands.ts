@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 212 commands derived from the spec. */
+/** The 235 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -461,6 +461,217 @@ export const COMMANDS: CommandSpec[] = [
   {
     "path": [
       "caas",
+      "cluster-domain",
+      "add"
+    ],
+    "operationId": "caas.cluster_domains.create",
+    "summary": "Add a domain to an Enterprise cluster",
+    "description": "First create a CNAME from your domain to the cluster hostname (`cluster.name`). The request checks it and fails with `400 validation_failed` if the domain does not resolve to the cluster yet — nothing is changed. Then the three nodes start routing it and the certificate is issued; the operation finishes when TLS answers on all three.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "host",
+        "key": "host",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "It must already have a CNAME to the cluster hostname (`cluster.name` in `GET /v1/caas/{id}`); otherwise the request fails with `validation_failed` and nothing changes."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "cluster-domain",
+      "remove"
+    ],
+    "operationId": "caas.cluster_domains.delete",
+    "summary": "Remove a domain from an Enterprise cluster",
+    "description": "Refused with `400 validation_failed` while a deployed stack routes it (remove it from the stack's labels and deploy first), and for the cluster hostname.",
+    "danger": "destructive",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "host",
+        "in": "path",
+        "key": "host",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "cluster-domain",
+      "list"
+    ],
+    "operationId": "caas.cluster_domains.list",
+    "summary": "List an Enterprise cluster's domains",
+    "description": "The cluster hostname first, then yours, each with whether its DNS points at the cluster right now and when its certificate expires. A stack serves a domain from this list by naming it in a `Host()` rule of its Traefik labels.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "cluster",
+      "restart"
+    ],
+    "operationId": "caas.cluster.restart",
+    "summary": "Rolling restart of an Enterprise cluster",
+    "description": "Restarts the three nodes one at a time. Each one leaves the cluster hostname first, its replicas move to the other two, and it rejoins once it serves TLS again. Services with two or more replicas keep answering; one with a single replica is cut while its node restarts. Takes several minutes.\n\nRefused with `412 precondition_failed` if a node is already unhealthy, and with `409 operation_in_progress` while another cluster operation runs. Deploys are refused until it finishes.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "config",
+      "delete"
+    ],
+    "operationId": "caas.configs.delete",
+    "summary": "Delete a config",
+    "description": "Refused with `400 validation_failed` while a deployed stack uses it: remove it from the compose and deploy first.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "config",
+      "list"
+    ],
+    "operationId": "caas.configs.list",
+    "summary": "List an Enterprise service's configs",
+    "description": "Names and when they were last written. **Never the value**, by any endpoint.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "config",
+      "set"
+    ],
+    "operationId": "caas.configs.put",
+    "summary": "Create or replace a config",
+    "description": "A config is mounted as a file wherever the services that list it under `configs:` say (`target:`). Stored encrypted; the value is never returned.\n\nServices that already run keep the value they started with: `redeploy_needed` lists the stacks to deploy again for them to pick up the new one.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "value",
+        "key": "value",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Text, up to 32 KB. Stored encrypted; never returned by any endpoint."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
       "database",
       "create"
     ],
@@ -544,6 +755,31 @@ export const COMMANDS: CommandSpec[] = [
         "required": false
       }
     ]
+  },
+  {
+    "path": [
+      "caas",
+      "deploy-key",
+      "rotate"
+    ],
+    "operationId": "caas.deploy_key.rotate",
+    "summary": "Rotate the CI deploy key",
+    "description": "Generates the key your CI uses to redeploy a stack after building an image, and returns it **once**. The previous key stops working immediately.\n\nThe key only redeploys stacks that already exist, with their current compose file (optionally swapping images): it cannot create stacks, read anything, or touch secrets. That is why it is separate from your API keys.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
   },
   {
     "path": [
@@ -823,6 +1059,544 @@ export const COMMANDS: CommandSpec[] = [
         "in": "query",
         "type": "string",
         "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "registry",
+      "delete"
+    ],
+    "operationId": "caas.registries.delete",
+    "summary": "Delete private registry credentials",
+    "description": "Services already running are not affected; the next deploy that pulls from that server fails.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "server",
+        "in": "path",
+        "key": "server",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "registry",
+      "list"
+    ],
+    "operationId": "caas.registries.list",
+    "summary": "List private registry credentials",
+    "description": "Server and username. **Never the password or token**, by any endpoint.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "registry",
+      "set"
+    ],
+    "operationId": "caas.registries.put",
+    "summary": "Store credentials for a private registry",
+    "description": "Every deploy pulls with them, for any image on that server (`ghcr.io`, `registry.gitlab.com`, `docker.io`…). Use a read-only token.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "server",
+        "in": "path",
+        "key": "server",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "username",
+        "key": "username",
+        "in": "body",
+        "type": "string",
+        "required": true
+      },
+      {
+        "flag": "password",
+        "key": "password",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "A password or, better, a read-only token. Stored encrypted; never returned."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "secret",
+      "delete"
+    ],
+    "operationId": "caas.secrets.delete",
+    "summary": "Delete a secret",
+    "description": "Refused with `400 validation_failed` while a deployed stack uses it: remove it from the compose and deploy first.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "secret",
+      "list"
+    ],
+    "operationId": "caas.secrets.list",
+    "summary": "List an Enterprise service's secrets",
+    "description": "Names and when they were last written. **Never the value**, by any endpoint.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "secret",
+      "set"
+    ],
+    "operationId": "caas.secrets.put",
+    "summary": "Create or replace a secret",
+    "description": "A secret is mounted as a file at `/run/secrets/<name>` in the services that list it under `secrets:`. Stored encrypted; the value is never returned.\n\nServices that already run keep the value they started with: `redeploy_needed` lists the stacks to deploy again for them to pick up the new one.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "value",
+        "key": "value",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "Text, up to 32 KB. Stored encrypted; never returned by any endpoint."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "logs"
+    ],
+    "operationId": "caas.stack_services.logs",
+    "summary": "Get a stack service's logs",
+    "description": "The latest lines from every replica, interleaved and timestamped. **A snapshot, not a stream**: to follow a service, call again with `since`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      },
+      {
+        "label": "service",
+        "in": "path",
+        "key": "service",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "tail",
+        "key": "tail",
+        "in": "query",
+        "type": "number",
+        "required": false
+      },
+      {
+        "flag": "since",
+        "key": "since",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "restart"
+    ],
+    "operationId": "caas.stack_services.restart",
+    "summary": "Restart a stack service",
+    "description": "Replaces its replicas one at a time, the same way an update does: with two or more replicas the service keeps answering. Same image and configuration — to change either, deploy.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      },
+      {
+        "label": "service",
+        "in": "path",
+        "key": "service",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "scale"
+    ],
+    "operationId": "caas.stack_services.scale",
+    "summary": "Change a stack service's replicas",
+    "description": "Deploys the current version with the new replica count, as a new version (`origin: scale`): a later deploy of your compose file sets it back to what the file says.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      },
+      {
+        "label": "service",
+        "in": "path",
+        "key": "service",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "replicas",
+        "key": "replicas",
+        "in": "body",
+        "type": "number",
+        "required": true,
+        "description": "0 stops the service without removing it. At most 3: one per node."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "version"
+    ],
+    "operationId": "caas.stack_versions.get",
+    "summary": "Get a version of a stack",
+    "description": "With the compose file exactly as it was sent. The last 20 versions of each stack are kept.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      },
+      {
+        "label": "version",
+        "in": "path",
+        "key": "version",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "delete"
+    ],
+    "operationId": "caas.stacks.delete",
+    "summary": "Remove a stack",
+    "description": "**Destructive.** Stops and removes every service of the stack. Its version history stays: deploying the same name again continues the numbering. Secrets, configs, and domains are not touched.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+    "danger": "destructive",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "deploy"
+    ],
+    "operationId": "caas.stacks.deploy",
+    "summary": "Deploy a stack",
+    "description": "Creates the stack or deploys a new version of it from a docker-compose file. Every deploy is a numbered version you can roll back to.\n\nThe compose is validated before anything runs; a rule it breaks comes back as `400 validation_failed` with the reason, and nothing is changed. If the cluster rejects the deploy, the operation fails with `deploy_failed` and the previous version keeps running. A service whose healthcheck fails during the update is rolled back by the cluster on its own (`update.state` = `rollback_completed`).\n\nRequires `caas:deploy`: deploying runs whatever the images contain.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "compose",
+        "key": "compose",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "The docker-compose file, as text. The rules, checked before anything runs:\n\n- Every service needs a `healthcheck`: it is what lets an update roll back on its own.\n- No bind mounts or local volumes. State goes to a database or to S3; a node can be replaced at any time.\n- Up to three replicas per service, at most one per node.\n- Secrets and configs are referenced by name and must exist first (`PUT /v1/caas/{id}/secrets/{name}`).\n- To publish a service, give it Traefik labels with a `Host()` rule on a domain of the cluster (`GET /v1/caas/{id}/domains`).\n\nThe platform adjusts some fields (placement, `start-first` updates) and lists what it changed in the operation `result.notes`."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "get"
+    ],
+    "operationId": "caas.stacks.get",
+    "summary": "Get a stack",
+    "description": "The version running now with its compose file, the version history, each service with its replicas, and the tasks that are not running with their error — the first place to look when a deploy does not come up.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "list"
+    ],
+    "operationId": "caas.stacks.list",
+    "summary": "List an Enterprise service's stacks",
+    "description": "What is declared, with what is running now. If the cluster does not answer, `services` comes back `null` and the rest is still accurate.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "stack",
+      "rollback"
+    ],
+    "operationId": "caas.stacks.rollback",
+    "summary": "Roll a stack back",
+    "description": "Deploys the compose file of an earlier version as a **new** version (`origin: rollback`), so the history only grows and rolling back a rollback works the same way. Secrets and configs are the current ones, not the ones the old version had.\n\nReturns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "stack",
+        "in": "path",
+        "key": "stack",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "version",
+        "key": "version",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "The version to go back to. Without it, the most recent deployed version whose content differs from the current one."
       }
     ]
   },

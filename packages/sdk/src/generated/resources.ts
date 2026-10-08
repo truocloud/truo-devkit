@@ -166,6 +166,93 @@ export function createResources(call: Call, paginate: Paginate) {
         restart: (id: string, appId: string, params?: RequestOptions) =>
           call<T.Operation>("caas.apps.restart", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
       },
+      clusterDomains: {
+        /**
+         * Add a domain to an Enterprise cluster
+         * First create a CNAME from your domain to the cluster hostname (`cluster.name`). The request checks it and fails with `400 validation_failed` if the domain does not resolve to the cluster yet — nothing is changed. Then the three nodes start routing it and the certificate is issued; the operation finishes when TLS answers on all three.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        create: (id: string, body: T.CaasClusterDomainsCreateBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.cluster_domains.create", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Remove a domain from an Enterprise cluster
+         * Refused with `400 validation_failed` while a deployed stack routes it (remove it from the stack's labels and deploy first), and for the cluster hostname.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        delete: (id: string, host: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.cluster_domains.delete", { path: { id, host }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List an Enterprise cluster's domains
+         * The cluster hostname first, then yours, each with whether its DNS points at the cluster right now and when its certificate expires. A stack serves a domain from this list by naming it in a `Host()` rule of its Traefik labels.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasClusterDomainList>("caas.cluster_domains.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.cluster_domains.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasClusterDomain>(
+            "caas.cluster_domains.list", { path: { id }, queryKeys: undefined, params },
+          ),
+      },
+      cluster: {
+        /**
+         * Rolling restart of an Enterprise cluster
+         * Restarts the three nodes one at a time. Each one leaves the cluster hostname first, its replicas move to the other two, and it rejoins once it serves TLS again. Services with two or more replicas keep answering; one with a single replica is cut while its node restarts. Takes several minutes.
+         * 
+         * Refused with `412 precondition_failed` if a node is already unhealthy, and with `409 operation_in_progress` while another cluster operation runs. Deploys are refused until it finishes.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        restart: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.cluster.restart", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
+      configs: {
+        /**
+         * Delete a config
+         * Refused with `400 validation_failed` while a deployed stack uses it: remove it from the compose and deploy first.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, name: string, params?: RequestOptions) =>
+          call<void>("caas.configs.delete", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List an Enterprise service's configs
+         * Names and when they were last written. **Never the value**, by any endpoint.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasConfigList>("caas.configs.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.configs.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasConfig>(
+            "caas.configs.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Create or replace a config
+         * A config is mounted as a file wherever the services that list it under `configs:` say (`target:`). Stored encrypted; the value is never returned.
+         * 
+         * Services that already run keep the value they started with: `redeploy_needed` lists the stacks to deploy again for them to pick up the new one.
+         * 
+         * Scope: `caas:write`
+         */
+        put: (id: string, name: string, body: T.CaasConfigsPutBody, params?: RequestOptions) =>
+          call<T.CaasObjectWrite>("caas.configs.put", { path: { id, name }, body: body, queryKeys: undefined, params }),
+      },
       databases: {
         /**
          * Create a database
@@ -193,6 +280,18 @@ export function createResources(call: Call, paginate: Paginate) {
           paginate<T.CaasDatabase>(
             "caas.databases.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
           ),
+      },
+      deployKey: {
+        /**
+         * Rotate the CI deploy key
+         * Generates the key your CI uses to redeploy a stack after building an image, and returns it **once**. The previous key stops working immediately.
+         * 
+         * The key only redeploys stacks that already exist, with their current compose file (optionally swapping images): it cannot create stacks, read anything, or touch secrets. That is why it is separate from your API keys.
+         * 
+         * Scope: `caas:deploy`
+         */
+        rotate: (id: string, params?: RequestOptions) =>
+          call<T.CaasDeployKey>("caas.deploy_key.rotate", { path: { id }, body: undefined, queryKeys: undefined, params }),
       },
       deployments: {
         /**
@@ -309,6 +408,181 @@ export function createResources(call: Call, paginate: Paginate) {
           paginate<T.Caas>(
             "caas.instances.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
           ),
+      },
+      registries: {
+        /**
+         * Delete private registry credentials
+         * Services already running are not affected; the next deploy that pulls from that server fails.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, server: string, params?: RequestOptions) =>
+          call<void>("caas.registries.delete", { path: { id, server }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List private registry credentials
+         * Server and username. **Never the password or token**, by any endpoint.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasRegistryList>("caas.registries.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.registries.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasRegistry>(
+            "caas.registries.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Store credentials for a private registry
+         * Every deploy pulls with them, for any image on that server (`ghcr.io`, `registry.gitlab.com`, `docker.io`…). Use a read-only token.
+         * 
+         * Scope: `caas:write`
+         */
+        put: (id: string, server: string, body: T.CaasRegistriesPutBody, params?: RequestOptions) =>
+          call<T.CaasObjectWrite>("caas.registries.put", { path: { id, server }, body: body, queryKeys: undefined, params }),
+      },
+      secrets: {
+        /**
+         * Delete a secret
+         * Refused with `400 validation_failed` while a deployed stack uses it: remove it from the compose and deploy first.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, name: string, params?: RequestOptions) =>
+          call<void>("caas.secrets.delete", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List an Enterprise service's secrets
+         * Names and when they were last written. **Never the value**, by any endpoint.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasSecretList>("caas.secrets.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.secrets.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasSecret>(
+            "caas.secrets.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Create or replace a secret
+         * A secret is mounted as a file at `/run/secrets/<name>` in the services that list it under `secrets:`. Stored encrypted; the value is never returned.
+         * 
+         * Services that already run keep the value they started with: `redeploy_needed` lists the stacks to deploy again for them to pick up the new one.
+         * 
+         * Scope: `caas:write`
+         */
+        put: (id: string, name: string, body: T.CaasSecretsPutBody, params?: RequestOptions) =>
+          call<T.CaasObjectWrite>("caas.secrets.put", { path: { id, name }, body: body, queryKeys: undefined, params }),
+      },
+      stackServices: {
+        /**
+         * Get a stack service's logs
+         * The latest lines from every replica, interleaved and timestamped. **A snapshot, not a stream**: to follow a service, call again with `since`.
+         * 
+         * Scope: `caas:read`
+         */
+        logs: (id: string, stack: string, service: string, params?: T.CaasStackServicesLogsQuery & RequestOptions) =>
+          call<T.CaasStackLogs>("caas.stack_services.logs", { path: { id, stack, service }, body: undefined, queryKeys: ["tail", "since"], params }),
+        /**
+         * Restart a stack service
+         * Replaces its replicas one at a time, the same way an update does: with two or more replicas the service keeps answering. Same image and configuration — to change either, deploy.
+         * 
+         * Scope: `caas:write`
+         */
+        restart: (id: string, stack: string, service: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.stack_services.restart", { path: { id, stack, service }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Change a stack service's replicas
+         * Deploys the current version with the new replica count, as a new version (`origin: scale`): a later deploy of your compose file sets it back to what the file says.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        scale: (id: string, stack: string, service: string, body: T.CaasStackServicesScaleBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.stack_services.scale", { path: { id, stack, service }, body: body, queryKeys: undefined, params }),
+      },
+      stackVersions: {
+        /**
+         * Get a version of a stack
+         * With the compose file exactly as it was sent. The last 20 versions of each stack are kept.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, stack: string, version: number, params?: RequestOptions) =>
+          call<T.CaasStackVersionSource>("caas.stack_versions.get", { path: { id, stack, version }, body: undefined, queryKeys: undefined, params }),
+      },
+      stacks: {
+        /**
+         * Remove a stack
+         * **Destructive.** Stops and removes every service of the stack. Its version history stays: deploying the same name again continues the numbering. Secrets, configs, and domains are not touched.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        delete: (id: string, stack: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.stacks.delete", { path: { id, stack }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Deploy a stack
+         * Creates the stack or deploys a new version of it from a docker-compose file. Every deploy is a numbered version you can roll back to.
+         * 
+         * The compose is validated before anything runs; a rule it breaks comes back as `400 validation_failed` with the reason, and nothing is changed. If the cluster rejects the deploy, the operation fails with `deploy_failed` and the previous version keeps running. A service whose healthcheck fails during the update is rolled back by the cluster on its own (`update.state` = `rollback_completed`).
+         * 
+         * Requires `caas:deploy`: deploying runs whatever the images contain.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.
+         * 
+         * Scope: `caas:deploy`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        deploy: (id: string, stack: string, body: T.CaasStacksDeployBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.stacks.deploy", { path: { id, stack }, body: body, queryKeys: undefined, params }),
+        /**
+         * Get a stack
+         * The version running now with its compose file, the version history, each service with its replicas, and the tasks that are not running with their error — the first place to look when a deploy does not come up.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, stack: string, params?: RequestOptions) =>
+          call<T.CaasStackDetail>("caas.stacks.get", { path: { id, stack }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List an Enterprise service's stacks
+         * What is declared, with what is running now. If the cluster does not answer, `services` comes back `null` and the rest is still accurate.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasStackList>("caas.stacks.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.stacks.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasStack>(
+            "caas.stacks.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Roll a stack back
+         * Deploys the compose file of an earlier version as a **new** version (`origin: rollback`), so the history only grows and rolling back a rollback works the same way. Secrets and configs are the current ones, not the ones the old version had.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`. Only one change runs at a time per cluster: requests queue, and a request during a rolling restart fails with `409 operation_in_progress`.
+         * 
+         * Scope: `caas:deploy`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        rollback: (id: string, stack: string, body?: T.CaasStacksRollbackBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.stacks.rollback", { path: { id, stack }, body: body, queryKeys: undefined, params }),
       },
     },
     dbaas: {

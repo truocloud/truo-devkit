@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.3.1). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.4.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -567,24 +567,47 @@ export type DbaasBackupList = {
   next_cursor: string | null;
 };
 
+/** `enterprise` only, and only in `GET /v1/caas/{id}`. `null` otherwise. */
+export type CaasCluster = ({
+  /** The cluster hostname. Point your domains at it with a CNAME. */
+  name: string | null;
+  /** Whether the control plane has quorum. `null` until the first health check (under a minute). */
+  quorum: boolean | null;
+  /** Empty until the first health check. */
+  nodes: ({
+    /** Node position, 0 to 2. */
+    index: number;
+    healthy: boolean;
+    /** Whether the cluster hostname currently sends traffic to this node. */
+    in_rotation: boolean;
+  })[];
+  checked_at: string | null;
+}) | null;
+
 export type Caas = {
   object: "caas";
   id: string;
   status: "active" | "pending" | "suspended" | "terminated" | "cancelled" | "fraud" | "unknown";
+  /**
+   * `discovery`: one machine, apps deployed from a repository or an image (`/v1/caas/{id}/apps`). `enterprise`: a three-node cluster that deploys docker-compose stacks (`/v1/caas/{id}/stacks`) and keeps serving when a node goes down. The two expose different endpoints; `capabilities` lists the ones that respond for this service.
+   */
+  topology: "discovery" | "enterprise";
   /** The service's identifier. */
   label: string | null;
+  /** `null` on `enterprise`: traffic enters through the cluster hostname, not one IP. */
   primary_ip: string | null;
   /**
    * Provisioning progress. Distinct from `status`, which is the **contract** state in billing: a service that is `active` in billing can still be `provisioning` here. Until it is `active`, the app endpoints return `400 unsupported_for_product`.
    */
   provisioning_state: "draft" | "provisioning" | "active" | "suspended" | "terminated" | "error" | "unknown";
   /**
-   * The machine running the service. `null` in the listing and also when it does not exist yet — a freshly purchased service has no machine until provisioning finishes.
+   * The machine running the service. `null` in the listing and also when it does not exist yet — a freshly purchased service has no machine until provisioning finishes. Always `null` on `enterprise`: see `cluster`.
    */
   machine: ({
     state: "running" | "stopped" | "unknown";
     uptime_seconds: number | null;
   }) | null;
+  cluster: CaasCluster;
   /**
    * Which `/v1` endpoints respond for THIS service. A capability set to `false` returns `400 unsupported_for_product`; it is not a transient error and retrying does not help.
    */
@@ -711,6 +734,194 @@ export type CaasDatabaseList = {
    * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
    */
   next_cursor: string | null;
+};
+
+export type CaasStackService = {
+  /** As in the compose file. */
+  name: string;
+  image: string;
+  mode: "replicated" | "global" | "unknown";
+  replicas: {
+    running: number;
+    desired: number;
+  };
+  /**
+   * The last rolling update, if there was one (`updating`, `completed`, `rollback_completed`…). A `rollback_completed` here means the cluster reverted a version whose healthcheck failed.
+   */
+  update: {
+    state: string;
+    message: string;
+  } | null;
+};
+
+export type CaasStack = {
+  object: "caas_stack";
+  name: string;
+  version: number;
+  /**
+   * The outcome of the stack's **latest version**. `failed` means that version was rejected; the previous `deployed` one keeps running (see `deployed_version`).
+   */
+  status: "deployed" | "failed" | "removed" | "unknown";
+  /** What created the version. `restore` = the platform redeployed it after rebuilding the cluster. */
+  origin: "deploy" | "rollback" | "scale" | "webhook" | "remove" | "restore" | "unknown";
+  error: string | null;
+  updated_at: string | null;
+  /**
+   * What is running now, read from the cluster. `null` when the cluster did not answer: the rest of the resource is still accurate.
+   */
+  services: CaasStackService[] | null;
+};
+
+export type CaasStackList = {
+  object: "list";
+  data: CaasStack[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasStackVersion = {
+  object: "caas_stack_version";
+  version: number;
+  /**
+   * The outcome of the stack's **latest version**. `failed` means that version was rejected; the previous `deployed` one keeps running (see `deployed_version`).
+   */
+  status: "deployed" | "failed" | "removed" | "unknown";
+  /** What created the version. `restore` = the platform redeployed it after rebuilding the cluster. */
+  origin: "deploy" | "rollback" | "scale" | "webhook" | "remove" | "restore" | "unknown";
+  error: string | null;
+  created_at: string | null;
+};
+
+export type CaasStackTask = {
+  service: string;
+  desired_state: string;
+  current_state: string;
+  error: string;
+};
+
+export type CaasStackDetail = CaasStack & {
+  /** The version running now. `null` if none ever deployed successfully, or the stack was removed. */
+  deployed_version: number | null;
+  /** The compose file of `deployed_version`, exactly as it was sent. */
+  source: string | null;
+  /** Newest first. The last 20 are kept. */
+  versions: CaasStackVersion[];
+  /**
+   * Tasks that are not running, with their error. Empty when everything is healthy; `null` when the cluster did not answer.
+   */
+  tasks: CaasStackTask[] | null;
+};
+
+export type CaasStackVersionSource = CaasStackVersion & {
+  stack: string;
+  /** The compose file of that version, exactly as it was sent. */
+  source: string;
+};
+
+export type CaasStackLogs = {
+  object: "caas_stack_logs";
+  stack: string;
+  service: string;
+  /**
+   * Every replica, interleaved, each line prefixed with its timestamp. A snapshot, not a stream: to follow a service, call again with `since`.
+   */
+  lines: string[];
+};
+
+export type CaasSecret = {
+  object: "caas_secret";
+  name: string;
+  updated_at: string | null;
+};
+
+export type CaasSecretList = {
+  object: "list";
+  data: CaasSecret[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasObjectWrite = {
+  object: "caas_object_write";
+  name: string;
+  /** `false` if the stored value was already this one. */
+  changed: boolean;
+  /**
+   * Stacks that use it. A running service keeps the value it started with: redeploy these (`PUT /v1/caas/{id}/stacks/{stack}` with the same compose) for them to pick up the new one.
+   */
+  redeploy_needed: string[];
+};
+
+export type CaasConfig = {
+  object: "caas_config";
+  name: string;
+  updated_at: string | null;
+};
+
+export type CaasConfigList = {
+  object: "list";
+  data: CaasConfig[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasRegistry = {
+  object: "caas_registry";
+  server: string;
+  username: string;
+  updated_at: string | null;
+};
+
+export type CaasRegistryList = {
+  object: "list";
+  data: CaasRegistry[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasClusterDomain = {
+  object: "caas_cluster_domain";
+  host: string;
+  /** The cluster hostname. It cannot be removed. */
+  primary: boolean;
+  /** Whether the host resolves to the cluster right now. */
+  dns_ok: boolean;
+  /** The addresses the host resolves to right now. */
+  resolves_to: string[];
+  /** `null` while the certificate is being issued, or if issuance failed. */
+  certificate_expires_at: string | null;
+};
+
+export type CaasClusterDomainList = {
+  object: "list";
+  data: CaasClusterDomain[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasDeployKey = {
+  object: "caas_deploy_key";
+  /** Shown once. Send it as `Authorization: Bearer <key>` to the webhook. */
+  key: string;
+  /**
+   * Replace `{stack}` with the stack name. A `POST` redeploys the current version of that stack; with `{"images": {"web": "ghcr.io/acme/app:sha"}}` it swaps those images first.
+   */
+  webhook_url: string;
 };
 
 export type LoadBalancer = {
@@ -2422,6 +2633,20 @@ export type CaasAppsListQuery = {
   cursor?: string;
 };
 
+/** Body of `POST /v1/caas/{id}/domains`. */
+export type CaasClusterDomainsCreateBody = {
+  /**
+   * It must already have a CNAME to the cluster hostname (`cluster.name` in `GET /v1/caas/{id}`); otherwise the request fails with `validation_failed` and nothing changes.
+   */
+  host: string;
+};
+
+/** Body of `PUT /v1/caas/{id}/configs/{name}`. */
+export type CaasConfigsPutBody = {
+  /** Text, up to 32 KB. Stored encrypted; never returned by any endpoint. */
+  value: string;
+};
+
 /** Body of `POST /v1/caas/{id}/databases`. */
 export type CaasDatabasesCreateBody = {
   engine: "postgres" | "mysql" | "mariadb" | "mongo" | "redis";
@@ -2464,6 +2689,55 @@ export type CaasEnvReplaceBody = {
 export type CaasInstancesListQuery = {
   limit?: string;
   cursor?: string;
+};
+
+/** Body of `PUT /v1/caas/{id}/registries/{server}`. */
+export type CaasRegistriesPutBody = {
+  username: string;
+  /** A password or, better, a read-only token. Stored encrypted; never returned. */
+  password: string;
+};
+
+/** Body of `PUT /v1/caas/{id}/secrets/{name}`. */
+export type CaasSecretsPutBody = {
+  /** Text, up to 32 KB. Stored encrypted; never returned by any endpoint. */
+  value: string;
+};
+
+/** Query parameters of `GET /v1/caas/{id}/stacks/{stack}/services/{service}/logs`. */
+export type CaasStackServicesLogsQuery = {
+  tail?: number;
+  since?: string;
+};
+
+/** Body of `POST /v1/caas/{id}/stacks/{stack}/services/{service}/scale`. */
+export type CaasStackServicesScaleBody = {
+  /** 0 stops the service without removing it. At most 3: one per node. */
+  replicas: number;
+};
+
+/** Body of `PUT /v1/caas/{id}/stacks/{stack}`. */
+export type CaasStacksDeployBody = {
+  /**
+   * The docker-compose file, as text. The rules, checked before anything runs:
+   * 
+   * - Every service needs a `healthcheck`: it is what lets an update roll back on its own.
+   * - No bind mounts or local volumes. State goes to a database or to S3; a node can be replaced at any time.
+   * - Up to three replicas per service, at most one per node.
+   * - Secrets and configs are referenced by name and must exist first (`PUT /v1/caas/{id}/secrets/{name}`).
+   * - To publish a service, give it Traefik labels with a `Host()` rule on a domain of the cluster (`GET /v1/caas/{id}/domains`).
+   * 
+   * The platform adjusts some fields (placement, `start-first` updates) and lists what it changed in the operation `result.notes`.
+   */
+  compose: string;
+};
+
+/** Body of `POST /v1/caas/{id}/stacks/{stack}/rollback`. */
+export type CaasStacksRollbackBody = {
+  /**
+   * The version to go back to. Without it, the most recent deployed version whose content differs from the current one.
+   */
+  version?: number;
 };
 
 /** Query parameters of `GET /v1/dbaas/{id}/backups`. */
