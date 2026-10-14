@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.6.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.7.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -1011,6 +1011,10 @@ export type LbListener = {
     expect_status: number | null;
     /** Text the probe expects in the response body (`http`/`https`). */
     expect_body: string | null;
+    /** Consecutive passing probes before a backend is back in rotation. `null` = 2. */
+    healthy_threshold: number | null;
+    /** Consecutive failing probes before a backend is taken out of rotation. `null` = 3. */
+    unhealthy_threshold: number | null;
   };
   /**
    * Send the PROXY protocol v2 header to the backends so they see the real client IP. The backends must expect it, or every connection fails.
@@ -1018,6 +1022,17 @@ export type LbListener = {
   proxy_protocol: boolean;
   /** CIDR ranges allowed to connect. Empty = any source. */
   allowed_sources: string[];
+  /**
+   * HTTP mode: the balancer adds `X-Forwarded-For`, `X-Forwarded-Proto` and `X-Forwarded-Port` so your backends see the visitor, not the balancer.
+   */
+  forwarded_headers: boolean;
+  /** Port 80 answers plain HTTP with a 301 to this HTTPS listener. */
+  redirect_http: boolean;
+  /** Session affinity by cookie (HTTP mode). `null` = none. */
+  sticky_sessions: {
+    type: "cookie";
+    cookie_name: string;
+  } | null;
   backends: ({
     ip: string;
     port: number;
@@ -2966,6 +2981,10 @@ export type LbListenersReplaceBody = {
       expect_status?: number;
       /** Text that must appear in the body (`http`/`https`). ASCII, one line. */
       expect_body?: string;
+      /** Consecutive passing probes before a backend is back in rotation. Defaults to 2. */
+      healthy_threshold?: number;
+      /** Consecutive failing probes before a backend leaves rotation. Defaults to 3. */
+      unhealthy_threshold?: number;
     };
     /**
      * Send the PROXY protocol v2 header to the backends (they see the real client IP). Defaults to `false`. The backends must expect it, or every connection fails.
@@ -2973,6 +2992,22 @@ export type LbListenersReplaceBody = {
     proxy_protocol?: boolean;
     /** CIDR ranges allowed to connect (e.g. the ranges of your CDN). Omitted = any source. */
     allowed_sources?: string[];
+    /**
+     * HTTP mode only: add `X-Forwarded-For`, `X-Forwarded-Proto` and `X-Forwarded-Port` to each request. Defaults to `true`.
+     */
+    forwarded_headers?: boolean;
+    /**
+     * Answer plain HTTP on port 80 with a 301 to this listener. Requires `tls` `terminate` or `passthrough` and a port other than 80; only one listener per balancer, and no listener may use port 80. It does not count against the listener limit of your plan. Defaults to `false`.
+     */
+    redirect_http?: boolean;
+    /**
+     * Pin each visitor to one backend with a cookie the balancer sets. HTTP mode only (`protocol: http`, `tls` other than `passthrough`). For affinity by origin IP use `algorithm: source`.
+     */
+    sticky_sessions?: {
+      type: "cookie";
+      /** Defaults to `TRUOLB`. */
+      cookie_name?: string;
+    };
     /** A listener without backends is not representable: at least one. */
     backends: ({
       /** IP or hostname. */

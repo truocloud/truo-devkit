@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation. Since v1.4, an Enterprise CaaS service —a three-node cluster— deploys docker-compose **stacks** with versions and rollback, secrets, private registries, and its own domains.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
@@ -4016,6 +4016,20 @@
                   "null"
                 ],
                 "description": "Text the probe expects in the response body (`http`/`https`)."
+              },
+              "healthy_threshold": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Consecutive passing probes before a backend is back in rotation. `null` = 2."
+              },
+              "unhealthy_threshold": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Consecutive failing probes before a backend is taken out of rotation. `null` = 3."
               }
             },
             "required": [
@@ -4023,7 +4037,9 @@
               "path",
               "interval_ms",
               "expect_status",
-              "expect_body"
+              "expect_body",
+              "healthy_threshold",
+              "unhealthy_threshold"
             ]
           },
           "proxy_protocol": {
@@ -4036,6 +4052,36 @@
               "type": "string"
             },
             "description": "CIDR ranges allowed to connect. Empty = any source."
+          },
+          "forwarded_headers": {
+            "type": "boolean",
+            "description": "HTTP mode: the balancer adds `X-Forwarded-For`, `X-Forwarded-Proto` and `X-Forwarded-Port` so your backends see the visitor, not the balancer."
+          },
+          "redirect_http": {
+            "type": "boolean",
+            "description": "Port 80 answers plain HTTP with a 301 to this HTTPS listener."
+          },
+          "sticky_sessions": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "cookie"
+                ]
+              },
+              "cookie_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "cookie_name"
+            ],
+            "description": "Session affinity by cookie (HTTP mode). `null` = none."
           },
           "backends": {
             "type": "array",
@@ -4075,6 +4121,9 @@
           "health_check",
           "proxy_protocol",
           "allowed_sources",
+          "forwarded_headers",
+          "redirect_http",
+          "sticky_sessions",
           "backends"
         ]
       },
@@ -23530,6 +23579,18 @@
                               "minLength": 1,
                               "maxLength": 128,
                               "description": "Text that must appear in the body (`http`/`https`). ASCII, one line."
+                            },
+                            "healthy_threshold": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 10,
+                              "description": "Consecutive passing probes before a backend is back in rotation. Defaults to 2."
+                            },
+                            "unhealthy_threshold": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 10,
+                              "description": "Consecutive failing probes before a backend leaves rotation. Defaults to 3."
                             }
                           }
                         },
@@ -23546,6 +23607,34 @@
                           },
                           "maxItems": 64,
                           "description": "CIDR ranges allowed to connect (e.g. the ranges of your CDN). Omitted = any source."
+                        },
+                        "forwarded_headers": {
+                          "type": "boolean",
+                          "description": "HTTP mode only: add `X-Forwarded-For`, `X-Forwarded-Proto` and `X-Forwarded-Port` to each request. Defaults to `true`."
+                        },
+                        "redirect_http": {
+                          "type": "boolean",
+                          "description": "Answer plain HTTP on port 80 with a 301 to this listener. Requires `tls` `terminate` or `passthrough` and a port other than 80; only one listener per balancer, and no listener may use port 80. It does not count against the listener limit of your plan. Defaults to `false`."
+                        },
+                        "sticky_sessions": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "cookie"
+                              ]
+                            },
+                            "cookie_name": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z0-9_-]{1,32}$",
+                              "description": "Defaults to `TRUOLB`."
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ],
+                          "description": "Pin each visitor to one backend with a cookie the balancer sets. HTTP mode only (`protocol: http`, `tls` other than `passthrough`). For affinity by origin IP use `algorithm: source`."
                         },
                         "backends": {
                           "type": "array",
