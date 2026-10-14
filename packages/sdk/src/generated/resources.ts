@@ -1051,7 +1051,7 @@ export function createResources(call: Call, paginate: Paginate) {
       stats: {
         /**
          * Get per-listener state and traffic
-         * A point-in-time snapshot: current connections and bytes accumulated since the balancer's last start, plus each backend's health from the latest probe. There is no historical series.
+         * A point-in-time snapshot: current connections and bytes accumulated since the balancer's last start, plus each backend's health from the latest probe. For the series over time, use `GET /v1/load-balancers/{id}/stats/history`.
          * 
          * If the balancer does not answer the probe, the listeners still appear —they come from the stored configuration— with `state: unknown` and zeroed counters. A listener that exists but does not respond and one that exists with no traffic cannot be told apart by the counters: check `state`.
          * 
@@ -1059,6 +1059,16 @@ export function createResources(call: Call, paginate: Paginate) {
          */
         get: (id: string, params?: RequestOptions) =>
           call<T.LbStats>("lb.stats.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get the traffic history
+         * Fixed-size buckets for the requested window: new connections per second, bytes in and out per second, average and peak concurrent connections, and the lowest number of healthy backends. `total` adds every listener; `listeners` has the same series per listener.
+         * 
+         * The balancer is sampled once a minute and samples are kept 14 days. Every bucket of the window is returned; a bucket with no samples (before the service existed, or while it was unreachable) has `null` fields, which is a gap and not a zero. Rates come from cumulative counters, so a configuration change does not produce a spike or a negative value.
+         * 
+         * Scope: `lb:read`
+         */
+        history: (id: string, params?: T.LbStatsHistoryQuery & RequestOptions) =>
+          call<T.LbStatsHistory>("lb.stats.history", { path: { id }, body: undefined, queryKeys: ["range"], params }),
       },
     },
     mailgateway: {

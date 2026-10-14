@@ -1090,6 +1090,40 @@ export type LbStats = {
   })[];
 };
 
+/** One bucket. Every field is `null` when there is no data for it (a gap, not a zero). */
+export type LbHistoryPoint = {
+  /** Start of the bucket (ISO 8601, UTC). */
+  at: string;
+  /** New connections per second. */
+  connections_per_sec: number | null;
+  bytes_in_per_sec: number | null;
+  bytes_out_per_sec: number | null;
+  /** Average concurrent connections. */
+  sessions_avg: number | null;
+  /** Peak concurrent connections. */
+  sessions_max: number | null;
+  /** Lowest number of healthy backends seen in the bucket. */
+  backends_up_min: number | null;
+  backends_total: number | null;
+};
+
+export type LbStatsHistory = {
+  object: "lb_stats_history";
+  /**
+   * Window to return. Bucket size: `1h` → 1 min, `6h` → 5 min, `24h` → 15 min, `7d` → 1 h, `14d` → 2 h. Samples are kept 14 days.
+   */
+  range: "1h" | "6h" | "24h" | "7d" | "14d";
+  bucket_seconds: number;
+  from: string;
+  to: string;
+  /** All listeners together. */
+  total: LbHistoryPoint[];
+  listeners: ({
+    listener: string;
+    points: LbHistoryPoint[];
+  })[];
+};
+
 export type ObjectStorage = {
   object: "object_storage";
   service: string | null;
@@ -3016,6 +3050,11 @@ export type LbListenersReplaceBody = {
       weight?: number;
     })[];
   })[];
+};
+
+/** Query parameters of `GET /v1/load-balancers/{id}/stats/history`. */
+export type LbStatsHistoryQuery = {
+  range?: "1h" | "6h" | "24h" | "7d" | "14d";
 };
 
 /** Body of `POST /v1/mail-gateway/domains`. */

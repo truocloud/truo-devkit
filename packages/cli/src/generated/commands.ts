@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 239 commands derived from the spec. */
+/** The 240 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -2913,7 +2913,7 @@ export const COMMANDS: CommandSpec[] = [
     ],
     "operationId": "lb.stats.get",
     "summary": "Get per-listener state and traffic",
-    "description": "A point-in-time snapshot: current connections and bytes accumulated since the balancer's last start, plus each backend's health from the latest probe. There is no historical series.\n\nIf the balancer does not answer the probe, the listeners still appear —they come from the stored configuration— with `state: unknown` and zeroed counters. A listener that exists but does not respond and one that exists with no traffic cannot be told apart by the counters: check `state`.",
+    "description": "A point-in-time snapshot: current connections and bytes accumulated since the balancer's last start, plus each backend's health from the latest probe. For the series over time, use `GET /v1/load-balancers/{id}/stats/history`.\n\nIf the balancer does not answer the probe, the listeners still appear —they come from the stored configuration— with `state: unknown` and zeroed counters. A listener that exists but does not respond and one that exists with no traffic cannot be told apart by the counters: check `state`.",
     "danger": "none",
     "longRunning": false,
     "deprecated": false,
@@ -2929,6 +2929,45 @@ export const COMMANDS: CommandSpec[] = [
       }
     ],
     "flags": []
+  },
+  {
+    "path": [
+      "lb",
+      "history"
+    ],
+    "operationId": "lb.stats.history",
+    "summary": "Get the traffic history",
+    "description": "Fixed-size buckets for the requested window: new connections per second, bytes in and out per second, average and peak concurrent connections, and the lowest number of healthy backends. `total` adds every listener; `listeners` has the same series per listener.\n\nThe balancer is sampled once a minute and samples are kept 14 days. Every bucket of the window is returned; a bucket with no samples (before the service existed, or while it was unreachable) has `null` fields, which is a gap and not a zero. Rates come from cumulative counters, so a configuration change does not produce a spike or a negative value.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "lb:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "range",
+        "key": "range",
+        "in": "query",
+        "type": "string",
+        "required": false,
+        "values": [
+          "1h",
+          "6h",
+          "24h",
+          "7d",
+          "14d"
+        ]
+      }
+    ]
   },
   {
     "path": [
