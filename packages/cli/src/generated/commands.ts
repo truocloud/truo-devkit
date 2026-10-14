@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 235 commands derived from the spec. */
+/** The 239 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -4117,6 +4117,32 @@ export const COMMANDS: CommandSpec[] = [
     "path": [
       "serverless",
       "cron",
+      "availability"
+    ],
+    "operationId": "serverless.cron.availability.get",
+    "summary": "Get the Cron Jobs availability for a month",
+    "description": "The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "month",
+        "key": "month",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "cron",
       "get"
     ],
     "operationId": "serverless.cron.get",
@@ -4186,6 +4212,32 @@ export const COMMANDS: CommandSpec[] = [
       {
         "flag": "days",
         "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "db",
+      "availability"
+    ],
+    "operationId": "serverless.db.availability.get",
+    "summary": "Get the Serverless DB availability for a month",
+    "description": "The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "month",
+        "key": "month",
         "in": "query",
         "type": "string",
         "required": false
@@ -4275,6 +4327,32 @@ export const COMMANDS: CommandSpec[] = [
     "path": [
       "serverless",
       "functions",
+      "availability"
+    ],
+    "operationId": "serverless.functions.availability.get",
+    "summary": "Get the Serverless Functions availability for a month",
+    "description": "The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "month",
+        "key": "month",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "functions",
       "get"
     ],
     "operationId": "serverless.functions.get",
@@ -4344,6 +4422,32 @@ export const COMMANDS: CommandSpec[] = [
       {
         "flag": "days",
         "key": "days",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "serverless",
+      "kv",
+      "availability"
+    ],
+    "operationId": "serverless.kv.availability.get",
+    "summary": "Get the Serverless KV availability for a month",
+    "description": "The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "serverless:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [],
+    "flags": [
+      {
+        "flag": "month",
+        "key": "month",
         "in": "query",
         "type": "string",
         "required": false

@@ -1508,6 +1508,16 @@ export function createResources(call: Call, paginate: Paginate) {
     },
     serverless: {
       cron: {
+        availability: {
+          /**
+           * Get the Cron Jobs availability for a month
+           * The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessCronAvailabilityGetQuery & RequestOptions) =>
+            call<T.ServerlessAvailability>("serverless.cron.availability.get", { path: undefined, body: undefined, queryKeys: ["month"], params }),
+        },
         /**
          * Get the account's Cron Jobs
          * It takes no id: there is one Cron tenant per account. Returns the plan, its limits, how many schedules exist, and the month's executions. Schedules themselves are managed against the service's data plane with the tenant token.
@@ -1539,6 +1549,16 @@ export function createResources(call: Call, paginate: Paginate) {
         },
       },
       db: {
+        availability: {
+          /**
+           * Get the Serverless DB availability for a month
+           * The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessDbAvailabilityGetQuery & RequestOptions) =>
+            call<T.ServerlessAvailability>("serverless.db.availability.get", { path: undefined, body: undefined, queryKeys: ["month"], params }),
+        },
         /**
          * Get the account's Serverless DB
          * It takes no id: there is one Serverless DB tenant per account. Returns the plan, its limits, the live namespaces and the month's usage. **This is not DBaaS** (`/v1/databases`, managed database VMs): this is the serverless SQL primitive, D1-compatible, one SQLite database per namespace.
@@ -1570,6 +1590,16 @@ export function createResources(call: Call, paginate: Paginate) {
         },
       },
       functions: {
+        availability: {
+          /**
+           * Get the Serverless Functions availability for a month
+           * The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessFunctionsAvailabilityGetQuery & RequestOptions) =>
+            call<T.ServerlessAvailability>("serverless.functions.availability.get", { path: undefined, body: undefined, queryKeys: ["month"], params }),
+        },
         /**
          * Get the account's Serverless Functions
          * It takes no id: there is one Functions tenant per account. Returns the plan, its limits, how many functions are deployed, and the month's invocations. Deploys and invocations go through the service's data plane, not this API.
@@ -1601,6 +1631,16 @@ export function createResources(call: Call, paginate: Paginate) {
         },
       },
       kv: {
+        availability: {
+          /**
+           * Get the Serverless KV availability for a month
+           * The month's uptime of the service, the outages that count and the announced maintenance windows that are excluded. It is the evidence for an SLA credit claim. Measured every 30 s by a synthetic probe that exercises the service; there is no short-outage exclusion. The current month includes today up to now.
+           * 
+           * Scope: `serverless:read`
+           */
+          get: (params?: T.ServerlessKvAvailabilityGetQuery & RequestOptions) =>
+            call<T.ServerlessAvailability>("serverless.kv.availability.get", { path: undefined, body: undefined, queryKeys: ["month"], params }),
+        },
         /**
          * Get the account's Serverless KV
          * It takes no id: there is one KV tenant per account. Returns the plan, its limits, and the month's usage. If the account does not have the service, it returns 404.

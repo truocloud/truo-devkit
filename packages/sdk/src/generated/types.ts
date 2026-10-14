@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.4.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.5.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -430,6 +430,7 @@ export type Dbaas = {
   port: number | null;
   /** The physical node. Informational and not addressable; `null` on the shared tier. */
   node: string | null;
+  /** Region code: `us-east` (Virginia, US) or `ca-east` (Montreal, Canada). `null` while unknown. */
   region: string | null;
   plan: ({
     cpu_cores: number | null;
@@ -1776,6 +1777,37 @@ export type ServerlessFunctionsUsage = {
   })[];
 };
 
+export type ServerlessAvailability = {
+  object: "serverless_availability";
+  service: "kv" | "cron" | "db" | "functions";
+  /** The UTC calendar month, `YYYY-MM`. It is the period that gets billed. */
+  month: string;
+  /**
+   * The month's availability, 0–100, measured by a synthetic probe every 30 s that exercises the service (write and read, invoke, the scheduler firing on time). Announced maintenance windows are excluded. `null` with no measurement yet.
+   */
+  uptime_pct: number | null;
+  downtime_seconds: number;
+  measured_seconds: number;
+  /** Seconds inside announced maintenance windows: neither up nor down. */
+  excluded_seconds: number;
+  /** Seconds without a probe sample. They do not count as downtime. */
+  missing_seconds: number;
+  incidents: ({
+    start: string;
+    end: string;
+    seconds: number;
+  })[];
+  maintenance_windows: ({
+    start: string;
+    end: string;
+  })[];
+  days: ({
+    /** UTC day, `YYYY-MM-DD`. */
+    day: string;
+    uptime_pct: number | null;
+  })[];
+};
+
 export type RecipeSummary = {
   object: "recipe";
   name: string;
@@ -3042,10 +3074,20 @@ export type OrdersProductsListQuery = {
   family?: string;
 };
 
+/** Query parameters of `GET /v1/serverless/cron/availability`. */
+export type ServerlessCronAvailabilityGetQuery = {
+  month?: string;
+};
+
 /** Query parameters of `GET /v1/serverless/cron/usage`. */
 export type ServerlessCronUsageGetQuery = {
   period?: string;
   days?: string;
+};
+
+/** Query parameters of `GET /v1/serverless/db/availability`. */
+export type ServerlessDbAvailabilityGetQuery = {
+  month?: string;
 };
 
 /** Query parameters of `GET /v1/serverless/db/usage`. */
@@ -3054,10 +3096,20 @@ export type ServerlessDbUsageGetQuery = {
   days?: string;
 };
 
+/** Query parameters of `GET /v1/serverless/functions/availability`. */
+export type ServerlessFunctionsAvailabilityGetQuery = {
+  month?: string;
+};
+
 /** Query parameters of `GET /v1/serverless/functions/usage`. */
 export type ServerlessFunctionsUsageGetQuery = {
   period?: string;
   days?: string;
+};
+
+/** Query parameters of `GET /v1/serverless/kv/availability`. */
+export type ServerlessKvAvailabilityGetQuery = {
+  month?: string;
 };
 
 /** Query parameters of `GET /v1/serverless/kv/usage`. */
