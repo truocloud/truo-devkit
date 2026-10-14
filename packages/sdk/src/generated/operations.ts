@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Contract version (the OpenAPI `info.version`). */
-export const API_VERSION = "1.5.0";
+export const API_VERSION = "1.6.0";
 
 /** Production base URL (the OpenAPI `servers[0].url`). */
 export const API_BASE_URL = "https://api.truo.cloud";

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation. Since v1.4, an Enterprise CaaS service —a three-node cluster— deploys docker-compose **stacks** with versions and rollback, secrets, private registries, and its own domains.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
@@ -3746,6 +3746,34 @@
           "webhook_url"
         ]
       },
+      "LbReplica": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Stable identifier of the replica.",
+            "example": "A"
+          },
+          "public_ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "healthy": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "`null` = could not be verified (provisioning, or being rebuilt after a failure)."
+          }
+        },
+        "required": [
+          "label",
+          "public_ip",
+          "healthy"
+        ]
+      },
       "LoadBalancer": {
         "type": "object",
         "properties": {
@@ -3792,21 +3820,53 @@
               "string",
               "null"
             ],
-            "description": "The balancer's stable name. Point your DNS records here, not at the IP."
+            "description": "The balancer's stable name. Point your DNS records here, not at the IP: with a `pair` it resolves to both public IPs and drops the one of a replica that is down."
           },
           "public_ip": {
             "type": [
               "string",
               "null"
             ],
-            "description": "The IP traffic enters through. It can move to another machine on failure: that is part of how the service recovers, which is why it is not what belongs in DNS."
+            "description": "The IP traffic enters through (the first replica in a `pair`). It can move to another machine on failure: that is part of how the service recovers, which is why it is not what belongs in DNS."
+          },
+          "public_ips": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Every public IP of the service, in replica order: one for `single`, two for `pair`. Empty until provisioning assigns them."
+          },
+          "topology": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "single",
+              "pair"
+            ],
+            "description": "`null` when the control plane could not be reached."
+          },
+          "replicas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LbReplica"
+            },
+            "description": "State of each replica. Empty when the control plane could not be reached."
           },
           "healthy": {
             "type": [
               "boolean",
               "null"
             ],
-            "description": "Is the balancer responding? `null` = could not be verified, which is different from `false`: it happens while provisioning. It says nothing about the health of your backends — that is in `GET /v1/load-balancers/{id}/stats`."
+            "description": "Is the balancer responding? With a `pair`, `true` as soon as one replica serves. `null` = could not be verified, which is different from `false`: it happens while provisioning. It says nothing about the health of your backends — that is in `GET /v1/load-balancers/{id}/stats`."
+          },
+          "config_pending": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "A replica has not received the latest listener configuration yet (it is being rebuilt); the service converges it on its own. `null` when the control plane could not be reached."
           },
           "listener_count": {
             "type": [
@@ -3829,7 +3889,11 @@
           "provisioning_state",
           "hostname",
           "public_ip",
+          "public_ips",
+          "topology",
+          "replicas",
           "healthy",
+          "config_pending",
           "listener_count",
           "capabilities"
         ]
@@ -3925,8 +3989,10 @@
                 "type": "string",
                 "enum": [
                   "tcp",
-                  "http"
-                ]
+                  "http",
+                  "https"
+                ],
+                "description": "`tcp` opens a connection. `http` requests `path` in plaintext. `https` requests `path` over TLS without validating the certificate (use it for backends that only speak TLS; an `http` probe against port 443 always fails)."
               },
               "path": {
                 "type": [
@@ -3936,13 +4002,40 @@
               },
               "interval_ms": {
                 "type": "integer"
+              },
+              "expect_status": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "HTTP status the probe expects (`http`/`https`). `null` = any 2xx/3xx."
+              },
+              "expect_body": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Text the probe expects in the response body (`http`/`https`)."
               }
             },
             "required": [
               "type",
               "path",
-              "interval_ms"
+              "interval_ms",
+              "expect_status",
+              "expect_body"
             ]
+          },
+          "proxy_protocol": {
+            "type": "boolean",
+            "description": "Send the PROXY protocol v2 header to the backends so they see the real client IP. The backends must expect it, or every connection fails."
+          },
+          "allowed_sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "CIDR ranges allowed to connect. Empty = any source."
           },
           "backends": {
             "type": "array",
@@ -3980,6 +4073,8 @@
           "domain",
           "algorithm",
           "health_check",
+          "proxy_protocol",
+          "allowed_sources",
           "backends"
         ]
       },
@@ -23407,7 +23502,8 @@
                               "type": "string",
                               "enum": [
                                 "tcp",
-                                "http"
+                                "http",
+                                "https"
                               ],
                               "description": "Defaults to `tcp`."
                             },
@@ -23415,15 +23511,41 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 255,
-                              "description": "Required when `http`."
+                              "description": "Required when `http` or `https`."
                             },
                             "interval_ms": {
                               "type": "integer",
                               "minimum": 200,
                               "maximum": 60000,
                               "description": "How often each backend is probed. Defaults to 2000."
+                            },
+                            "expect_status": {
+                              "type": "integer",
+                              "minimum": 100,
+                              "maximum": 599,
+                              "description": "HTTP status the probe must get (`http`/`https`). Default: any 2xx/3xx."
+                            },
+                            "expect_body": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "description": "Text that must appear in the body (`http`/`https`). ASCII, one line."
                             }
                           }
+                        },
+                        "proxy_protocol": {
+                          "type": "boolean",
+                          "description": "Send the PROXY protocol v2 header to the backends (they see the real client IP). Defaults to `false`. The backends must expect it, or every connection fails."
+                        },
+                        "allowed_sources": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 50
+                          },
+                          "maxItems": 64,
+                          "description": "CIDR ranges allowed to connect (e.g. the ranges of your CDN). Omitted = any source."
                         },
                         "backends": {
                           "type": "array",

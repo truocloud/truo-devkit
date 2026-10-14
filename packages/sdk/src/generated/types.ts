@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.5.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.6.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -925,6 +925,14 @@ export type CaasDeployKey = {
   webhook_url: string;
 };
 
+export type LbReplica = {
+  /** Stable identifier of the replica. */
+  label: string;
+  public_ip: string | null;
+  /** `null` = could not be verified (provisioning, or being rebuilt after a failure). */
+  healthy: boolean | null;
+};
+
 export type LoadBalancer = {
   object: "load_balancer";
   id: string;
@@ -933,16 +941,30 @@ export type LoadBalancer = {
    * Provisioning progress. Distinct from `status`, which is the **contract** state in billing. Until it is `active`, writing listeners returns `400 unsupported_for_product`.
    */
   provisioning_state: "draft" | "provisioning" | "active" | "suspended" | "terminated" | "error" | "unknown";
-  /** The balancer's stable name. Point your DNS records here, not at the IP. */
+  /**
+   * The balancer's stable name. Point your DNS records here, not at the IP: with a `pair` it resolves to both public IPs and drops the one of a replica that is down.
+   */
   hostname: string | null;
   /**
-   * The IP traffic enters through. It can move to another machine on failure: that is part of how the service recovers, which is why it is not what belongs in DNS.
+   * The IP traffic enters through (the first replica in a `pair`). It can move to another machine on failure: that is part of how the service recovers, which is why it is not what belongs in DNS.
    */
   public_ip: string | null;
   /**
-   * Is the balancer responding? `null` = could not be verified, which is different from `false`: it happens while provisioning. It says nothing about the health of your backends — that is in `GET /v1/load-balancers/{id}/stats`.
+   * Every public IP of the service, in replica order: one for `single`, two for `pair`. Empty until provisioning assigns them.
+   */
+  public_ips: string[];
+  /** `null` when the control plane could not be reached. */
+  topology: "single" | "pair";
+  /** State of each replica. Empty when the control plane could not be reached. */
+  replicas: LbReplica[];
+  /**
+   * Is the balancer responding? With a `pair`, `true` as soon as one replica serves. `null` = could not be verified, which is different from `false`: it happens while provisioning. It says nothing about the health of your backends — that is in `GET /v1/load-balancers/{id}/stats`.
    */
   healthy: boolean | null;
+  /**
+   * A replica has not received the latest listener configuration yet (it is being rebuilt); the service converges it on its own. `null` when the control plane could not be reached.
+   */
+  config_pending: boolean | null;
   listener_count: number | null;
   /**
    * Which `/v1` endpoints respond for THIS service. A capability set to `false` returns `400 unsupported_for_product`.
@@ -979,10 +1001,23 @@ export type LbListener = {
    */
   algorithm: "roundrobin" | "leastconn" | "source";
   health_check: {
-    type: "tcp" | "http";
+    /**
+     * `tcp` opens a connection. `http` requests `path` in plaintext. `https` requests `path` over TLS without validating the certificate (use it for backends that only speak TLS; an `http` probe against port 443 always fails).
+     */
+    type: "tcp" | "http" | "https";
     path: string | null;
     interval_ms: number;
+    /** HTTP status the probe expects (`http`/`https`). `null` = any 2xx/3xx. */
+    expect_status: number | null;
+    /** Text the probe expects in the response body (`http`/`https`). */
+    expect_body: string | null;
   };
+  /**
+   * Send the PROXY protocol v2 header to the backends so they see the real client IP. The backends must expect it, or every connection fails.
+   */
+  proxy_protocol: boolean;
+  /** CIDR ranges allowed to connect. Empty = any source. */
+  allowed_sources: string[];
   backends: ({
     ip: string;
     port: number;
@@ -2922,12 +2957,22 @@ export type LbListenersReplaceBody = {
     algorithm?: "roundrobin" | "leastconn" | "source";
     health_check?: {
       /** Defaults to `tcp`. */
-      type?: "tcp" | "http";
-      /** Required when `http`. */
+      type?: "tcp" | "http" | "https";
+      /** Required when `http` or `https`. */
       path?: string;
       /** How often each backend is probed. Defaults to 2000. */
       interval_ms?: number;
+      /** HTTP status the probe must get (`http`/`https`). Default: any 2xx/3xx. */
+      expect_status?: number;
+      /** Text that must appear in the body (`http`/`https`). ASCII, one line. */
+      expect_body?: string;
     };
+    /**
+     * Send the PROXY protocol v2 header to the backends (they see the real client IP). Defaults to `false`. The backends must expect it, or every connection fails.
+     */
+    proxy_protocol?: boolean;
+    /** CIDR ranges allowed to connect (e.g. the ranges of your CDN). Omitted = any source. */
+    allowed_sources?: string[];
     /** A listener without backends is not representable: at least one. */
     backends: ({
       /** IP or hostname. */
