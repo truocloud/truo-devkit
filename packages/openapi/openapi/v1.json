@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation. Since v1.4, an Enterprise CaaS service —a three-node cluster— deploys docker-compose **stacks** with versions and rollback, secrets, private registries, and its own domains.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
@@ -17672,7 +17672,8 @@
       "get": {
         "operationId": "caas.apps.list",
         "summary": "List the service's apps",
-        "description": "`source` comes back `null`: the backend does not include it in the listing.",
+        "description": "`source` comes back `null`: the backend does not include it in the listing.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -17811,7 +17812,8 @@
       "post": {
         "operationId": "caas.apps.create",
         "summary": "Create an app",
-        "description": "Creates the app and configures its source, but **does not deploy it**: it stays `idle` until you call `POST /v1/caas/{id}/apps/{app_id}/deploy`. Separating the two is what lets you create the app, load its variables, and only then deploy — the reverse order would start the application without its configuration.",
+        "description": "Creates the app and configures its source, but **does not deploy it**: it stays `idle` until you call `POST /v1/caas/{id}/apps/{app_id}/deploy`. Separating the two is what lets you create the app, load its variables, and only then deploy — the reverse order would start the application without its configuration.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -17996,7 +17998,8 @@
       "get": {
         "operationId": "caas.apps.get",
         "summary": "Get an app",
-        "description": "Returns **only** the declared fields. The backend responds with the deployment engine's full internal object —including plaintext environment variables—; none of that leaves through here. For variable names, use `GET /v1/caas/{id}/apps/{app_id}/env`.",
+        "description": "Returns **only** the declared fields. The backend responds with the deployment engine's full internal object —including plaintext environment variables—; none of that leaves through here. For variable names, use `GET /v1/caas/{id}/apps/{app_id}/env`.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18127,7 +18130,8 @@
       "delete": {
         "operationId": "caas.apps.delete",
         "summary": "Delete an app",
-        "description": "**Destructive.** Deletes the app, its variables, and its domains. The service's database data is untouched: it lives separately.",
+        "description": "**Destructive.** Deletes the app, its variables, and its domains. The service's database data is untouched: it lives separately.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18264,7 +18268,8 @@
       "post": {
         "operationId": "caas.apps.deploy",
         "summary": "Deploy an app",
-        "description": "Returns `202` as soon as the deployment starts. The operation resolves by looking up that deployment in the app's history, the only place the backend reports its outcome. Wait on it with `GET /v1/operations/{id}`; failure details are in `GET /v1/caas/{id}/apps/{app_id}/logs`.\n\nIt lives in its own scope (`caas:deploy`) because deploying executes whatever code is in the configured source — which is different from editing the app's configuration.",
+        "description": "Returns `202` as soon as the deployment starts. The operation resolves by looking up that deployment in the app's history, the only place the backend reports its outcome. Wait on it with `GET /v1/operations/{id}`; failure details are in `GET /v1/caas/{id}/apps/{app_id}/logs`.\n\nIt lives in its own scope (`caas:deploy`) because deploying executes whatever code is in the configured source — which is different from editing the app's configuration.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18409,7 +18414,8 @@
       "post": {
         "operationId": "caas.apps.restart",
         "summary": "Restart an app",
-        "description": "Restarts the process without rebuilding the image: it picks up the current environment variables but does **not** pull new code. That is what `deploy` is for.",
+        "description": "Restarts the process without rebuilding the image: it picks up the current environment variables but does **not** pull new code. That is what `deploy` is for.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18553,7 +18559,8 @@
       "get": {
         "operationId": "caas.deployments.list",
         "summary": "List an app's deployment history",
-        "description": "Newest first, as the backend returns it.",
+        "description": "Newest first, as the backend returns it.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18705,7 +18712,8 @@
       "get": {
         "operationId": "caas.apps.logs",
         "summary": "Get an app's logs",
-        "description": "**A snapshot, not a stream.** Returns whatever the backend has at call time, and there is no way to ask for \"what came after\": the backend accepts a cursor but never emits the next one, so this endpoint publishes none. To follow an application live, call again.",
+        "description": "**A snapshot, not a stream.** Returns whatever the backend has at call time, and there is no way to ask for \"what came after\": the backend accepts a cursor but never emits the next one, so this endpoint publishes none. To follow an application live, call again.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18838,7 +18846,8 @@
       "get": {
         "operationId": "caas.env.list",
         "summary": "List environment variable names",
-        "description": "**Returns names, never values.** There is no version of this endpoint that returns them: once written, a value is read only by the application. The backend masks by applying a regex to the key name, which lets anything not named like a secret (`DATABASE_URL`, `SENTRY_DSN`) through in plaintext; that is not a classification policy and it is not published.",
+        "description": "**Returns names, never values.** There is no version of this endpoint that returns them: once written, a value is read only by the application. The backend masks by applying a regex to the key name, which lets anything not named like a secret (`DATABASE_URL`, `SENTRY_DSN`) through in plaintext; that is not a classification policy and it is not published.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -18969,7 +18978,8 @@
       "put": {
         "operationId": "caas.env.replace",
         "summary": "Replace the environment variables",
-        "description": "**Replaces the entire set**: anything missing from `vars` is deleted. Not a limitation — it is the semantics of the backend, which writes the whole block at once.\n\nSince `GET /env` returns no values, the set has to come from your side — your secrets manager or your configuration repository. That is the natural shape for declarative infrastructure, and it also removes the panel's failure mode, where saving without rewriting the secrets erased them.\n\nChanges take effect on the next `deploy` or `restart`.",
+        "description": "**Replaces the entire set**: anything missing from `vars` is deleted. Not a limitation — it is the semantics of the backend, which writes the whole block at once.\n\nSince `GET /env` returns no values, the set has to come from your side — your secrets manager or your configuration repository. That is the natural shape for declarative infrastructure, and it also removes the panel's failure mode, where saving without rewriting the secrets erased them.\n\nChanges take effect on the next `deploy` or `restart`.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -19155,6 +19165,8 @@
       "get": {
         "operationId": "caas.domains.list",
         "summary": "List an app's domains",
+        "description": "**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -19285,7 +19297,8 @@
       "post": {
         "operationId": "caas.domains.create",
         "summary": "Add a domain to an app",
-        "description": "The host's DNS must point at the service's IP **before** you call: certificate issuance is validated over HTTP.\n\nTwo more things to know:\n\n- **It is not atomic.** Creation registers the domain and then rebuilds the ingress routing; if the second step fails, the call returns an error with the domain already created. Retrying is safe and is the right move — creation is idempotent per host.\n- **The certificate is issued afterwards**, asynchronously, with no state or id to query. That is why `certificate_type` comes back `null` here. The only real check is an HTTPS request to the host.",
+        "description": "The host's DNS must point at the service's IP **before** you call: certificate issuance is validated over HTTP.\n\nTwo more things to know:\n\n- **It is not atomic.** Creation registers the domain and then rebuilds the ingress routing; if the second step fails, the call returns an error with the domain already created. Retrying is safe and is the right move — creation is idempotent per host.\n- **The certificate is issued afterwards**, asynchronously, with no state or id to query. That is why `certificate_type` comes back `null` here. The only real check is an HTTPS request to the host.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -19452,7 +19465,8 @@
       "delete": {
         "operationId": "caas.domains.delete",
         "summary": "Remove a domain from an app",
-        "description": "Deleting a host that is not on the app is not an error: the ingress routing is rebuilt either way, which is what makes retrying safe.",
+        "description": "Deleting a host that is not on the app is not an error: the ingress routing is rebuilt either way, which is what makes retrying safe.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -19599,7 +19613,8 @@
       "get": {
         "operationId": "caas.databases.list",
         "summary": "List the service's databases",
-        "description": "They belong to the service, not to an app: several apps in the same service can use the same database. **Credentials are not returned** by any endpoint of this API.",
+        "description": "They belong to the service, not to an app: several apps in the same service can use the same database. **Credentials are not returned** by any endpoint of this API.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],
@@ -19738,7 +19753,8 @@
       "post": {
         "operationId": "caas.databases.create",
         "summary": "Create a database",
-        "description": "The platform generates the password and **it is not returned here or by any other `/v1` endpoint**: there is no way to recover it through this API. Connect from an app in the same service, where the connection string is already available.\n\nDeleting a database is not in this version: the backend does not implement it yet, and publishing an endpoint that always fails would be publishing roadmap.",
+        "description": "The platform generates the password and **it is not returned here or by any other `/v1` endpoint**: there is no way to recover it through this API. Connect from an app in the same service, where the connection string is already available.\n\nDeleting a database is not in this version: the backend does not implement it yet, and publishing an endpoint that always fails would be publishing roadmap.\n\n**Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.",
+        "deprecated": true,
         "tags": [
           "CaaS"
         ],

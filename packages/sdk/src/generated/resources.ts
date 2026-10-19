@@ -101,7 +101,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * Create an app
          * Creates the app and configures its source, but **does not deploy it**: it stays `idle` until you call `POST /v1/caas/{id}/apps/{app_id}/deploy`. Separating the two is what lets you create the app, load its variables, and only then deploy — the reverse order would start the application without its configuration.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
+         * @deprecated
          */
         create: (id: string, body: T.CaasAppsCreateBody, params?: RequestOptions) =>
           call<T.CaasApp>("caas.apps.create", { path: { id }, body: body, queryKeys: undefined, params }),
@@ -109,8 +112,11 @@ export function createResources(call: Call, paginate: Paginate) {
          * Delete an app
          * **Destructive.** Deletes the app, its variables, and its domains. The service's database data is untouched: it lives separately.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
          * **Destructive: there is no undo.**
+         * @deprecated
          */
         delete: (id: string, appId: string, params?: RequestOptions) =>
           call<void>("caas.apps.delete", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -120,8 +126,11 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * It lives in its own scope (`caas:deploy`) because deploying executes whatever code is in the configured source — which is different from editing the app's configuration.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:deploy`
          * Returns an asynchronous operation; await it with `operations.wait()`.
+         * @deprecated
          */
         deploy: (id: string, appId: string, params?: RequestOptions) =>
           call<T.Operation>("caas.apps.deploy", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -129,7 +138,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * Get an app
          * Returns **only** the declared fields. The backend responds with the deployment engine's full internal object —including plaintext environment variables—; none of that leaves through here. For variable names, use `GET /v1/caas/{id}/apps/{app_id}/env`.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:read`
+         * @deprecated
          */
         get: (id: string, appId: string, params?: RequestOptions) =>
           call<T.CaasApp>("caas.apps.get", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -137,7 +149,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * List the service's apps
          * `source` comes back `null`: the backend does not include it in the listing.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:read`
+         * @deprecated
          */
         list: (id: string, params?: T.CaasAppsListQuery & RequestOptions) =>
           call<T.CaasAppList>("caas.apps.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
@@ -153,7 +168,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * Get an app's logs
          * **A snapshot, not a stream.** Returns whatever the backend has at call time, and there is no way to ask for "what came after": the backend accepts a cursor but never emits the next one, so this endpoint publishes none. To follow an application live, call again.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:read`
+         * @deprecated
          */
         logs: (id: string, appId: string, params?: RequestOptions) =>
           call<T.CaasLogs>("caas.apps.logs", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -161,7 +179,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * Restart an app
          * Restarts the process without rebuilding the image: it picks up the current environment variables but does **not** pull new code. That is what `deploy` is for.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
+         * @deprecated
          */
         restart: (id: string, appId: string, params?: RequestOptions) =>
           call<T.Operation>("caas.apps.restart", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -272,7 +293,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Deleting a database is not in this version: the backend does not implement it yet, and publishing an endpoint that always fails would be publishing roadmap.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
+         * @deprecated
          */
         create: (id: string, body: T.CaasDatabasesCreateBody, params?: RequestOptions) =>
           call<T.CaasDatabase>("caas.databases.create", { path: { id }, body: body, queryKeys: undefined, params }),
@@ -280,7 +304,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * List the service's databases
          * They belong to the service, not to an app: several apps in the same service can use the same database. **Credentials are not returned** by any endpoint of this API.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:read`
+         * @deprecated
          */
         list: (id: string, params?: T.CaasDatabasesListQuery & RequestOptions) =>
           call<T.CaasDatabaseList>("caas.databases.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
@@ -310,7 +337,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * List an app's deployment history
          * Newest first, as the backend returns it.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:read`
+         * @deprecated
          */
         list: (id: string, appId: string, params?: T.CaasDeploymentsListQuery & RequestOptions) =>
           call<T.CaasDeploymentList>("caas.deployments.list", { path: { id, app_id: appId }, body: undefined, queryKeys: ["limit", "cursor"], params }),
@@ -333,7 +363,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * - **It is not atomic.** Creation registers the domain and then rebuilds the ingress routing; if the second step fails, the call returns an error with the domain already created. Retrying is safe and is the right move — creation is idempotent per host.
          * - **The certificate is issued afterwards**, asynchronously, with no state or id to query. That is why `certificate_type` comes back `null` here. The only real check is an HTTPS request to the host.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
+         * @deprecated
          */
         create: (id: string, appId: string, body: T.CaasDomainsCreateBody, params?: RequestOptions) =>
           call<T.CaasDomain>("caas.domains.create", { path: { id, app_id: appId }, body: body, queryKeys: undefined, params }),
@@ -341,15 +374,20 @@ export function createResources(call: Call, paginate: Paginate) {
          * Remove a domain from an app
          * Deleting a host that is not on the app is not an error: the ingress routing is rebuilt either way, which is what makes retrying safe.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
          * **Destructive: there is no undo.**
+         * @deprecated
          */
         delete: (id: string, appId: string, host: string, params?: RequestOptions) =>
           call<void>("caas.domains.delete", { path: { id, app_id: appId, host }, body: undefined, queryKeys: undefined, params }),
         /**
          * List an app's domains
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
          * 
          * Scope: `caas:read`
+         * @deprecated
          */
         list: (id: string, appId: string, params?: RequestOptions) =>
           call<T.CaasDomainList>("caas.domains.list", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -367,7 +405,10 @@ export function createResources(call: Call, paginate: Paginate) {
          * List environment variable names
          * **Returns names, never values.** There is no version of this endpoint that returns them: once written, a value is read only by the application. The backend masks by applying a regex to the key name, which lets anything not named like a secret (`DATABASE_URL`, `SENTRY_DSN`) through in plaintext; that is not a classification policy and it is not published.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:read`
+         * @deprecated
          */
         list: (id: string, appId: string, params?: RequestOptions) =>
           call<T.CaasEnvVarList>("caas.env.list", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
@@ -387,8 +428,11 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Changes take effect on the next `deploy` or `restart`.
          * 
+         * **Deprecated** on 2026-10-19; it stops working on 2027-10-19. See https://docs.truo.cloud/changelog/caas-discovery-apps.
+         * 
          * Scope: `caas:write`
          * **Destructive: there is no undo.**
+         * @deprecated
          */
         replace: (id: string, appId: string, body: T.CaasEnvReplaceBody, params?: RequestOptions) =>
           call<T.CaasEnvVarList>("caas.env.replace", { path: { id, app_id: appId }, body: body, queryKeys: undefined, params }),

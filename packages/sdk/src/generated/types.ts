@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.8.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.9.0). */
 
 export type Capabilities = {
   object: "capabilities";
