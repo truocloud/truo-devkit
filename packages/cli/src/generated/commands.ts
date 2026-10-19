@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 240 commands derived from the spec. */
+/** The 241 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -536,6 +536,31 @@ export const COMMANDS: CommandSpec[] = [
     "longRunning": false,
     "deprecated": false,
     "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "cluster",
+      "recover"
+    ],
+    "operationId": "caas.cluster.recover",
+    "summary": "Recover a single-node service from its VM backup",
+    "description": "Brings the node back from the latest daily backup of its VM: the machine, its private address, and the data in your stack volumes. Use it when the node is lost or its disk is damaged. Your apps are down while it runs (a few minutes), and anything written after that backup is lost. The operation `result` carries `backup_at` and `backup_age_seconds`. Stacks that changed after the backup are redeployed as currently declared.\n\nOnly for single-node services (`capabilities.recover`); on three nodes it responds `400 unsupported_for_product`. Refused with `412 precondition_failed` when there is no backup to restore, and with `409 operation_in_progress` while another cluster operation runs.",
+    "danger": "destructive",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
     "bodyRequired": false,
     "freeformBody": false,
     "positionals": [

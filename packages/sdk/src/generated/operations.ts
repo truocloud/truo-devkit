@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Contract version (the OpenAPI `info.version`). */
-export const API_VERSION = "1.7.0";
+export const API_VERSION = "1.8.0";
 
 /** Production base URL (the OpenAPI `servers[0].url`). */
 export const API_BASE_URL = "https://api.truo.cloud";
@@ -39,7 +39,7 @@ export interface OperationMeta {
   successStatus: number;
 }
 
-/** The 243 operations of `/v1`, indexed by `operationId`. */
+/** The 244 operations of `/v1`, indexed by `operationId`. */
 export const OPERATIONS = {
   "account.get": {"id":"account.get","method":"GET","path":"/v1/account","tag":"Account","summary":"Get the current account and credential","scope":"account:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":false,"pathParams":[],"queryParams":[],"hasBody":false,"successStatus":200},
   "apiKeys.create": {"id":"apiKeys.create","method":"POST","path":"/v1/api-keys","tag":"API Keys","summary":"Create an API key","scope":"apikeys:write","danger":"reversible","longRunning":false,"idempotent":true,"rateBucket":"write","deprecated":false,"paginated":false,"pathParams":[],"queryParams":[],"hasBody":true,"successStatus":201},
@@ -58,6 +58,7 @@ export const OPERATIONS = {
   "caas.cluster_domains.create": {"id":"caas.cluster_domains.create","method":"POST","path":"/v1/caas/{id}/domains","tag":"CaaS","summary":"Add a domain to an Enterprise cluster","scope":"caas:write","danger":"reversible","longRunning":true,"idempotent":true,"rateBucket":"write","deprecated":false,"paginated":false,"pathParams":["id"],"queryParams":[],"hasBody":true,"successStatus":202},
   "caas.cluster_domains.delete": {"id":"caas.cluster_domains.delete","method":"DELETE","path":"/v1/caas/{id}/domains/{host}","tag":"CaaS","summary":"Remove a domain from an Enterprise cluster","scope":"caas:write","danger":"destructive","longRunning":true,"idempotent":true,"rateBucket":"write","deprecated":false,"paginated":false,"pathParams":["id","host"],"queryParams":[],"hasBody":false,"successStatus":202},
   "caas.cluster_domains.list": {"id":"caas.cluster_domains.list","method":"GET","path":"/v1/caas/{id}/domains","tag":"CaaS","summary":"List an Enterprise cluster's domains","scope":"caas:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":true,"pathParams":["id"],"queryParams":[],"hasBody":false,"successStatus":200},
+  "caas.cluster.recover": {"id":"caas.cluster.recover","method":"POST","path":"/v1/caas/{id}/recover","tag":"CaaS","summary":"Recover a single-node service from its VM backup","scope":"caas:write","danger":"destructive","longRunning":true,"idempotent":true,"rateBucket":"expensive","deprecated":false,"paginated":false,"pathParams":["id"],"queryParams":[],"hasBody":false,"successStatus":202},
   "caas.cluster.restart": {"id":"caas.cluster.restart","method":"POST","path":"/v1/caas/{id}/restart","tag":"CaaS","summary":"Rolling restart of an Enterprise cluster","scope":"caas:write","danger":"reversible","longRunning":true,"idempotent":true,"rateBucket":"expensive","deprecated":false,"paginated":false,"pathParams":["id"],"queryParams":[],"hasBody":false,"successStatus":202},
   "caas.configs.delete": {"id":"caas.configs.delete","method":"DELETE","path":"/v1/caas/{id}/configs/{name}","tag":"CaaS","summary":"Delete a config","scope":"caas:write","danger":"destructive","longRunning":false,"idempotent":true,"rateBucket":"write","deprecated":false,"paginated":false,"pathParams":["id","name"],"queryParams":[],"hasBody":false,"successStatus":204},
   "caas.configs.list": {"id":"caas.configs.list","method":"GET","path":"/v1/caas/{id}/configs","tag":"CaaS","summary":"List an Enterprise service's configs","scope":"caas:read","danger":"none","longRunning":false,"idempotent":false,"rateBucket":"read","deprecated":false,"paginated":true,"pathParams":["id"],"queryParams":[],"hasBody":false,"successStatus":200},

@@ -205,6 +205,18 @@ export function createResources(call: Call, paginate: Paginate) {
       },
       cluster: {
         /**
+         * Recover a single-node service from its VM backup
+         * Brings the node back from the latest daily backup of its VM: the machine, its private address, and the data in your stack volumes. Use it when the node is lost or its disk is damaged. Your apps are down while it runs (a few minutes), and anything written after that backup is lost. The operation `result` carries `backup_at` and `backup_age_seconds`. Stacks that changed after the backup are redeployed as currently declared.
+         * 
+         * Only for single-node services (`capabilities.recover`); on three nodes it responds `400 unsupported_for_product`. Refused with `412 precondition_failed` when there is no backup to restore, and with `409 operation_in_progress` while another cluster operation runs.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        recover: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.cluster.recover", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
          * Rolling restart of an Enterprise cluster
          * Restarts the three nodes one at a time. Each one leaves the cluster hostname first, its replicas move to the other two, and it rejoins once it serves TLS again. Services with two or more replicas keep answering; one with a single replica is cut while its node restarts. Takes several minutes.
          * 
