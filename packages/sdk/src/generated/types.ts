@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.9.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.10.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -923,6 +923,240 @@ export type CaasDeployKey = {
    * Replace `{stack}` with the stack name. A `POST` redeploys the current version of that stack; with `{"images": {"web": "ghcr.io/acme/app:sha"}}` it swaps those images first.
    */
   webhook_url: string;
+};
+
+export type CaasBuildTarget = {
+  stack: string;
+  /** As in the compose file. */
+  service: string;
+};
+
+export type CaasBuild = {
+  object: "caas_build";
+  /** Opaque. Builds are addressed by `number`. */
+  id: string;
+  /** Sequential per service. */
+  number: number;
+  /**
+   * `queued` → `running` → (`deploying`, only with `deploy`) → `succeeded` | `failed` | `canceled`. `succeeded` with an `error` means the image was built but deploying it to its target failed.
+   */
+  status: "queued" | "running" | "deploying" | "succeeded" | "failed" | "canceled" | "unknown";
+  repo: string;
+  /** Branch or tag. */
+  ref: string;
+  /** Directory inside the repository; `null` = its root. */
+  path: string | null;
+  /** Relative to `path`. `null` = `Dockerfile` if there is one. */
+  dockerfile: string | null;
+  /**
+   * `dockerfile` when the repository has one; otherwise `railpack` (detects the language and builds without a Dockerfile). `null` until the build starts.
+   */
+  mode: "dockerfile" | "railpack";
+  /** The commit that was built. `null` until the clone. */
+  commit: string | null;
+  /**
+   * The image by digest in your cluster registry, ready for a compose file. Being a digest, rolling a stack back brings back the same bytes. `null` until the build succeeds.
+   */
+  image: string | null;
+  /** Name in the cluster registry. */
+  image_name: string;
+  /** Where the image is deployed when the build succeeds. `null` = build only. */
+  deploy: CaasBuildTarget & ({
+    /** The stack version the build created. `null` until then. */
+    version: number | null;
+  }) | null;
+  error: string | null;
+  /** `push` = a push to a connected repository; `platform` = started by TruoCloud. */
+  origin: "api" | "rerun" | "push" | "platform" | "unknown";
+  /** The cluster node that ran it, 0 to 2. */
+  member: number | null;
+  created_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  /** Duration, once finished. */
+  seconds: number | null;
+  /** The image was removed from the registry to free space. */
+  pruned: boolean;
+  /** The `id` of the source it built, if any. */
+  source_id: string | null;
+};
+
+export type CaasBuildList = {
+  object: "list";
+  data: CaasBuild[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasBuildStarted = CaasBuild & {
+  /**
+   * Starting from a source: `true` when a build of that source was already waiting in the queue and that build is returned instead of a new one. It clones the branch when it starts, so it builds the latest push too. Always `false` for a public repository.
+   */
+  coalesced: boolean;
+};
+
+export type CaasStartBuildRequest = {
+  /**
+   * An `https` URL of a **public** repository. For a private one, connect it as a source and send `source` instead.
+   */
+  repo?: string;
+  /** Branch or tag. Defaults to `main`. */
+  ref?: string;
+  /** Directory inside the repository to build. Defaults to its root. */
+  path?: string;
+  /** Relative to `path`. Without it: `Dockerfile` if there is one, otherwise automatic detection. */
+  dockerfile?: string;
+  /** Name in the cluster registry. Defaults to the repository name. */
+  image?: string;
+  /**
+   * Deploy the image as a new version of this stack service when the build succeeds. The stack must already be deployed with that service; the rest of its compose file is kept.
+   */
+  deploy?: {
+    stack: string;
+    service: string;
+  };
+  /**
+   * Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. Nothing else may be sent with it.
+   */
+  source?: string;
+};
+
+export type CaasBuildLog = {
+  object: "caas_build_log";
+  number: number;
+  /**
+   * `queued` → `running` → (`deploying`, only with `deploy`) → `succeeded` | `failed` | `canceled`. `succeeded` with an `error` means the image was built but deploying it to its target failed.
+   */
+  status: "queued" | "running" | "deploying" | "succeeded" | "failed" | "canceled" | "unknown";
+  /** Pass it as `offset` on the next call. */
+  offset: number;
+  /** The log from the requested `offset` on. */
+  text: string;
+  /** `true` once the build no longer changes: stop polling. */
+  done: boolean;
+};
+
+export type CaasSource = {
+  object: "caas_source";
+  /** Opaque. Sources are addressed by `name`. */
+  id: string;
+  name: string;
+  /** `github`: through the TruoCloud GitHub App. `git`: any Git server over SSH, with a deploy key. */
+  provider: "github" | "git";
+  /** The repository, for display. Never carries credentials. */
+  repo: string;
+  branch: string;
+  path: string | null;
+  dockerfile: string | null;
+  /** Name in the cluster registry. */
+  image: string;
+  deploy: CaasBuildTarget & Record<string, unknown> | null;
+  /** A push to `branch` builds (and deploys, with `deploy`). */
+  auto_deploy: boolean;
+  /** `git` only: the OpenSSH public key to add to the repository as a **read-only** deploy key. */
+  deploy_key: string | null;
+  /** `git` only: point the repository's push webhook here, signed with the `webhook_secret`. */
+  webhook_url: string | null;
+  /**
+   * `git` only: the server's SSH host key seen on the first clone is the only one accepted afterwards. If the server changes its key, `PATCH` with `reset_host_key: true`.
+   */
+  host_key_pinned: boolean | null;
+  last_push_at: string | null;
+  last_commit: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type CaasSourceList = {
+  object: "list";
+  data: CaasSource[];
+  has_more: boolean;
+  /**
+   * Pass it as `cursor` for the next page. It is **opaque**: do not build it, do not parse it, and do not store it across versions.
+   */
+  next_cursor: string | null;
+};
+
+export type CaasSourceWithSecret = CaasSource & {
+  /**
+   * `git` only, and **shown once**: the secret that signs the push webhook (HMAC signature on GitHub, Gitea, Forgejo, and Bitbucket; secret token on GitLab). `null` for `github` sources, which receive pushes through the app.
+   */
+  webhook_secret: string | null;
+};
+
+export type CaasCreateSourceRequest = {
+  /** Defaults to `github`. */
+  provider?: "github" | "git";
+  /** Unique in the service. Defaults to `image`. */
+  name?: string;
+  /**
+   * `github`: `owner/name`. `git`: an SSH URL, `git@host:owner/repo.git` or `ssh://git@host[:port]/owner/repo.git`.
+   */
+  repo: string;
+  /** Defaults to `main`. */
+  branch?: string;
+  /** Directory inside the repository to build. Defaults to its root. */
+  path?: string;
+  /** Relative to `path`. Without it: `Dockerfile` if there is one, otherwise automatic detection. */
+  dockerfile?: string;
+  /** Name in the cluster registry. Defaults to the repository name. */
+  image?: string;
+  /**
+   * Deploy the image as a new version of this stack service when the build succeeds. The stack must already be deployed with that service; the rest of its compose file is kept.
+   */
+  deploy?: {
+    stack: string;
+    service: string;
+  };
+  /** Defaults to `true`. */
+  auto_deploy?: boolean;
+};
+
+/** Only what is sent changes. The repository and provider cannot change: delete and create again. */
+export type CaasUpdateSourceRequest = {
+  branch?: string;
+  /** `null` = the repository root. */
+  path?: string | null;
+  /** `null` = detect. */
+  dockerfile?: string | null;
+  /** Name in the cluster registry. Defaults to the repository name. */
+  image?: string;
+  /** `null` = build only, do not deploy. */
+  deploy?: {
+    stack: string;
+    service: string;
+  } | null;
+  auto_deploy?: boolean;
+  /** `git` only: forget the pinned SSH host key; the next clone pins the server's current one. */
+  reset_host_key?: boolean;
+};
+
+export type CaasGithub = {
+  object: "caas_github";
+  /** `false` while the GitHub connection is not offered yet. */
+  available: boolean;
+  app: {
+    slug: string;
+    url: string;
+  } | null;
+  /** The app installations connected to this service. */
+  installations: ({
+    installation_id: number;
+    /** The GitHub user or organization. */
+    account: string;
+    connected_at: string | null;
+  })[];
+};
+
+export type CaasGithubInstallLink = {
+  object: "caas_github_install_link";
+  /** Open it in a browser signed in to GitHub. */
+  url: string;
+  /** One hour after it was issued. */
+  expires_at: string | null;
 };
 
 export type LbReplica = {
@@ -2747,6 +2981,16 @@ export type CaasAppsCreateBody = {
 export type CaasAppsListQuery = {
   limit?: string;
   cursor?: string;
+};
+
+/** Query parameters of `GET /v1/caas/{id}/builds`. */
+export type CaasBuildsListQuery = {
+  limit?: number;
+};
+
+/** Query parameters of `GET /v1/caas/{id}/builds/{number}/log`. */
+export type CaasBuildsLogQuery = {
+  offset?: number | null;
 };
 
 /** Body of `POST /v1/caas/{id}/domains`. */

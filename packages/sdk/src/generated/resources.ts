@@ -187,6 +187,78 @@ export function createResources(call: Call, paginate: Paginate) {
         restart: (id: string, appId: string, params?: RequestOptions) =>
           call<T.Operation>("caas.apps.restart", { path: { id, app_id: appId }, body: undefined, queryKeys: undefined, params }),
       },
+      builds: {
+        /**
+         * Cancel a build
+         * A queued build never starts; a running one is stopped. Refused with `400 validation_failed` once the build has finished or is already deploying.
+         * 
+         * Scope: `caas:deploy`
+         */
+        cancel: (id: string, number: number, params?: RequestOptions) =>
+          call<T.CaasBuild>("caas.builds.cancel", { path: { id, number }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a build
+         * Its status, the commit it built, the resulting image by digest and, with `deploy`, the stack version it created.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, number: number, params?: RequestOptions) =>
+          call<T.CaasBuild>("caas.builds.get", { path: { id, number }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List a Truo Deploy service's builds
+         * Newest first. Builds from every origin: the API, reruns, and pushes to connected repositories.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: T.CaasBuildsListQuery & RequestOptions) =>
+          call<T.CaasBuildList>("caas.builds.list", { path: { id }, body: undefined, queryKeys: ["limit"], params }),
+        /**
+         * Iterates **all** pages of `caas.builds.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.CaasBuildsListQuery & RequestOptions) =>
+          paginate<T.CaasBuild>(
+            "caas.builds.list", { path: { id }, queryKeys: ["limit"], params },
+          ),
+        /**
+         * Get a build's log
+         * Read it incrementally: pass the `offset` of each response to the next call to get only what is new, and stop when `done` is `true`.
+         * 
+         * Scope: `caas:read`
+         */
+        log: (id: string, number: number, params?: T.CaasBuildsLogQuery & RequestOptions) =>
+          call<T.CaasBuildLog>("caas.builds.log", { path: { id, number }, body: undefined, queryKeys: ["offset"], params }),
+        /**
+         * Run a build again
+         * Queues a new build (a new `number`) with the same settings. A build of a source runs with what the source says now, and is `coalesced` like any build of a source.
+         * 
+         * The build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.
+         * 
+         * With `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.
+         * 
+         * Returns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.
+         * 
+         * Scope: `caas:deploy`
+         */
+        rerun: (id: string, number: number, params?: RequestOptions) =>
+          call<T.CaasBuildStarted>("caas.builds.rerun", { path: { id, number }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Build an image from a Git repository
+         * From a public repository (`repo`), or from a connected one (`source`) — private repositories go through a source. Starting from a source while a build of it is already waiting returns that build (`coalesced: true`) instead of queuing another.
+         * 
+         * The build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.
+         * 
+         * With `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.
+         * 
+         * Returns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.
+         * 
+         * Requires `caas:deploy`: with `deploy`, the build ends up running.
+         * 
+         * Scope: `caas:deploy`
+         */
+        start: (id: string, body: T.CaasStartBuildRequest, params?: RequestOptions) =>
+          call<T.CaasBuildStarted>("caas.builds.start", { path: { id }, body: body, queryKeys: undefined, params }),
+      },
       clusterDomains: {
         /**
          * Add a domain to an Enterprise cluster
@@ -437,6 +509,34 @@ export function createResources(call: Call, paginate: Paginate) {
         replace: (id: string, appId: string, body: T.CaasEnvReplaceBody, params?: RequestOptions) =>
           call<T.CaasEnvVarList>("caas.env.replace", { path: { id, app_id: appId }, body: body, queryKeys: undefined, params }),
       },
+      githubInstallations: {
+        /**
+         * Disconnect a GitHub installation
+         * Unbinds it from this service; the app stays installed on GitHub. Builds of `github` sources on that account fail until it is connected again.
+         * 
+         * Scope: `caas:deploy`
+         */
+        delete: (id: string, installationId: number, params?: RequestOptions) =>
+          call<void>("caas.github_installations.delete", { path: { id, installation_id: installationId }, body: undefined, queryKeys: undefined, params }),
+      },
+      github: {
+        /**
+         * GitHub connection of a service
+         * Whether the TruoCloud GitHub App is available and which of its installations (GitHub users or organizations) are connected to this service. A `github` source needs an installation that covers its repository.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, params?: RequestOptions) =>
+          call<T.CaasGithub>("caas.github.get", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a link to connect GitHub
+         * A link, valid for one hour, to install (or reconfigure) the TruoCloud GitHub App and connect it to this service. Open it signed in to GitHub, choose the repositories, and authorize: only installations your GitHub user can see are connected.
+         * 
+         * Scope: `caas:deploy`
+         */
+        installLink: (id: string, params?: RequestOptions) =>
+          call<T.CaasGithubInstallLink>("caas.github.install_link", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      },
       instances: {
         /**
          * Get a CaaS service with its live state
@@ -536,6 +636,84 @@ export function createResources(call: Call, paginate: Paginate) {
          */
         put: (id: string, name: string, body: T.CaasSecretsPutBody, params?: RequestOptions) =>
           call<T.CaasObjectWrite>("caas.secrets.put", { path: { id, name }, body: body, queryKeys: undefined, params }),
+      },
+      sources: {
+        /**
+         * Build a connected repository now
+         * The latest commit of its branch, with its settings. If a build of this source is already waiting, that one is returned (`coalesced: true`).
+         * 
+         * The build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.
+         * 
+         * With `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.
+         * 
+         * Returns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.
+         * 
+         * Scope: `caas:deploy`
+         */
+        build: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasBuildStarted>("caas.sources.build", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Connect a repository
+         * A source is a private repository this service builds from, by API or on every push.
+         * 
+         * - **`github`**: the TruoCloud GitHub App must be installed on the repository and connected to this service (`POST /v1/caas/{id}/github/install`). Each build clones with a short-lived, read-only token.
+         * - **`git`**: any Git server over SSH. Add the returned `deploy_key` to the repository as a **read-only** deploy key, and point the server's push webhook at `webhook_url` with the `webhook_secret` (HMAC signature on GitHub, Gitea, Forgejo, and Bitbucket; secret token on GitLab). The `webhook_secret` is shown **only in this response**. The server's SSH host key is pinned on the first clone.
+         * 
+         * With `auto_deploy` on, a push to `branch` builds and, with `deploy`, deploys. A push while a build of the source is already queued does not queue another.
+         * 
+         * Scope: `caas:deploy`
+         */
+        create: (id: string, body: T.CaasCreateSourceRequest, params?: RequestOptions) =>
+          call<T.CaasSourceWithSecret>("caas.sources.create", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Disconnect a repository
+         * Its queued builds are canceled; finished builds and their images stay. A `git` source loses its deploy key for good: remove it from the repository too.
+         * 
+         * Scope: `caas:deploy`
+         * **Destructive: there is no undo.**
+         */
+        delete: (id: string, name: string, params?: RequestOptions) =>
+          call<void>("caas.sources.delete", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a connected repository
+         * Never the webhook secret: if it was lost, rotate it.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasSource>("caas.sources.get", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List connected repositories
+         * The repositories this service builds from, with what each builds and where it deploys.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasSourceList>("caas.sources.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.sources.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasSource>(
+            "caas.sources.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Rotate a repository's webhook secret
+         * `git` sources only (GitHub sources receive pushes through the app). Returns the new secret **once**; the previous one stops working immediately, so update the webhook on the Git server.
+         * 
+         * Scope: `caas:deploy`
+         */
+        rotateSecret: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasSourceWithSecret>("caas.sources.rotate_secret", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Change a connected repository
+         * What it builds (`branch`, `path`, `dockerfile`, `image`), where it deploys, and `auto_deploy`. The repository and the provider cannot change: delete the source and connect it again. Applies from the next build.
+         * 
+         * Scope: `caas:deploy`
+         */
+        update: (id: string, name: string, body: T.CaasUpdateSourceRequest, params?: RequestOptions) =>
+          call<T.CaasSource>("caas.sources.update", { path: { id, name }, body: body, queryKeys: undefined, params }),
       },
       stackServices: {
         /**

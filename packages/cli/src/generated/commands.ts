@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 241 commands derived from the spec. */
+/** The 257 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -457,6 +457,253 @@ export const COMMANDS: CommandSpec[] = [
       }
     ],
     "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "build",
+      "cancel"
+    ],
+    "operationId": "caas.builds.cancel",
+    "summary": "Cancel a build",
+    "description": "A queued build never starts; a running one is stopped. Refused with `400 validation_failed` once the build has finished or is already deploying.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "number",
+        "in": "path",
+        "key": "number",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "build",
+      "get"
+    ],
+    "operationId": "caas.builds.get",
+    "summary": "Get a build",
+    "description": "Its status, the commit it built, the resulting image by digest and, with `deploy`, the stack version it created.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "number",
+        "in": "path",
+        "key": "number",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "build",
+      "list"
+    ],
+    "operationId": "caas.builds.list",
+    "summary": "List a Truo Deploy service's builds",
+    "description": "Newest first. Builds from every origin: the API, reruns, and pushes to connected repositories.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "limit",
+        "key": "limit",
+        "in": "query",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "build",
+      "log"
+    ],
+    "operationId": "caas.builds.log",
+    "summary": "Get a build's log",
+    "description": "Read it incrementally: pass the `offset` of each response to the next call to get only what is new, and stop when `done` is `true`.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "number",
+        "in": "path",
+        "key": "number",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "offset",
+        "key": "offset",
+        "in": "query",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "build",
+      "rerun"
+    ],
+    "operationId": "caas.builds.rerun",
+    "summary": "Run a build again",
+    "description": "Queues a new build (a new `number`) with the same settings. A build of a source runs with what the source says now, and is `coalesced` like any build of a source.\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "number",
+        "in": "path",
+        "key": "number",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "build",
+      "start"
+    ],
+    "operationId": "caas.builds.start",
+    "summary": "Build an image from a Git repository",
+    "description": "From a public repository (`repo`), or from a connected one (`source`) — private repositories go through a source. Starting from a source while a build of it is already waiting returns that build (`coalesced: true`) instead of queuing another.\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.\n\nRequires `caas:deploy`: with `deploy`, the build ends up running.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "repo",
+        "key": "repo",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "An `https` URL of a **public** repository. For a private one, connect it as a source and send `source` instead."
+      },
+      {
+        "flag": "ref",
+        "key": "ref",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Branch or tag. Defaults to `main`."
+      },
+      {
+        "flag": "path",
+        "key": "path",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Directory inside the repository to build. Defaults to its root."
+      },
+      {
+        "flag": "dockerfile",
+        "key": "dockerfile",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Relative to `path`. Without it: `Dockerfile` if there is one, otherwise automatic detection."
+      },
+      {
+        "flag": "image",
+        "key": "image",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Name in the cluster registry. Defaults to the repository name."
+      },
+      {
+        "flag": "deploy",
+        "key": "deploy",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Deploy the image as a new version of this stack service when the build succeeds. The stack must already be deployed with that service; the rest of its compose file is kept."
+      },
+      {
+        "flag": "source",
+        "key": "source",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. Nothing else may be sent with it."
+      }
+    ]
   },
   {
     "path": [
@@ -1034,6 +1281,87 @@ export const COMMANDS: CommandSpec[] = [
   {
     "path": [
       "caas",
+      "github",
+      "disconnect"
+    ],
+    "operationId": "caas.github_installations.delete",
+    "summary": "Disconnect a GitHub installation",
+    "description": "Unbinds it from this service; the app stays installed on GitHub. Builds of `github` sources on that account fail until it is connected again.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "installation_id",
+        "in": "path",
+        "key": "installation_id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "github",
+      "status"
+    ],
+    "operationId": "caas.github.get",
+    "summary": "GitHub connection of a service",
+    "description": "Whether the TruoCloud GitHub App is available and which of its installations (GitHub users or organizations) are connected to this service. A `github` source needs an installation that covers its repository.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "github",
+      "install-link"
+    ],
+    "operationId": "caas.github.install_link",
+    "summary": "Get a link to connect GitHub",
+    "description": "A link, valid for one hour, to install (or reconfigure) the TruoCloud GitHub App and connect it to this service. Open it signed in to GitHub, choose the repositories, and authorize: only installations your GitHub user can see are connected.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
       "get"
     ],
     "operationId": "caas.instances.get",
@@ -1283,6 +1611,343 @@ export const COMMANDS: CommandSpec[] = [
         "type": "string",
         "required": true,
         "description": "Text, up to 32 KB. Stored encrypted; never returned by any endpoint."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "build"
+    ],
+    "operationId": "caas.sources.build",
+    "summary": "Build a connected repository now",
+    "description": "The latest commit of its branch, with its settings. If a build of this source is already waiting, that one is returned (`coalesced: true`).\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "create"
+    ],
+    "operationId": "caas.sources.create",
+    "summary": "Connect a repository",
+    "description": "A source is a private repository this service builds from, by API or on every push.\n\n- **`github`**: the TruoCloud GitHub App must be installed on the repository and connected to this service (`POST /v1/caas/{id}/github/install`). Each build clones with a short-lived, read-only token.\n- **`git`**: any Git server over SSH. Add the returned `deploy_key` to the repository as a **read-only** deploy key, and point the server's push webhook at `webhook_url` with the `webhook_secret` (HMAC signature on GitHub, Gitea, Forgejo, and Bitbucket; secret token on GitLab). The `webhook_secret` is shown **only in this response**. The server's SSH host key is pinned on the first clone.\n\nWith `auto_deploy` on, a push to `branch` builds and, with `deploy`, deploys. A push while a build of the source is already queued does not queue another.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "provider",
+        "key": "provider",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "values": [
+          "github",
+          "git"
+        ],
+        "description": "Defaults to `github`."
+      },
+      {
+        "flag": "name",
+        "key": "name",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Unique in the service. Defaults to `image`."
+      },
+      {
+        "flag": "repo",
+        "key": "repo",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "`github`: `owner/name`. `git`: an SSH URL, `git@host:owner/repo.git` or `ssh://git@host[:port]/owner/repo.git`."
+      },
+      {
+        "flag": "branch",
+        "key": "branch",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Defaults to `main`."
+      },
+      {
+        "flag": "path",
+        "key": "path",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Directory inside the repository to build. Defaults to its root."
+      },
+      {
+        "flag": "dockerfile",
+        "key": "dockerfile",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Relative to `path`. Without it: `Dockerfile` if there is one, otherwise automatic detection."
+      },
+      {
+        "flag": "image",
+        "key": "image",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Name in the cluster registry. Defaults to the repository name."
+      },
+      {
+        "flag": "deploy",
+        "key": "deploy",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Deploy the image as a new version of this stack service when the build succeeds. The stack must already be deployed with that service; the rest of its compose file is kept."
+      },
+      {
+        "flag": "auto-deploy",
+        "key": "auto_deploy",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Defaults to `true`."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "delete"
+    ],
+    "operationId": "caas.sources.delete",
+    "summary": "Disconnect a repository",
+    "description": "Its queued builds are canceled; finished builds and their images stay. A `git` source loses its deploy key for good: remove it from the repository too.",
+    "danger": "destructive",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "get"
+    ],
+    "operationId": "caas.sources.get",
+    "summary": "Get a connected repository",
+    "description": "Never the webhook secret: if it was lost, rotate it.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "list"
+    ],
+    "operationId": "caas.sources.list",
+    "summary": "List connected repositories",
+    "description": "The repositories this service builds from, with what each builds and where it deploys.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "rotate-secret"
+    ],
+    "operationId": "caas.sources.rotate_secret",
+    "summary": "Rotate a repository's webhook secret",
+    "description": "`git` sources only (GitHub sources receive pushes through the app). Returns the new secret **once**; the previous one stops working immediately, so update the webhook on the Git server.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "source",
+      "update"
+    ],
+    "operationId": "caas.sources.update",
+    "summary": "Change a connected repository",
+    "description": "What it builds (`branch`, `path`, `dockerfile`, `image`), where it deploys, and `auto_deploy`. The repository and the provider cannot change: delete the source and connect it again. Applies from the next build.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "branch",
+        "key": "branch",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "path",
+        "key": "path",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "`null` = the repository root."
+      },
+      {
+        "flag": "dockerfile",
+        "key": "dockerfile",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "`null` = detect."
+      },
+      {
+        "flag": "image",
+        "key": "image",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Name in the cluster registry. Defaults to the repository name."
+      },
+      {
+        "flag": "deploy",
+        "key": "deploy",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "`null` = build only, do not deploy."
+      },
+      {
+        "flag": "auto-deploy",
+        "key": "auto_deploy",
+        "in": "body",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "flag": "reset-host-key",
+        "key": "reset_host_key",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "`git` only: forget the pinned SSH host key; the next clone pins the server's current one."
       }
     ]
   },
