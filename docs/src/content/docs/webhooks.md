@@ -1,6 +1,6 @@
 ---
 title: Webhooks
-description: Signed HTTP notifications when an operation finishes or a service changes state, so you don't have to poll.
+description: Signed HTTP notifications when an operation finishes, a service changes state or a Truo Deploy build fails, so you don't have to poll.
 ---
 
 A webhook is an `https` URL you register once; the API POSTs a signed event
@@ -37,6 +37,7 @@ truo webhooks create --url https://example.com/hooks/truo \
 | `service.active` | a service becomes active (first provisioning, or unsuspended) | a service summary |
 | `service.suspended` | billing suspended it | a service summary |
 | `service.terminated` | billing terminated it | a service summary |
+| `deploy.build.failed` | a [Truo Deploy build](/reference/caas/) failed, whatever started it: the API, a push to a connected repository or the panel | a `deploy_build` summary ([below](#deploybuildfailed)) |
 | `webhook.ping` | you called `POST /v1/webhooks/{id}/ping` | `{ "object": "ping", … }` |
 
 Subscribe to `"*"` to receive every type, including ones added later.
@@ -49,6 +50,30 @@ Every delivery has the same body:
   "data": { "object": "operation", "id": "op_01JQ8X…", "type": "orders.create",
             "status": "succeeded", "resource": { "object": "order", "id": "ord_245" },
             "result": { "service": { "id": 1241, "status": "active" } }, … } }
+```
+
+### `deploy.build.failed`
+
+```jsonc
+{ "id": "evt_8K2M…", "object": "event", "type": "deploy.build.failed",
+  "created_at": "2026-11-02T12:03:11.000Z",
+  "data": { "object": "deploy_build",
+            "service": { "object": "caas", "id": "svc_10432" },
+            "number": 12,
+            "repo": "https://github.com/acme/app", "ref": "main",
+            "commit": "4f1c2a9e0b7d",          // null if it failed before the clone
+            "origin": "push",                  // api | rerun | push | platform | unknown
+            "error": "npm ci exited with code 1",   // short, at most 500 characters
+            "created_at": "2026-11-02T12:00:00.000Z",
+            "finished_at": "2026-11-02T12:03:10.000Z" } }
+```
+
+`error` is a summary, not the log. The full log is one request away, with the
+same `service.id` and `number`:
+
+```bash
+truo caas build log svc_10432 12
+# or: GET /v1/caas/svc_10432/builds/12/log
 ```
 
 ## Verify the signature
