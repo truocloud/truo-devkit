@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.10.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.11.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -2903,13 +2903,13 @@ export type WebhookWithSecret = Webhook & {
 export type CreateWebhookRequest = {
   /** Must be `https` and reachable from the public internet (no private or loopback addresses). */
   url: string;
-  events: ("operation.completed" | "service.active" | "service.suspended" | "service.terminated" | "webhook.ping" | "*")[];
+  events: ("operation.completed" | "service.active" | "service.suspended" | "service.terminated" | "deploy.build.failed" | "webhook.ping" | "*")[];
   description?: string;
 };
 
 export type UpdateWebhookRequest = {
   url?: string;
-  events?: ("operation.completed" | "service.active" | "service.suspended" | "service.terminated" | "webhook.ping" | "*")[];
+  events?: ("operation.completed" | "service.active" | "service.suspended" | "service.terminated" | "deploy.build.failed" | "webhook.ping" | "*")[];
   description?: string | null;
   /** Re-enabling resets `consecutive_failures`. */
   enabled?: boolean;
