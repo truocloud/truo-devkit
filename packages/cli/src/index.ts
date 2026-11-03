@@ -74,6 +74,16 @@ function distance(a: string, b: string): number {
   return rows[a.length]![b.length]!;
 }
 
+/**
+ * `--version` is global (CLI and contract version) unless the command has a
+ * flag of that name: `truo caas stack rollback <svc> <stack> --version 3` is
+ * the version to roll back to, not a request to print the CLI version.
+ */
+export function takesVersionFlag(words: string[]): boolean {
+  const found = words.length > 0 ? match(words) : null;
+  return found?.kind === "generated" && found.command.flags.some((f) => f.flag === "version");
+}
+
 export async function main(argv: string[]): Promise<number> {
   let args: ParsedArgs;
   try {
@@ -82,7 +92,7 @@ export async function main(argv: string[]): Promise<number> {
     return report(toCliError(err));
   }
 
-  if (flagBool(args.flags, "version") || args.words[0] === "version") {
+  if (args.words[0] === "version" || (flagBool(args.flags, "version") && !takesVersionFlag(args.words))) {
     out(`truo ${CLI_VERSION}  ${color.dim(`(OpenAPI contract ${API_VERSION})`)}`);
     return EXIT.OK;
   }
