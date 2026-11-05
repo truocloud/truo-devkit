@@ -565,6 +565,69 @@ export function createResources(call: Call, paginate: Paginate) {
             "caas.instances.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
           ),
       },
+      previews: {
+        /**
+         * Rebuild a preview
+         * The same as a push to its branch: builds the latest commit, deploys it and pushes its expiry back.
+         * 
+         * Scope: `caas:deploy`
+         */
+        build: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasPreviewBuild>("caas.previews.build", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Open a preview of a branch
+         * Builds `ref` from the production `source` and, when it succeeds, runs it in its own stack `pv-<name>` with the compose file of the running `base_stack`: one replica per service, every route to `https://<name>.<cluster name>`, `TRUO_PREVIEW=<name>` in every service (so the app can turn off real emails or jobs with side effects) and new, empty volumes. With `database`, it also gets its own empty PostgreSQL database, mounted under the production secret name; the app runs its migrations on start.
+         * 
+         * A push to `ref` rebuilds it and pushes its expiry back; after `ttl_hours` (24 by default) without one, it closes by itself. Up to 3 may be open per service. Requires previews enabled (`POST /v1/caas/{id}/previews/enable`).
+         * 
+         * Returns `202` with the preview in `building`; poll `GET /v1/caas/{id}/previews/{name}`.
+         * 
+         * Scope: `caas:deploy`
+         */
+        create: (id: string, body: T.CaasOpenPreviewRequest, params?: RequestOptions) =>
+          call<T.CaasPreview>("caas.previews.create", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Close a preview
+         * Removes what the preview created —its stack, its secret, its database— and nothing else. Answers `202` with the preview in `closing`.
+         * 
+         * Scope: `caas:deploy`
+         */
+        delete: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasPreview>("caas.previews.delete", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Enable previews on a service
+         * Once per service: publishes the wildcard `*.<cluster name>`, issues its certificate and routes it on every node, then checks TLS through each one. After that, opening a preview touches neither DNS nor certificates. Running it again only checks again.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        enable: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.previews.enable", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a preview
+         * An open preview, with its status, address, latest build and error.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasPreview>("caas.previews.get", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List the previews of a service
+         * The open ones, whether previews are enabled, and how many may be open at once.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: T.CaasPreviewsListQuery & RequestOptions) =>
+          call<T.CaasPreviewList>("caas.previews.list", { path: { id }, body: undefined, queryKeys: ["closed"], params }),
+        /**
+         * Iterates **all** pages of `caas.previews.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.CaasPreviewsListQuery & RequestOptions) =>
+          paginate<T.CaasPreview>(
+            "caas.previews.list", { path: { id }, queryKeys: ["closed"], params },
+          ),
+      },
       registries: {
         /**
          * Delete private registry credentials
@@ -640,7 +703,7 @@ export function createResources(call: Call, paginate: Paginate) {
       sources: {
         /**
          * Build a connected repository now
-         * The latest commit of its branch, with its settings. If a build of this source is already waiting, that one is returned (`coalesced: true`).
+         * The latest commit of its branch, with its settings. `ref` builds another branch or tag and `deploy` sends the image elsewhere (`null` = build only); a different `ref` without `deploy` builds only, so a branch never lands on the source stack unless you name it. If a build of this source for the same branch and target is already waiting, that one is returned (`coalesced: true`).
          * 
          * The build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.
          * 
@@ -650,8 +713,8 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Scope: `caas:deploy`
          */
-        build: (id: string, name: string, params?: RequestOptions) =>
-          call<T.CaasBuildStarted>("caas.sources.build", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        build: (id: string, name: string, body?: T.CaasSourceBuildRequest, params?: RequestOptions) =>
+          call<T.CaasBuildStarted>("caas.sources.build", { path: { id, name }, body: body, queryKeys: undefined, params }),
         /**
          * Connect a repository
          * A source is a private repository this service builds from, by API or on every push.

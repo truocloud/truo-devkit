@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation. Since v1.4, an Enterprise CaaS service —a three-node cluster— deploys docker-compose **stacks** with versions and rollback, secrets, private registries, and its own domains.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
@@ -3934,6 +3934,14 @@
               "null"
             ],
             "description": "The `id` of the source it built, if any."
+          },
+          "preview": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The preview environment that asked for it, if any.",
+            "example": "pr-12"
           }
         },
         "required": [
@@ -3958,7 +3966,8 @@
           "finished_at",
           "seconds",
           "pruned",
-          "source_id"
+          "source_id",
+          "preview"
         ]
       },
       "CaasBuildList": {
@@ -4045,7 +4054,10 @@
             "example": "app"
           },
           "deploy": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "stack": {
                 "type": "string",
@@ -4067,7 +4079,7 @@
           "source": {
             "type": "string",
             "pattern": "^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$",
-            "description": "Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. Nothing else may be sent with it.",
+            "description": "Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. With it, only `ref` and `deploy` may be sent, as in `POST /v1/caas/{id}/sources/{name}/build`.",
             "example": "web"
           }
         }
@@ -4354,7 +4366,10 @@
             "example": "app"
           },
           "deploy": {
-            "type": "object",
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "stack": {
                 "type": "string",
@@ -4443,6 +4458,40 @@
           }
         },
         "description": "Only what is sent changes. The repository and provider cannot change: delete and create again."
+      },
+      "CaasSourceBuildRequest": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Another branch or tag of the repository. Defaults to the source `branch`. A different `ref` without `deploy` builds only: a branch never lands on the source stack unless you name that stack.",
+            "example": "feature/new-checkout"
+          },
+          "deploy": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "stack": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{0,29}$",
+                "example": "web"
+              },
+              "service": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+                "example": "app"
+              }
+            },
+            "required": [
+              "stack",
+              "service"
+            ],
+            "description": "Where the image goes when the build succeeds, instead of the source target. `null` = build only."
+          }
+        }
       },
       "CaasGithub": {
         "type": "object",
@@ -4537,6 +4586,341 @@
           "object",
           "url",
           "expires_at"
+        ]
+      },
+      "CaasPreview": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_preview"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "pr-12"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "building",
+              "deploying",
+              "ready",
+              "failed",
+              "closing",
+              "closed",
+              "unknown"
+            ],
+            "description": "`building` (the branch is building) → `deploying` → `ready` (the address answers over HTTPS) | `failed` (see `error`; a new push or `POST …/build` tries again). `closing` → `closed` once its stack, secret and database are gone."
+          },
+          "url": {
+            "type": "string",
+            "description": "Where it answers.",
+            "example": "https://pr-12.d-1368.app.truo.dev"
+          },
+          "ref": {
+            "type": "string",
+            "description": "The branch it builds.",
+            "example": "feature/new-checkout"
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The connected repository it builds from.",
+            "example": "web"
+          },
+          "base_stack": {
+            "type": "string",
+            "description": "The production stack its compose file is derived from.",
+            "example": "web"
+          },
+          "service": {
+            "type": "string",
+            "description": "The service of `base_stack` that runs the built image.",
+            "example": "app"
+          },
+          "stack": {
+            "type": "string",
+            "description": "Its own stack, `pv-<name>`.",
+            "example": "pv-pr-12"
+          },
+          "pr_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "database": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "dbaas_service_id": {
+                "type": "string",
+                "example": "svc_1371"
+              },
+              "secret": {
+                "type": "string",
+                "description": "The preview secret that holds its URL, mounted with the production secret name.",
+                "example": "app-db-url-pv-pr-12"
+              },
+              "database": {
+                "type": "string",
+                "example": "pv_pr_12"
+              },
+              "user": {
+                "type": "string",
+                "example": "pv_pr_12"
+              }
+            },
+            "required": [
+              "dbaas_service_id",
+              "secret",
+              "database",
+              "user"
+            ],
+            "description": "Its own empty database, when it was opened with one. Never the URL or the password."
+          },
+          "last_build": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The `number` of its latest build."
+          },
+          "last_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ttl_hours": {
+            "type": "integer",
+            "description": "Hours without a push before it closes by itself."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ready_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "closed_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`api`, `expired`, or the state the service went to."
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "object",
+          "name",
+          "status",
+          "url",
+          "ref",
+          "source",
+          "base_stack",
+          "service",
+          "stack",
+          "pr_url",
+          "database",
+          "last_build",
+          "last_commit",
+          "error",
+          "ttl_hours",
+          "expires_at",
+          "ready_at",
+          "closed_at",
+          "closed_reason",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CaasPreviewList": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "list"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaasPreview"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "next_cursor": {
+            "type": "null"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Previews were enabled on this service (`POST …/previews/enable`)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "How many may be open at once.",
+            "example": 3
+          },
+          "wildcard": {
+            "type": "string",
+            "example": "*.d-1368.app.truo.dev"
+          }
+        },
+        "required": [
+          "object",
+          "data",
+          "has_more",
+          "next_cursor",
+          "enabled",
+          "limit",
+          "wildcard"
+        ]
+      },
+      "CaasOpenPreviewRequest": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$",
+            "description": "The connected repository of production (`GET /v1/caas/{id}/sources`).",
+            "example": "web"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The branch of the pull request.",
+            "example": "feature/new-checkout"
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9-]{0,24}[a-z0-9])?$",
+            "description": "Defaults to the branch, shortened. It becomes the address: `<name>.<cluster name>`.",
+            "example": "pr-12"
+          },
+          "base_stack": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,29}$",
+            "description": "Defaults to the source target stack."
+          },
+          "service": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,39}$",
+            "description": "Defaults to the source target service."
+          },
+          "pr_url": {
+            "type": "string",
+            "maxLength": 300,
+            "format": "uri"
+          },
+          "ttl_hours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 336,
+            "description": "Defaults to 24.",
+            "example": 24
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "dbaas_service_id": {
+                "type": "string",
+                "description": "A PostgreSQL DBaaS service of the same account.",
+                "example": "svc_1371"
+              },
+              "secret": {
+                "type": "string",
+                "description": "The secret of `base_stack` that holds the database URL.",
+                "example": "app-db-url"
+              }
+            },
+            "required": [
+              "dbaas_service_id",
+              "secret"
+            ],
+            "description": "Give the preview its own empty database instead of the production one."
+          },
+          "shared_secrets": {
+            "type": "boolean",
+            "description": "Without `database`, a production stack with secrets is refused: the preview would share them, database included. `true` says none of them leads to production data."
+          }
+        },
+        "required": [
+          "source",
+          "ref"
+        ]
+      },
+      "CaasPreviewBuild": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "caas_preview_build"
+            ]
+          },
+          "preview": {
+            "type": "string"
+          },
+          "build": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Follow it in `GET /v1/caas/{id}/builds/{number}`."
+          },
+          "coalesced": {
+            "type": "boolean",
+            "description": "A build of this preview was already waiting and builds the latest push too."
+          }
+        },
+        "required": [
+          "object",
+          "preview",
+          "build",
+          "coalesced"
         ]
       },
       "LbReplica": {
@@ -25832,7 +26216,7 @@
       "post": {
         "operationId": "caas.sources.build",
         "summary": "Build a connected repository now",
-        "description": "The latest commit of its branch, with its settings. If a build of this source is already waiting, that one is returned (`coalesced: true`).\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.",
+        "description": "The latest commit of its branch, with its settings. `ref` builds another branch or tag and `deploy` sends the image elsewhere (`null` = build only); a different `ref` without `deploy` builds only, so a branch never lands on the source stack unless you name it. If a build of this source for the same branch and target is already waiting, that one is returned (`coalesced: true`).\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.",
         "tags": [
           "CaaS"
         ],
@@ -25878,6 +26262,16 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaasSourceBuildRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "202": {
             "description": "Build queued.",
@@ -26270,6 +26664,835 @@
         "responses": {
           "204": {
             "description": "Disconnected."
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/previews/enable": {
+      "post": {
+        "operationId": "caas.previews.enable",
+        "summary": "Enable previews on a service",
+        "description": "Once per service: publishes the wildcard `*.<cluster name>`, issues its certificate and routes it on every node, then checks TLS through each one. After that, opening a preview touches neither DNS nor certificates. Running it again only checks again.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:write",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-long-running": true,
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas preview enable",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "preview_enable",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Being enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/previews": {
+      "get": {
+        "operationId": "caas.previews.list",
+        "summary": "List the previews of a service",
+        "description": "The open ones, whether previews are enabled, and how many may be open at once.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas preview list",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "preview_list",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "`true` also returns the latest closed previews."
+            },
+            "required": false,
+            "name": "closed",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The previews.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasPreviewList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "caas.previews.create",
+        "summary": "Open a preview of a branch",
+        "description": "Builds `ref` from the production `source` and, when it succeeds, runs it in its own stack `pv-<name>` with the compose file of the running `base_stack`: one replica per service, every route to `https://<name>.<cluster name>`, `TRUO_PREVIEW=<name>` in every service (so the app can turn off real emails or jobs with side effects) and new, empty volumes. With `database`, it also gets its own empty PostgreSQL database, mounted under the production secret name; the app runs its migrations on start.\n\nA push to `ref` rebuilds it and pushes its expiry back; after `ttl_hours` (24 by default) without one, it closes by itself. Up to 3 may be open per service. Requires previews enabled (`POST /v1/caas/{id}/previews/enable`).\n\nReturns `202` with the preview in `building`; poll `GET /v1/caas/{id}/previews/{name}`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:deploy",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas preview create",
+          "positional": [
+            "service_id"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "preview_create",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaasOpenPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Preview opened.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/previews/{name}": {
+      "get": {
+        "operationId": "caas.previews.get",
+        "summary": "Get a preview",
+        "description": "An open preview, with its status, address, latest build and error.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:read",
+        "x-truo-rate-bucket": "read",
+        "x-truo-danger": "none",
+        "x-truo-cli": {
+          "command": "caas preview get",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "preview_get",
+          "readonly": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,24}[a-z0-9])?$",
+              "example": "pr-12"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "caas.previews.delete",
+        "summary": "Close a preview",
+        "description": "Removes what the preview created —its stack, its secret, its database— and nothing else. Answers `202` with the preview in `closing`.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:deploy",
+        "x-truo-rate-bucket": "write",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas preview close",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "preview_close",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,24}[a-z0-9])?$",
+              "example": "pr-12"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Closing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is missing, invalid, revoked, or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential lacks the required scope or permission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The resource does not exist or is not visible to this credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: the resource already exists, or the `Idempotency-Key` was reused with a different body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded. Check `Retry-After`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "An upstream service is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/caas/{id}/previews/{name}/build": {
+      "post": {
+        "operationId": "caas.previews.build",
+        "summary": "Rebuild a preview",
+        "description": "The same as a push to its branch: builds the latest commit, deploys it and pushes its expiry back.",
+        "tags": [
+          "CaaS"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-truo-scope": "caas:deploy",
+        "x-truo-rate-bucket": "expensive",
+        "x-truo-danger": "reversible",
+        "x-truo-idempotent": true,
+        "x-truo-cli": {
+          "command": "caas preview build",
+          "positional": [
+            "service_id",
+            "name"
+          ]
+        },
+        "x-truo-mcp": {
+          "toolset": "caas",
+          "action": "preview_build",
+          "readonly": false
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "svc_10432"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,24}[a-z0-9])?$",
+              "example": "pr-12"
+            },
+            "required": true,
+            "name": "name",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Build queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaasPreviewBuild"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request.",

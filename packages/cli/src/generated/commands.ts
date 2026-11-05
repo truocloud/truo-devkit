@@ -50,7 +50,7 @@ export interface CommandSpec {
   flags: Flag[];
 }
 
-/** The 257 commands derived from the spec. */
+/** The 263 commands derived from the spec. */
 export const COMMANDS: CommandSpec[] = [
   {
     "path": [
@@ -701,7 +701,7 @@ export const COMMANDS: CommandSpec[] = [
         "in": "body",
         "type": "string",
         "required": false,
-        "description": "Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. Nothing else may be sent with it."
+        "description": "Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. With it, only `ref` and `deploy` may be sent, as in `POST /v1/caas/{id}/sources/{name}/build`."
       }
     ]
   },
@@ -1418,6 +1418,258 @@ export const COMMANDS: CommandSpec[] = [
   {
     "path": [
       "caas",
+      "preview",
+      "build"
+    ],
+    "operationId": "caas.previews.build",
+    "summary": "Rebuild a preview",
+    "description": "The same as a push to its branch: builds the latest commit, deploys it and pushes its expiry back.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "preview",
+      "create"
+    ],
+    "operationId": "caas.previews.create",
+    "summary": "Open a preview of a branch",
+    "description": "Builds `ref` from the production `source` and, when it succeeds, runs it in its own stack `pv-<name>` with the compose file of the running `base_stack`: one replica per service, every route to `https://<name>.<cluster name>`, `TRUO_PREVIEW=<name>` in every service (so the app can turn off real emails or jobs with side effects) and new, empty volumes. With `database`, it also gets its own empty PostgreSQL database, mounted under the production secret name; the app runs its migrations on start.\n\nA push to `ref` rebuilds it and pushes its expiry back; after `ttl_hours` (24 by default) without one, it closes by itself. Up to 3 may be open per service. Requires previews enabled (`POST /v1/caas/{id}/previews/enable`).\n\nReturns `202` with the preview in `building`; poll `GET /v1/caas/{id}/previews/{name}`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": true,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "source",
+        "key": "source",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "The connected repository of production (`GET /v1/caas/{id}/sources`)."
+      },
+      {
+        "flag": "ref",
+        "key": "ref",
+        "in": "body",
+        "type": "string",
+        "required": true,
+        "description": "The branch of the pull request."
+      },
+      {
+        "flag": "name",
+        "key": "name",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Defaults to the branch, shortened. It becomes the address: `<name>.<cluster name>`."
+      },
+      {
+        "flag": "base-stack",
+        "key": "base_stack",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Defaults to the source target stack."
+      },
+      {
+        "flag": "service",
+        "key": "service",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Defaults to the source target service."
+      },
+      {
+        "flag": "pr-url",
+        "key": "pr_url",
+        "in": "body",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "ttl-hours",
+        "key": "ttl_hours",
+        "in": "body",
+        "type": "number",
+        "required": false,
+        "description": "Defaults to 24."
+      },
+      {
+        "flag": "database",
+        "key": "database",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Give the preview its own empty database instead of the production one."
+      },
+      {
+        "flag": "shared-secrets",
+        "key": "shared_secrets",
+        "in": "body",
+        "type": "boolean",
+        "required": false,
+        "description": "Without `database`, a production stack with secrets is refused: the preview would share them, database included. `true` says none of them leads to production data."
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
+      "preview",
+      "close"
+    ],
+    "operationId": "caas.previews.delete",
+    "summary": "Close a preview",
+    "description": "Removes what the preview created —its stack, its secret, its database— and nothing else. Answers `202` with the preview in `closing`.",
+    "danger": "reversible",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:deploy",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "preview",
+      "enable"
+    ],
+    "operationId": "caas.previews.enable",
+    "summary": "Enable previews on a service",
+    "description": "Once per service: publishes the wildcard `*.<cluster name>`, issues its certificate and routes it on every node, then checks TLS through each one. After that, opening a preview touches neither DNS nor certificates. Running it again only checks again.",
+    "danger": "reversible",
+    "longRunning": true,
+    "deprecated": false,
+    "scope": "caas:write",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "preview",
+      "get"
+    ],
+    "operationId": "caas.previews.get",
+    "summary": "Get a preview",
+    "description": "An open preview, with its status, address, latest build and error.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      },
+      {
+        "label": "name",
+        "in": "path",
+        "key": "name",
+        "required": true
+      }
+    ],
+    "flags": []
+  },
+  {
+    "path": [
+      "caas",
+      "preview",
+      "list"
+    ],
+    "operationId": "caas.previews.list",
+    "summary": "List the previews of a service",
+    "description": "The open ones, whether previews are enabled, and how many may be open at once.",
+    "danger": "none",
+    "longRunning": false,
+    "deprecated": false,
+    "scope": "caas:read",
+    "bodyRequired": false,
+    "freeformBody": false,
+    "positionals": [
+      {
+        "label": "service_id",
+        "in": "path",
+        "key": "id",
+        "required": true
+      }
+    ],
+    "flags": [
+      {
+        "flag": "closed",
+        "key": "closed",
+        "in": "query",
+        "type": "string",
+        "required": false,
+        "values": [
+          "true",
+          "false"
+        ]
+      }
+    ]
+  },
+  {
+    "path": [
+      "caas",
       "registry",
       "delete"
     ],
@@ -1622,7 +1874,7 @@ export const COMMANDS: CommandSpec[] = [
     ],
     "operationId": "caas.sources.build",
     "summary": "Build a connected repository now",
-    "description": "The latest commit of its branch, with its settings. If a build of this source is already waiting, that one is returned (`coalesced: true`).\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.",
+    "description": "The latest commit of its branch, with its settings. `ref` builds another branch or tag and `deploy` sends the image elsewhere (`null` = build only); a different `ref` without `deploy` builds only, so a branch never lands on the source stack unless you name it. If a build of this source for the same branch and target is already waiting, that one is returned (`coalesced: true`).\n\nThe build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.\n\nWith `deploy`, a successful build is deployed as a new version of that stack service; the stack must already be deployed with that service, or the request fails with `400 validation_failed` before anything is queued. A build that ends `succeeded` with an `error` built the image but could not deploy it.\n\nReturns `202` with the build; poll `GET /v1/caas/{id}/builds/{number}` (or its `/log`) until it finishes. It is not an operation.",
     "danger": "reversible",
     "longRunning": false,
     "deprecated": false,
@@ -1643,7 +1895,24 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "ref",
+        "key": "ref",
+        "in": "body",
+        "type": "string",
+        "required": false,
+        "description": "Another branch or tag of the repository. Defaults to the source `branch`. A different `ref` without `deploy` builds only: a branch never lands on the source stack unless you name that stack."
+      },
+      {
+        "flag": "deploy",
+        "key": "deploy",
+        "in": "body",
+        "type": "json",
+        "required": false,
+        "description": "Where the image goes when the build succeeds, instead of the source target. `null` = build only."
+      }
+    ]
   },
   {
     "path": [

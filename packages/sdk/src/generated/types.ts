@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.12.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.13.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -979,6 +979,8 @@ export type CaasBuild = {
   pruned: boolean;
   /** The `id` of the source it built, if any. */
   source_id: string | null;
+  /** The preview environment that asked for it, if any. */
+  preview: string | null;
 };
 
 export type CaasBuildList = {
@@ -1017,9 +1019,9 @@ export type CaasStartBuildRequest = {
   deploy?: {
     stack: string;
     service: string;
-  };
+  } | null;
   /**
-   * Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. Nothing else may be sent with it.
+   * Build a connected repository (`GET /v1/caas/{id}/sources`) with its own settings, instead of `repo`. With it, only `ref` and `deploy` may be sent, as in `POST /v1/caas/{id}/sources/{name}/build`.
    */
   source?: string;
 };
@@ -1110,7 +1112,7 @@ export type CaasCreateSourceRequest = {
   deploy?: {
     stack: string;
     service: string;
-  };
+  } | null;
   /** Defaults to `true`. */
   auto_deploy?: boolean;
 };
@@ -1132,6 +1134,18 @@ export type CaasUpdateSourceRequest = {
   auto_deploy?: boolean;
   /** `git` only: forget the pinned SSH host key; the next clone pins the server's current one. */
   reset_host_key?: boolean;
+};
+
+export type CaasSourceBuildRequest = {
+  /**
+   * Another branch or tag of the repository. Defaults to the source `branch`. A different `ref` without `deploy` builds only: a branch never lands on the source stack unless you name that stack.
+   */
+  ref?: string;
+  /** Where the image goes when the build succeeds, instead of the source target. `null` = build only. */
+  deploy?: {
+    stack: string;
+    service: string;
+  } | null;
 };
 
 export type CaasGithub = {
@@ -1157,6 +1171,97 @@ export type CaasGithubInstallLink = {
   url: string;
   /** One hour after it was issued. */
   expires_at: string | null;
+};
+
+export type CaasPreview = {
+  object: "caas_preview";
+  name: string;
+  /**
+   * `building` (the branch is building) → `deploying` → `ready` (the address answers over HTTPS) | `failed` (see `error`; a new push or `POST …/build` tries again). `closing` → `closed` once its stack, secret and database are gone.
+   */
+  status: "building" | "deploying" | "ready" | "failed" | "closing" | "closed" | "unknown";
+  /** Where it answers. */
+  url: string;
+  /** The branch it builds. */
+  ref: string;
+  /** The connected repository it builds from. */
+  source: string | null;
+  /** The production stack its compose file is derived from. */
+  base_stack: string;
+  /** The service of `base_stack` that runs the built image. */
+  service: string;
+  /** Its own stack, `pv-<name>`. */
+  stack: string;
+  pr_url: string | null;
+  /** Its own empty database, when it was opened with one. Never the URL or the password. */
+  database: {
+    dbaas_service_id: string;
+    /** The preview secret that holds its URL, mounted with the production secret name. */
+    secret: string;
+    database: string;
+    user: string;
+  } | null;
+  /** The `number` of its latest build. */
+  last_build: number | null;
+  last_commit: string | null;
+  error: string | null;
+  /** Hours without a push before it closes by itself. */
+  ttl_hours: number;
+  expires_at: string | null;
+  ready_at: string | null;
+  closed_at: string | null;
+  /** `api`, `expired`, or the state the service went to. */
+  closed_reason: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type CaasPreviewList = {
+  object: "list";
+  data: CaasPreview[];
+  has_more: false;
+  next_cursor: null;
+  /** Previews were enabled on this service (`POST …/previews/enable`). */
+  enabled: boolean;
+  /** How many may be open at once. */
+  limit: number;
+  wildcard: string;
+};
+
+export type CaasOpenPreviewRequest = {
+  /** The connected repository of production (`GET /v1/caas/{id}/sources`). */
+  source: string;
+  /** The branch of the pull request. */
+  ref: string;
+  /** Defaults to the branch, shortened. It becomes the address: `<name>.<cluster name>`. */
+  name?: string;
+  /** Defaults to the source target stack. */
+  base_stack?: string;
+  /** Defaults to the source target service. */
+  service?: string;
+  pr_url?: string;
+  /** Defaults to 24. */
+  ttl_hours?: number;
+  /** Give the preview its own empty database instead of the production one. */
+  database?: {
+    /** A PostgreSQL DBaaS service of the same account. */
+    dbaas_service_id: string;
+    /** The secret of `base_stack` that holds the database URL. */
+    secret: string;
+  };
+  /**
+   * Without `database`, a production stack with secrets is refused: the preview would share them, database included. `true` says none of them leads to production data.
+   */
+  shared_secrets?: boolean;
+};
+
+export type CaasPreviewBuild = {
+  object: "caas_preview_build";
+  preview: string;
+  /** Follow it in `GET /v1/caas/{id}/builds/{number}`. */
+  build: number | null;
+  /** A build of this preview was already waiting and builds the latest push too. */
+  coalesced: boolean;
 };
 
 export type LbReplica = {
@@ -3049,6 +3154,11 @@ export type CaasEnvReplaceBody = {
 export type CaasInstancesListQuery = {
   limit?: string;
   cursor?: string;
+};
+
+/** Query parameters of `GET /v1/caas/{id}/previews`. */
+export type CaasPreviewsListQuery = {
+  closed?: "true" | "false";
 };
 
 /** Body of `PUT /v1/caas/{id}/registries/{server}`. */
