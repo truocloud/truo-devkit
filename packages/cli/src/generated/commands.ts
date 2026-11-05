@@ -6471,7 +6471,15 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "path": [
@@ -7195,6 +7203,13 @@ export const COMMANDS: CommandSpec[] = [
     ],
     "flags": [
       {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
         "flag": "type",
         "key": "type",
         "in": "query",
@@ -7451,7 +7466,15 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "path": [
@@ -7482,7 +7505,15 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "path": [
@@ -7594,6 +7625,13 @@ export const COMMANDS: CommandSpec[] = [
         "in": "query",
         "type": "string",
         "required": false
+      },
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
       }
     ]
   },
@@ -7659,7 +7697,15 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "path": [
@@ -8354,7 +8400,15 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "path": [
@@ -8385,7 +8439,15 @@ export const COMMANDS: CommandSpec[] = [
         "required": true
       }
     ],
-    "flags": []
+    "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      }
+    ]
   },
   {
     "path": [
@@ -8494,6 +8556,13 @@ export const COMMANDS: CommandSpec[] = [
       {
         "flag": "cursor",
         "key": "cursor",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
+      {
+        "flag": "staging",
+        "key": "staging",
         "in": "query",
         "type": "string",
         "required": false
@@ -8612,6 +8681,13 @@ export const COMMANDS: CommandSpec[] = [
       }
     ],
     "flags": [
+      {
+        "flag": "staging",
+        "key": "staging",
+        "in": "query",
+        "type": "string",
+        "required": false
+      },
       {
         "flag": "command",
         "key": "command",

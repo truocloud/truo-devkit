@@ -2297,8 +2297,8 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Scope: `wordpress:write`
          */
-        flush: (id: string, params?: RequestOptions) =>
-          call<T.Operation>("wordpress.cache.flush", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        flush: (id: string, params?: T.WordpressCacheFlushQuery & RequestOptions) =>
+          call<T.Operation>("wordpress.cache.flush", { path: { id }, body: undefined, queryKeys: ["staging"], params }),
       },
       cdn: {
         /**
@@ -2536,7 +2536,7 @@ export function createResources(call: Call, paginate: Paginate) {
          * Scope: `wordpress:read`
          */
         get: (id: string, params?: T.WordpressLogsGetQuery & RequestOptions) =>
-          call<T.WordpressLogs>("wordpress.logs.get", { path: { id }, body: undefined, queryKeys: ["type", "lines"], params }),
+          call<T.WordpressLogs>("wordpress.logs.get", { path: { id }, body: undefined, queryKeys: ["staging", "type", "lines"], params }),
       },
       monitoring: {
         /**
@@ -2597,15 +2597,15 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Scope: `wordpress:write`
          */
-        activate: (id: string, slug: string, params?: RequestOptions) =>
-          call<T.Operation>("wordpress.plugins.activate", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        activate: (id: string, slug: string, params?: T.WordpressPluginsActivateQuery & RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.activate", { path: { id, slug }, body: undefined, queryKeys: ["staging"], params }),
         /**
          * Deactivate a plugin
          * 
          * Scope: `wordpress:write`
          */
-        deactivate: (id: string, slug: string, params?: RequestOptions) =>
-          call<T.Operation>("wordpress.plugins.deactivate", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        deactivate: (id: string, slug: string, params?: T.WordpressPluginsDeactivateQuery & RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.deactivate", { path: { id, slug }, body: undefined, queryKeys: ["staging"], params }),
         /**
          * Delete a plugin
          * Removes its files. Its settings stay in the database, as WordPress does.
@@ -2629,14 +2629,14 @@ export function createResources(call: Call, paginate: Paginate) {
          * Scope: `wordpress:read`
          */
         list: (id: string, params?: T.WordpressPluginsListQuery & RequestOptions) =>
-          call<T.WordpressExtensionList>("wordpress.plugins.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+          call<T.WordpressExtensionList>("wordpress.plugins.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor", "staging"], params }),
         /**
          * Iterates **all** pages of `wordpress.plugins.list`, following the cursor on its own.
          * A `for await` over this never drops results by forgetting `next_cursor`.
          */
         listAll: (id: string, params?: T.WordpressPluginsListQuery & RequestOptions) =>
           paginate<T.WordpressExtension>(
-            "wordpress.plugins.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+            "wordpress.plugins.list", { path: { id }, queryKeys: ["limit", "cursor", "staging"], params },
           ),
         /**
          * Search wordpress.org for plugins
@@ -2650,8 +2650,8 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Scope: `wordpress:write`
          */
-        update: (id: string, slug: string, params?: RequestOptions) =>
-          call<T.Operation>("wordpress.plugins.update", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        update: (id: string, slug: string, params?: T.WordpressPluginsUpdateQuery & RequestOptions) =>
+          call<T.Operation>("wordpress.plugins.update", { path: { id, slug }, body: undefined, queryKeys: ["staging"], params }),
         /**
          * Update every plugin with an update available
          * 
@@ -2831,16 +2831,16 @@ export function createResources(call: Call, paginate: Paginate) {
        * 
        * Scope: `wordpress:read`
        */
-      status: (id: string, params?: RequestOptions) =>
-        call<T.WordpressStatus>("wordpress.status", { path: { id }, body: undefined, queryKeys: undefined, params }),
+      status: (id: string, params?: T.WordpressStatusQuery & RequestOptions) =>
+        call<T.WordpressStatus>("wordpress.status", { path: { id }, body: undefined, queryKeys: ["staging"], params }),
       themes: {
         /**
          * Activate a theme
          * 
          * Scope: `wordpress:write`
          */
-        activate: (id: string, slug: string, params?: RequestOptions) =>
-          call<T.Operation>("wordpress.themes.activate", { path: { id, slug }, body: undefined, queryKeys: undefined, params }),
+        activate: (id: string, slug: string, params?: T.WordpressThemesActivateQuery & RequestOptions) =>
+          call<T.Operation>("wordpress.themes.activate", { path: { id, slug }, body: undefined, queryKeys: ["staging"], params }),
         /**
          * Delete a theme
          * The active theme cannot be deleted: activate another one first.
@@ -2864,14 +2864,14 @@ export function createResources(call: Call, paginate: Paginate) {
          * Scope: `wordpress:read`
          */
         list: (id: string, params?: T.WordpressThemesListQuery & RequestOptions) =>
-          call<T.WordpressExtensionList>("wordpress.themes.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor"], params }),
+          call<T.WordpressExtensionList>("wordpress.themes.list", { path: { id }, body: undefined, queryKeys: ["limit", "cursor", "staging"], params }),
         /**
          * Iterates **all** pages of `wordpress.themes.list`, following the cursor on its own.
          * A `for await` over this never drops results by forgetting `next_cursor`.
          */
         listAll: (id: string, params?: T.WordpressThemesListQuery & RequestOptions) =>
           paginate<T.WordpressExtension>(
-            "wordpress.themes.list", { path: { id }, queryKeys: ["limit", "cursor"], params },
+            "wordpress.themes.list", { path: { id }, queryKeys: ["limit", "cursor", "staging"], params },
           ),
         /**
          * Search wordpress.org for themes
@@ -2903,8 +2903,8 @@ export function createResources(call: Call, paginate: Paginate) {
          * Scope: `wordpress:console`
          * **Destructive: there is no undo.**
          */
-        run: (id: string, body: T.WordpressWpcliRunBody, params?: RequestOptions) =>
-          call<T.Operation>("wordpress.wpcli.run", { path: { id }, body: body, queryKeys: undefined, params }),
+        run: (id: string, body: T.WordpressWpcliRunBody, params?: T.WordpressWpcliRunQuery & RequestOptions) =>
+          call<T.Operation>("wordpress.wpcli.run", { path: { id }, body: body, queryKeys: ["staging"], params }),
       },
     },
   };

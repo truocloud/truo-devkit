@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TruoCloud API",
-    "version": "1.11.0",
+    "version": "1.12.0",
     "description": "The TruoCloud public API. Every infrastructure resource in an account —VPS, DNS, databases, containers, load balancers, Object Storage, Mail Gateway, Image Services, serverless primitives, and managed WordPress— manageable over HTTP, through the `truo` CLI, and via MCP. Since v1.2 the account can also **order** products and receive **webhooks**, so the whole lifecycle —buy, operate, cancel— fits in a script. Since v1.3, **recipes** turn a fresh WordPress into your stack (pinned plugins, config, roles, generated secrets) in one operation. Since v1.4, an Enterprise CaaS service —a three-node cluster— deploys docker-compose **stacks** with versions and rollback, secrets, private registries, and its own domains.\n\n## Authentication\n\nBearer token: `Authorization: Bearer tc_live_...`. Keys are created from the panel or with `POST /v1/api-keys` using a session.\n\nAn API key can **never** create, modify, or revoke API keys, nor manage users — not even with the `*` scope. That is what makes revoking a key final.\n\nA key's effective authority is the intersection of four things: its scopes, the permissions of the user who created it, that user's per-service permissions, and the key's service allowlist. If a permission is revoked from the user who created the key, the key loses it too.\n\n## Conventions\n\n- IDs are returned with a typed prefix (`svc_10432`); they are accepted with or without it.\n- Pagination uses an opaque cursor (`?limit=&cursor=`). There is no total count.\n- Every mutation accepts `Idempotency-Key`. Only 2xx responses are stored.\n- Every response carries `X-Request-Id`; include it when reporting a problem.\n- Long-running work returns `202` + `Location: /v1/operations/{id}`.",
     "contact": {
       "name": "TruoCloud Support",
@@ -35972,6 +35972,16 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "responses": {
@@ -36230,6 +36240,16 @@
           {
             "schema": {
               "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "enum": [
                 "runtime",
                 "error",
@@ -36391,6 +36411,16 @@
             },
             "required": false,
             "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
             "in": "query"
           }
         ],
@@ -36945,6 +36975,16 @@
             "required": true,
             "name": "slug",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "responses": {
@@ -37087,6 +37127,16 @@
             "required": true,
             "name": "slug",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "responses": {
@@ -37229,6 +37279,16 @@
             "required": true,
             "name": "slug",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "responses": {
@@ -37514,6 +37574,16 @@
             },
             "required": false,
             "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
             "in": "query"
           }
         ],
@@ -38068,6 +38138,16 @@
             "required": true,
             "name": "slug",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "responses": {
@@ -38479,6 +38559,16 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "responses": {
@@ -43607,6 +43697,16 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "Name of one of the site's staging environments (`GET /v1/wordpress/{id}/staging`). The call runs on that clone instead of the live site.",
+              "example": "fix-header"
+            },
+            "required": false,
+            "name": "staging",
+            "in": "query"
           }
         ],
         "requestBody": {

@@ -6,7 +6,7 @@
 // of truth), regenerate the spec there, 'bun run sync:spec' here, then 'bun run gen'.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.11.0). */
+/** Contract types for `api.truo.cloud/v1` (OpenAPI 1.12.0). */
 
 export type Capabilities = {
   object: "capabilities";
@@ -3580,6 +3580,11 @@ export type WordpressBackupsSettingsUpdateBody = {
   retention_days: number;
 };
 
+/** Query parameters of `POST /v1/wordpress/{id}/cache/flush`. */
+export type WordpressCacheFlushQuery = {
+  staging?: string;
+};
+
 /** Query parameters of `GET /v1/wordpress/{id}/cloudflare/records`. */
 export type WordpressCloudflareRecordsGetQuery = {
   domain: string;
@@ -3619,6 +3624,7 @@ export type WordpressListQuery = {
 
 /** Query parameters of `GET /v1/wordpress/{id}/logs`. */
 export type WordpressLogsGetQuery = {
+  staging?: string;
   type?: "runtime" | "error" | "access" | "server" | "php";
   lines?: string;
 };
@@ -3642,6 +3648,16 @@ export type WordpressPhpVersionSetBody = {
   version: "8.1" | "8.2" | "8.3";
 };
 
+/** Query parameters of `POST /v1/wordpress/{id}/plugins/{slug}/activate`. */
+export type WordpressPluginsActivateQuery = {
+  staging?: string;
+};
+
+/** Query parameters of `POST /v1/wordpress/{id}/plugins/{slug}/deactivate`. */
+export type WordpressPluginsDeactivateQuery = {
+  staging?: string;
+};
+
 /** Body of `POST /v1/wordpress/{id}/plugins`. */
 export type WordpressPluginsInstallBody = {
   /** A wordpress.org slug, or an `https://` URL to a zip. */
@@ -3654,11 +3670,17 @@ export type WordpressPluginsInstallBody = {
 export type WordpressPluginsListQuery = {
   limit?: string;
   cursor?: string;
+  staging?: string;
 };
 
 /** Query parameters of `GET /v1/wordpress/{id}/plugins/search`. */
 export type WordpressPluginsSearchQuery = {
   q: string;
+};
+
+/** Query parameters of `POST /v1/wordpress/{id}/plugins/{slug}/update`. */
+export type WordpressPluginsUpdateQuery = {
+  staging?: string;
 };
 
 /** Body of `POST /v1/wordpress/{id}/recipes/apply`. */
@@ -3697,6 +3719,16 @@ export type WordpressStagingPushBody = {
   files?: boolean;
 };
 
+/** Query parameters of `GET /v1/wordpress/{id}/status`. */
+export type WordpressStatusQuery = {
+  staging?: string;
+};
+
+/** Query parameters of `POST /v1/wordpress/{id}/themes/{slug}/activate`. */
+export type WordpressThemesActivateQuery = {
+  staging?: string;
+};
+
 /** Body of `POST /v1/wordpress/{id}/themes`. */
 export type WordpressThemesInstallBody = {
   /** A wordpress.org slug, or an `https://` URL to a zip. */
@@ -3709,6 +3741,7 @@ export type WordpressThemesInstallBody = {
 export type WordpressThemesListQuery = {
   limit?: string;
   cursor?: string;
+  staging?: string;
 };
 
 /** Query parameters of `GET /v1/wordpress/{id}/themes/search`. */
@@ -3724,4 +3757,9 @@ export type WordpressWpcliRunBody = {
   command: string;
   /** Extra arguments, one per element. Quoted for you. */
   args?: string[];
+};
+
+/** Query parameters of `POST /v1/wordpress/{id}/wp-cli`. */
+export type WordpressWpcliRunQuery = {
+  staging?: string;
 };
