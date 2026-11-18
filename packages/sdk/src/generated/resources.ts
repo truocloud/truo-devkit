@@ -96,6 +96,104 @@ export function createResources(call: Call, paginate: Paginate) {
         ),
     },
     caas: {
+      addons: {
+        /**
+         * What databases and caches a service can create
+         * The engines, where each can run on this service (`local`: inside its machine; `managed`: in a managed PostgreSQL service of the account) and the memory the plan leaves for `local` ones.
+         * 
+         * Scope: `caas:read`
+         */
+        catalog: (id: string, params?: RequestOptions) =>
+          call<T.CaasAddonCatalog>("caas.addons.catalog", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Connect a database or cache to a stack service
+         * Sets an environment variable of that service to the `reference` and deploys the stack: a new version of it, nothing else of its compose changes. The stored compose keeps the reference, not the value.
+         * 
+         * Requires `caas:deploy`.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`.
+         * 
+         * Scope: `caas:deploy`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        connect: (id: string, name: string, body: T.CaasAddonsConnectBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.addons.connect", { path: { id, name }, body: body, queryKeys: undefined, params }),
+        /**
+         * Create a database or cache
+         * PostgreSQL, MySQL or a Valkey cache, ready to use from the stacks of the service.
+         * 
+         * `local` runs the engine inside the service’s machine with its data on that disk, and counts against the plan’s memory. **Its only backup is the machine’s daily one**: no point-in-time restore. It exists on one-node services only. `managed` creates a database in a managed PostgreSQL service of the same account (`dbaas_service_id`), with that service’s backups.
+         * 
+         * The platform generates the password and no endpoint returns it. To use it, write the `reference` as the value of an environment variable in a compose file, or call `POST /v1/caas/{id}/addons/{name}/connect`.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        create: (id: string, body: T.CaasAddonsCreateBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.addons.create", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Delete a database or cache
+         * **Destructive: the data is deleted.** `confirm` must repeat the name. Refused with `400 validation_failed` while a stack references it: remove the variable from that compose and deploy first.
+         * 
+         * For a `local` one, the only copy left is the machine’s last daily backup (`result.last_machine_backup_at`), for as long as it is retained.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`.
+         * 
+         * Scope: `caas:write`
+         * **Destructive: there is no undo.**
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        delete: (id: string, name: string, params?: T.CaasAddonsDeleteQuery & RequestOptions) =>
+          call<T.Operation>("caas.addons.delete", { path: { id, name }, body: undefined, queryKeys: ["confirm"], params }),
+        /**
+         * Get a database or cache
+         * Adds the stacks that use it and, for a `local` one, when the machine was last backed up.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasAddonDetail>("caas.addons.get", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List a service's databases and caches
+         * Where each one answers and the `reference` to use it from a compose file. **Never the password.**
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: RequestOptions) =>
+          call<T.CaasAddonList>("caas.addons.list", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Iterates **all** pages of `caas.addons.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: RequestOptions) =>
+          paginate<T.CaasAddon>(
+            "caas.addons.list", { path: { id }, queryKeys: undefined, params },
+          ),
+        /**
+         * Change the password of a database or cache
+         * Generates a new password and deploys again the stacks that use it, so they receive it. `result.failed` lists the stacks that could not be redeployed: they keep the old password and stop connecting until they are deployed again.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        rotate: (id: string, name: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.addons.rotate", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Change the memory of a database or cache
+         * `local` only: the memory of a `managed` one is set by the plan of its service. The engine restarts with the new cap. Refused with `400 validation_failed` if the plan does not have that much memory left.
+         * 
+         * Returns `202` with an operation. Fast outcomes come back already finished; otherwise wait on `GET /v1/operations/{id}`.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        update: (id: string, name: string, body: T.CaasAddonsUpdateBody, params?: RequestOptions) =>
+          call<T.Operation>("caas.addons.update", { path: { id, name }, body: body, queryKeys: undefined, params }),
+      },
       apps: {
         /**
          * Create an app
@@ -565,6 +663,69 @@ export function createResources(call: Call, paginate: Paginate) {
             "caas.instances.list", { path: undefined, queryKeys: ["limit", "cursor"], params },
           ),
       },
+      previews: {
+        /**
+         * Rebuild a preview
+         * The same as a push to its branch: builds the latest commit, deploys it and pushes its expiry back.
+         * 
+         * Scope: `caas:deploy`
+         */
+        build: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasPreviewBuild>("caas.previews.build", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Open a preview of a branch
+         * Builds `ref` from the production `source` and, when it succeeds, runs it in its own stack `pv-<name>` with the compose file of the running `base_stack`: one replica per service, every route to `https://<name>.<cluster name>`, `TRUO_PREVIEW=<name>` in every service (so the app can turn off real emails or jobs with side effects) and new, empty volumes. With `database`, it also gets its own empty PostgreSQL database, mounted under the production secret name; the app runs its migrations on start.
+         * 
+         * A push to `ref` rebuilds it and pushes its expiry back; after `ttl_hours` (24 by default) without one, it closes by itself. Up to 3 may be open per service. Requires previews enabled (`POST /v1/caas/{id}/previews/enable`).
+         * 
+         * Returns `202` with the preview in `building`; poll `GET /v1/caas/{id}/previews/{name}`.
+         * 
+         * Scope: `caas:deploy`
+         */
+        create: (id: string, body: T.CaasOpenPreviewRequest, params?: RequestOptions) =>
+          call<T.CaasPreview>("caas.previews.create", { path: { id }, body: body, queryKeys: undefined, params }),
+        /**
+         * Close a preview
+         * Removes what the preview created —its stack, its secret, its database— and nothing else. Answers `202` with the preview in `closing`.
+         * 
+         * Scope: `caas:deploy`
+         */
+        delete: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasPreview>("caas.previews.delete", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Enable previews on a service
+         * Once per service: publishes the wildcard `*.<cluster name>`, issues its certificate and routes it on every node, then checks TLS through each one. After that, opening a preview touches neither DNS nor certificates. Running it again only checks again.
+         * 
+         * Scope: `caas:write`
+         * Returns an asynchronous operation; await it with `operations.wait()`.
+         */
+        enable: (id: string, params?: RequestOptions) =>
+          call<T.Operation>("caas.previews.enable", { path: { id }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * Get a preview
+         * An open preview, with its status, address, latest build and error.
+         * 
+         * Scope: `caas:read`
+         */
+        get: (id: string, name: string, params?: RequestOptions) =>
+          call<T.CaasPreview>("caas.previews.get", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        /**
+         * List the previews of a service
+         * The open ones, whether previews are enabled, and how many may be open at once.
+         * 
+         * Scope: `caas:read`
+         */
+        list: (id: string, params?: T.CaasPreviewsListQuery & RequestOptions) =>
+          call<T.CaasPreviewList>("caas.previews.list", { path: { id }, body: undefined, queryKeys: ["closed"], params }),
+        /**
+         * Iterates **all** pages of `caas.previews.list`, following the cursor on its own.
+         * A `for await` over this never drops results by forgetting `next_cursor`.
+         */
+        listAll: (id: string, params?: T.CaasPreviewsListQuery & RequestOptions) =>
+          paginate<T.CaasPreview>(
+            "caas.previews.list", { path: { id }, queryKeys: ["closed"], params },
+          ),
+      },
       registries: {
         /**
          * Delete private registry credentials
@@ -640,7 +801,7 @@ export function createResources(call: Call, paginate: Paginate) {
       sources: {
         /**
          * Build a connected repository now
-         * The latest commit of its branch, with its settings. If a build of this source is already waiting, that one is returned (`coalesced: true`).
+         * The latest commit of its branch, with its settings. `ref` builds another branch or tag and `deploy` sends the image elsewhere (`null` = build only); a different `ref` without `deploy` builds only, so a branch never lands on the source stack unless you name it. If a build of this source for the same branch and target is already waiting, that one is returned (`coalesced: true`).
          * 
          * The build runs inside your own cluster: with the Dockerfile if the repository has one, otherwise with automatic detection (Railpack). It is capped at 30 minutes. One build runs at a time per cluster and up to 5 wait in the queue; a sixth is refused with `400 validation_failed`. The image is stored by digest in the cluster registry (`image`), so rolling a stack back brings back the same bytes.
          * 
@@ -650,8 +811,8 @@ export function createResources(call: Call, paginate: Paginate) {
          * 
          * Scope: `caas:deploy`
          */
-        build: (id: string, name: string, params?: RequestOptions) =>
-          call<T.CaasBuildStarted>("caas.sources.build", { path: { id, name }, body: undefined, queryKeys: undefined, params }),
+        build: (id: string, name: string, body?: T.CaasSourceBuildRequest, params?: RequestOptions) =>
+          call<T.CaasBuildStarted>("caas.sources.build", { path: { id, name }, body: body, queryKeys: undefined, params }),
         /**
          * Connect a repository
          * A source is a private repository this service builds from, by API or on every push.
